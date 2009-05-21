@@ -60,6 +60,7 @@
 #include <linux/eventfd.h>
 #include <linux/poll.h>
 #include <linux/flex_array.h> /* used in cgroup_attach_proc */
+#include <linux/capability.h>
 
 #include <linux/atomic.h>
 
@@ -1841,6 +1842,15 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 				 */
 				failed_ss = ss;
 				goto out;
+			}
+		} else if (!capable(CAP_SYS_ADMIN)) {
+			const struct cred *cred = current_cred(), *tcred;
+
+			/* No can_attach() - check perms generically */
+			tcred = __task_cred(tsk);
+			if (cred->euid != tcred->uid &&
+			    cred->euid != tcred->suid) {
+				return -EACCES;
 			}
 		}
 		if (ss->can_attach_task) {
