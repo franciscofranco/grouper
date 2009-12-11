@@ -117,6 +117,7 @@ struct usb_function {
 	struct usb_descriptor_header	**ss_descriptors;
 
 	struct usb_configuration	*config;
+	int				hidden;
 
 	/* REVISIT:  bind() functions can be marked __init, which
 	 * makes trouble for section mismatch analysis.  See if

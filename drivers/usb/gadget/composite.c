@@ -404,7 +404,7 @@ static int config_buf(struct usb_configuration *config,
 			descriptors = f->descriptors;
 		}
 
-		if (!descriptors || descriptors[0] == NULL) {
+		if (f->hidden || !descriptors || descriptors[0] == NULL) {
 			for (; f != config->interface[interfaceCount];) {
 				interfaceCount++;
 				c->bNumInterfaces--;
