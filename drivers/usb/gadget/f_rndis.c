@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
+#include <linux/usb/android_composite.h>
 
 #include <linux/atomic.h>
 
@@ -932,3 +933,33 @@ fail:
 	}
 	return status;
 }
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+#include "rndis.c"
+
+// FIXME - using bogus MAC address for now
+
+static u8 ethaddr[ETH_ALEN] = { 11, 22, 33, 44, 55, 66 };
+
+int rndis_function_bind_config(struct usb_configuration *c)
+{
+	int ret = gether_setup(c->cdev->gadget, ethaddr);
+	if (ret == 0)
+		ret = rndis_bind_config(c, ethaddr);
+	return ret;
+}
+
+static struct android_usb_function rndis_function = {
+	.name = "rndis",
+	.bind_config = rndis_function_bind_config,
+};
+
+static int __init init(void)
+{
+	printk(KERN_INFO "f_rndis init\n");
+	android_register_function(&rndis_function);
+	return 0;
+}
+module_init(init);
+
+#endif /* CONFIG_USB_ANDROID_RNDIS */
