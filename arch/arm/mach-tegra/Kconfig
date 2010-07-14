@@ -30,7 +30,12 @@ config MACH_HARMONY
        bool "Harmony board"
        select MACH_HAS_SND_SOC_TEGRA_WM8903 if SND_SOC
        help
-         Support for nVidia Harmony development platform
+         Support for NVIDIA Harmony development platform
+
+config MACH_VENTANA
+       bool "Ventana board"
+       help
+         Support for NVIDIA Ventana development platform
 
 config MACH_KAEN
        bool "Kaen board"
