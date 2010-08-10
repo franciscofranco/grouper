@@ -2166,9 +2166,6 @@ static int fsl_stop(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc_controller->driver || !driver->unbind)
 		return -EINVAL;
 
-	if (udc_controller->transceiver)
-		otg_set_peripheral(udc_controller->transceiver, NULL);
-
 	/* stop DR, disable intr */
 	dr_controller_stop(udc_controller);
 
@@ -2783,8 +2780,13 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	create_proc_file();
 
 #ifdef CONFIG_USB_OTG_UTILS
-	if (udc_controller->transceiver)
-		udc_controller->vbus_active = 1;
+	if (udc_controller->transceiver) {
+		dr_controller_stop(udc_controller);
+		fsl_udc_clk_suspend();
+		udc_controller->vbus_active = 0;
+		udc_controller->usb_state = USB_STATE_DEFAULT;
+		otg_set_peripheral(udc_controller->transceiver, &udc_controller->gadget);
+	}
 #else
 #ifdef CONFIG_ARCH_TEGRA
 	/* Power down the phy if cable is not connected */
@@ -2831,6 +2833,9 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&udc_controller->gadget);
 	udc_controller->done = &done;
+
+	if (udc_controller->transceiver)
+		otg_set_peripheral(udc_controller->transceiver, NULL);
 
 	fsl_udc_clk_release();
 
