@@ -147,12 +147,16 @@ static void adb_request_free(struct usb_request *req, struct usb_ep *ep)
 
 static inline int adb_lock(atomic_t *excl)
 {
+	int ret = -1;
+
+	preempt_disable();
 	if (atomic_inc_return(excl) == 1) {
-		return 0;
-	} else {
+		ret = 0;
+	} else
 		atomic_dec(excl);
-		return -1;
-	}
+
+	preempt_enable();
+	return ret;
 }
 
 static inline void adb_unlock(atomic_t *excl)
@@ -406,12 +410,28 @@ static ssize_t adb_write(struct file *fp, const char __user *buf,
 
 static int adb_open(struct inode *ip, struct file *fp)
 {
-	printk(KERN_INFO "adb_open\n");
+	static unsigned long last_print;
+	static unsigned long count = 0;
+
 	if (!_adb_dev)
 		return -ENODEV;
 
+	if (++count == 1)
+		last_print = jiffies;
+	else {
+		if (!time_before(jiffies, last_print + HZ/2))
+			count = 0;
+		last_print = jiffies;
+	}
+
 	if (adb_lock(&_adb_dev->open_excl))
+		cpu_relax();
 		return -EBUSY;
+	}
+
+	if (count < 5)
+		printk(KERN_INFO "adb_open(%s)\n", current->comm);
+
 
 	fp->private_data = _adb_dev;
 
@@ -423,7 +443,19 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 static int adb_release(struct inode *ip, struct file *fp)
 {
-	printk(KERN_INFO "adb_release\n");
+	static unsigned long last_print;
+	static unsigned long count = 0;
+
+	if (++count == 1)
+		last_print = jiffies;
+	else {
+		if (!time_before(jiffies, last_print + HZ/2))
+			count = 0;
+		last_print = jiffies;
+	}
+
+	if (count < 5)
+		printk(KERN_INFO "adb_release\n");
 	adb_unlock(&_adb_dev->open_excl);
 	return 0;
 }
