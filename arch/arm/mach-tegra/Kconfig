@@ -129,3 +129,6 @@ config TEGRA_IOVMM_GART
 
 config TEGRA_IOVMM
 	bool
+
+config TEGRA_ARB_SEMAPHORE
+	bool
