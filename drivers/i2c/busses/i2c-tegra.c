@@ -421,10 +421,14 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	}
 
 	if (unlikely(status & status_err)) {
-		if (status & I2C_INT_NO_ACK)
+		if (status & I2C_INT_NO_ACK) {
 			i2c_dev->msg_err |= I2C_ERR_NO_ACK;
-		if (status & I2C_INT_ARBITRATION_LOST)
+			dev_warn(i2c_dev->dev, " no acknowledge\n");
+		}
+		if (status & I2C_INT_ARBITRATION_LOST) {
 			i2c_dev->msg_err |= I2C_ERR_ARBITRATION_LOST;
+			dev_warn(i2c_dev->dev, " arbitration lost\n");
+		}
 		complete(&i2c_dev->msg_complete);
 		goto err;
 	}
