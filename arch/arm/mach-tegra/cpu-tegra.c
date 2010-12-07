@@ -39,12 +39,11 @@
 
 static struct cpufreq_frequency_table *freq_table;
 
-#define NUM_CPUS	2
 
 static struct clk *cpu_clk;
 static struct clk *emc_clk;
 
-static unsigned long target_cpu_speed[NUM_CPUS];
+static unsigned long target_cpu_speed[CONFIG_NR_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
 
@@ -194,7 +193,7 @@ unsigned int tegra_getspeed(unsigned int cpu)
 {
 	unsigned long rate;
 
-	if (cpu >= NUM_CPUS)
+	if (cpu >= CONFIG_NR_CPUS)
 		return 0;
 
 	rate = clk_get_rate(cpu_clk) / 1000;
@@ -311,7 +310,7 @@ static struct notifier_block tegra_cpu_pm_notifier = {
 
 static int tegra_cpu_init(struct cpufreq_policy *policy)
 {
-	if (policy->cpu >= NUM_CPUS)
+	if (policy->cpu >= CONFIG_NR_CPUS)
 		return -EINVAL;
 
 	cpu_clk = clk_get_sys(NULL, "cpu");
