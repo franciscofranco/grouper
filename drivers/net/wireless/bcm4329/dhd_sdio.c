@@ -58,6 +58,10 @@
 #include <dhdioctl.h>
 #include <sdiovar.h>
 
+#ifdef CONFIG_HAS_WAKELOCK
+#include <linux/wakelock.h>
+#endif
+
 #ifdef DHD_DEBUG
 #include <hndrte_cons.h>
 #endif /* DHD_DEBUG */
@@ -4125,6 +4129,9 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	/* Handle host mailbox indication */
 	if (intstatus & I_HMB_HOST_INT) {
+#ifdef CONFIG_HAS_WAKELOCK
+		wake_lock_timeout(&bus->dhd->wow_wakelock, 3*HZ);
+#endif
 		intstatus &= ~I_HMB_HOST_INT;
 		intstatus |= dhdsdio_hostmail(bus);
 	}
@@ -4157,6 +4164,9 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	/* On frame indication, read available frames */
 	if (PKT_AVAILABLE()) {
+#ifdef CONFIG_HAS_WAKELOCK
+		wake_lock_timeout(&bus->dhd->wow_wakelock, 3*HZ);
+#endif
 		framecnt = dhdsdio_readframes(bus, rxlimit, &rxdone);
 		if (rxdone || bus->rxskip)
 			intstatus &= ~I_HMB_FRAME_IND;
