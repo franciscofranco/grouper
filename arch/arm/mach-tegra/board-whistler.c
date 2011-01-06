@@ -212,6 +212,7 @@ static struct platform_device tegra_camera = {
 
 static struct platform_device *whistler_devices[] __initdata = {
 	&debug_uart,
+	&tegra_uartb_device,
 	&tegra_uartc_device,
 	&pmu_device,
 	&tegra_udc_device,
@@ -303,6 +304,12 @@ static struct tegra_otg_platform_data tegra_otg_pdata = {
 	.host_unregister = &tegra_usb_otg_host_unregister,
 };
 
+static int __init whistler_gps_init(void)
+{
+	tegra_gpio_enable(TEGRA_GPIO_PU4);
+	return 0;
+}
+
 static void whistler_usb_init(void)
 {
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
@@ -329,6 +336,7 @@ static void __init tegra_whistler_init(void)
 	whistler_sensors_init();
 	whistler_kbc_init();
 	whistler_bt_rfkill();
+	whistler_gps_init();
 	whistler_usb_init();
 	whistler_scroll_init();
 }
