@@ -163,4 +163,9 @@ config WIFI_CONTROL_FUNC
 	help
 	  Enables Power/Reset/Carddetect function abstraction
 
+config TEGRA_CLOCK_DEBUG_WRITE
+	bool "Enable debugfs write access to clock tree"
+	depends on DEBUG_FS
+	default n
+
 endif
