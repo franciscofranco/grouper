@@ -325,5 +325,12 @@ config REGULATOR_AAT2870
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  regulator driver.
 
+config REGULATOR_TPS6591X
+	tristate "TI TPS6591X Power regulators"
+	depends on MFD_TPS6591X
+	default n
+	help
+	  This driver supports TPS6591X voltage regulator chips.
+
 endif
 
