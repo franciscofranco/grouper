@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/completion.h>
+#include <linux/switch.h>
 
 #include <mach/dc.h>
 
@@ -115,6 +116,8 @@ struct tegra_dc {
 
 	unsigned long			underflow_mask;
 	struct work_struct		reset_work;
+
+	struct switch_dev		modeset_switch;
 
 	struct completion		frame_end_complete;
 

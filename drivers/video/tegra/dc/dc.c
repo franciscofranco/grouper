@@ -33,6 +33,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/backlight.h>
+#include <linux/switch.h>
 #include <video/tegrafb.h>
 #include <drm/drm_fixed.h>
 
@@ -1655,6 +1656,9 @@ static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode
 	tegra_dc_writel(dc, PIXEL_CLK_DIVIDER_PCD1 | SHIFT_CLK_DIVIDER(div),
 			DC_DISP_DISP_CLOCK_CONTROL);
 
+	switch_set_state(&dc->modeset_switch,
+			 (mode->h_active << 16) | mode->v_active);
+
 	dc->pixel_clk = dc->mode.pclk;
 
 	return 0;
@@ -2545,6 +2549,8 @@ void tegra_dc_disable(struct tegra_dc *dc)
 			_tegra_dc_disable(dc);
 	}
 
+	switch_set_state(&dc->modeset_switch, 0);
+
 	mutex_unlock(&dc->lock);
 }
 
@@ -2594,6 +2600,16 @@ unlock:
 }
 #endif
 
+static ssize_t switch_modeset_print_mode(struct switch_dev *sdev, char *buf)
+{
+	struct tegra_dc *dc =
+		container_of(sdev, struct tegra_dc, modeset_switch);
+
+	if (!sdev->state)
+		return sprintf(buf, "offline\n");
+
+	return sprintf(buf, "%dx%d\n", dc->mode.h_active, dc->mode.v_active);
+}
 
 static int tegra_dc_probe(struct nvhost_device *ndev)
 {
@@ -2709,6 +2725,11 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	nvhost_set_drvdata(ndev, dc);
 
+	dc->modeset_switch.name = dev_name(&ndev->dev);
+	dc->modeset_switch.state = 0;
+	dc->modeset_switch.print_state = switch_modeset_print_mode;
+	switch_dev_register(&dc->modeset_switch);
+
 	if (dc->pdata->default_out)
 		tegra_dc_set_out(dc, dc->pdata->default_out);
 	else
@@ -2821,6 +2842,7 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 	if (dc->enabled)
 		_tegra_dc_disable(dc);
 
+	switch_dev_unregister(&dc->modeset_switch);
 	free_irq(dc->irq, dc);
 	clk_put(dc->emc_clk);
 	clk_put(dc->clk);
