@@ -48,3 +48,4 @@ obj-y				+= lis3lv02d/
 obj-y				+= carma/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_SENSORS_NCT1008)	+= nct1008.o
+obj-$(CONFIG_BCM4329_RFKILL)	+= bcm4329_rfkill.o

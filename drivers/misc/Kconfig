@@ -508,6 +508,12 @@ config USB_SWITCH_FSA9480
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
 
+config BCM4329_RFKILL
+	bool "Enable BCM4329 RFKILL driver"
+	default n
+	---help---
+	Adds BCM4329 RFKILL driver for Broadcom BCM4329 chipset
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
