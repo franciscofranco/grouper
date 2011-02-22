@@ -153,7 +153,7 @@ static struct tegra_ulpi_config ventana_ehci2_ulpi_phy_config = {
 
 static struct tegra_ehci_platform_data ventana_ehci2_ulpi_platform_data = {
 	.operating_mode = TEGRA_USB_HOST,
-	.power_down_on_bus_suspend = 0,
+	.power_down_on_bus_suspend = 1,
 	.phy_config = &ventana_ehci2_ulpi_phy_config,
 };
 
@@ -309,11 +309,27 @@ static int __init ventana_touch_init(void)
 }
 
 
+static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
+	[0] = {
+			.instance = 0,
+			.vbus_irq = TPS6586X_INT_BASE + TPS6586X_INT_USB_DET,
+			.vbus_gpio = TEGRA_GPIO_PD0,
+	},
+	[1] = {
+			.instance = 1,
+			.vbus_gpio = -1,
+	},
+	[2] = {
+			.instance = 2,
+			.vbus_gpio = TEGRA_GPIO_PD3,
+	},
+};
+
 static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 	[0] = {
 			.phy_config = &utmi_phy_config[0],
 			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 0,
+			.power_down_on_bus_suspend = 1,
 	},
 	[1] = {
 			.phy_config = &ulpi_phy_config,
@@ -323,7 +339,7 @@ static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 	[2] = {
 			.phy_config = &utmi_phy_config[1],
 			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 0,
+			.power_down_on_bus_suspend = 1,
 	},
 };
 
@@ -408,6 +424,8 @@ static void __init ventana_power_off_init(void)
 
 static void ventana_usb_init(void)
 {
+	tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
+
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
