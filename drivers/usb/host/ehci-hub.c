@@ -285,7 +285,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 			changed = 1;
 		}
 	}
-
+#ifndef CONFIG_ARCH_TEGRA_3x_SOC
 	if (changed && ehci->has_hostpc) {
 		spin_unlock_irq(&ehci->lock);
 		msleep(5);	/* 5 ms for HCD to enter low-power mode */
@@ -306,7 +306,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 					"succeeded" : "failed");
 		}
 	}
-
+#endif
 	/* Apparently some devices need a >= 1-uframe delay here */
 	if (ehci->bus_suspended)
 		udelay(150);
