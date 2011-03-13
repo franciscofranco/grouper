@@ -43,6 +43,7 @@
 #include <linux/kobject.h>
 #include <linux/regulator/consumer.h>
 #include <linux/ctype.h>
+#include <linux/wakelock.h>
 #include <linux/clk.h>
 
 #include <mach/tegra_odm_fuses.h>
@@ -752,6 +753,7 @@ static ssize_t fuse_store(struct kobject *kobj, struct kobj_attribute *attr,
 	struct fuse_data data = {0};
 	u32 *raw_data = ((u32 *)&data) + fuse_info_tbl[param].data_offset;
 	u8 *raw_byte_data = (u8 *)raw_data;
+	struct wake_lock fuse_wk_lock;
 
 	if ((param == -1) || (param == -ENODATA)) {
 		pr_err("%s: invalid fuse\n", __func__);
@@ -778,6 +780,10 @@ static ssize_t fuse_store(struct kobject *kobj, struct kobj_attribute *attr,
 		count -= 2;
 		buf += 2;
 	}
+
+	/* wakelock to avoid device powering down while programming */
+	wake_lock_init(&fuse_wk_lock, WAKE_LOCK_SUSPEND, "fuse_wk_lock");
+	wake_lock(&fuse_wk_lock);
 
 	/* we need to fit each character into a single nibble */
 	raw_byte_data += DIV_ROUND_UP(count, 2) - 1;
@@ -821,6 +827,8 @@ static ssize_t fuse_store(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 
 done:
+	wake_unlock(&fuse_wk_lock);
+	wake_lock_destroy(&fuse_wk_lock);
 	return orig_count;
 }
 
