@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/mach/irq.h>
 
@@ -261,7 +262,7 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 #ifdef CONFIG_PM
-void tegra_gpio_resume(void)
+static void tegra_gpio_resume(void)
 {
 	unsigned long flags;
 	int b;
@@ -285,7 +286,7 @@ void tegra_gpio_resume(void)
 	local_irq_restore(flags);
 }
 
-void tegra_gpio_suspend(void)
+static int tegra_gpio_suspend(void)
 {
 	unsigned long flags;
 	int b;
@@ -305,6 +306,8 @@ void tegra_gpio_suspend(void)
 		}
 	}
 	local_irq_restore(flags);
+
+	return 0;
 }
 
 static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
@@ -326,7 +329,21 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 }
 #else
 #define tegra_gpio_irq_set_wake NULL
+#define tegra_gpio_suspend NULL
+#define tegra_gpio_resume NULL
 #endif
+
+static struct syscore_ops tegra_gpio_syscore_ops = {
+	.suspend = tegra_gpio_suspend,
+	.resume = tegra_gpio_resume,
+};
+
+int tegra_gpio_resume_init(void)
+{
+	register_syscore_ops(&tegra_gpio_syscore_ops);
+
+	return 0;
+}
 
 static struct irq_chip tegra_gpio_irq_chip = {
 	.name		= "GPIO",
