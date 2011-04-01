@@ -103,6 +103,9 @@
 #define I2C_HEADER_MASTER_ADDR_SHIFT		12
 #define I2C_HEADER_SLAVE_ADDR_SHIFT		1
 
+#define SL_ADDR1(addr) (addr & 0xff)
+#define SL_ADDR2(addr) ((addr >> 8) & 0xff)
+
 struct tegra_i2c_dev;
 
 struct tegra_i2c_bus {
@@ -159,6 +162,7 @@ struct tegra_i2c_dev {
 	const struct tegra_pingroup_config *last_mux;
 	int last_mux_len;
 	unsigned long last_bus_clk_rate;
+	u16 slave_addr;
 	struct tegra_i2c_bus busses[1];
 };
 
@@ -364,6 +368,13 @@ static void tegra_i2c_slave_init(struct tegra_i2c_dev *i2c_dev)
 	u32 val = I2C_SL_CNFG_NEWSL | I2C_SL_CNFG_NACK;
 
 	i2c_writel(i2c_dev, val, I2C_SL_CNFG);
+
+	if (i2c_dev->slave_addr) {
+		u16 addr = i2c_dev->slave_addr;
+
+		i2c_writel(i2c_dev, SL_ADDR1(addr), I2C_SL_ADDR1);
+		i2c_writel(i2c_dev, SL_ADDR2(addr), I2C_SL_ADDR2);
+	}
 }
 
 static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
@@ -766,6 +777,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->msgs_num = 0;
 	rt_mutex_init(&i2c_dev->dev_lock);
 
+	i2c_dev->slave_addr = plat->slave_addr;
 	i2c_dev->is_dvc = plat->is_dvc;
 	init_completion(&i2c_dev->msg_complete);
 
