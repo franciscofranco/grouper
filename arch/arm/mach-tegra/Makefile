@@ -6,6 +6,7 @@ obj-y                                   += clock.o
 obj-y                                   += timer.o
 obj-y                                   += pinmux.o
 obj-y                                   += powergate.o
+obj-$(CONFIG_PM_SLEEP)			+= pm-irq.o
 obj-y					+= fuse.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += clock.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_clocks.o
