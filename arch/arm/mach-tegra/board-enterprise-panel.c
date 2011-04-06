@@ -24,6 +24,7 @@
 #include <linux/resource.h>
 #include <asm/mach-types.h>
 #include <linux/platform_device.h>
+#include <linux/earlysuspend.h>
 #include <linux/tegra_pwm_bl.h>
 #include <asm/atomic.h>
 #include <linux/nvhost.h>
@@ -702,6 +703,25 @@ static struct platform_device *enterprise_bl_devices[]  = {
 	&enterprise_disp1_backlight_device,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/* put early_suspend/late_resume handlers here for the display in order
+ * to keep the code out of the display driver, keeping it closer to upstream
+ */
+struct early_suspend enterprise_panel_early_suspender;
+
+static void enterprise_panel_early_suspend(struct early_suspend *h)
+{
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
+}
+
+static void enterprise_panel_late_resume(struct early_suspend *h)
+{
+	if (num_registered_fb > 0)
+		fb_blank(registered_fb[0], FB_BLANK_UNBLANK);
+}
+#endif
+
 int __init enterprise_panel_init(void)
 {
 	int err;
@@ -736,6 +756,13 @@ int __init enterprise_panel_init(void)
 	tegra_gpio_enable(enterprise_lcd_te);
 	gpio_request(enterprise_lcd_swp_pl, "lcd_te");
 	gpio_direction_input(enterprise_lcd_te);
+#endif
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	enterprise_panel_early_suspender.suspend = enterprise_panel_early_suspend;
+	enterprise_panel_early_suspender.resume = enterprise_panel_late_resume;
+	enterprise_panel_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	register_early_suspend(&enterprise_panel_early_suspender);
 #endif
 
 	err = platform_add_devices(enterprise_gfx_devices,
