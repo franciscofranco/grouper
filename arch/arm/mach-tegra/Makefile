@@ -105,3 +105,8 @@ obj-${CONFIG_MACH_VENTANA}              += board-ventana-panel.o
 # Cardhu
 
 # Enterprise
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise.o
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-panel.o
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-pinmux.o
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-sdhci.o
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-memory.o
