@@ -206,7 +206,7 @@ static void __init harmony_i2c_init(void)
 }
 
 /* OTG gadget device */
-static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
+/*static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
 
 
 static struct resource tegra_otg_resources[] = {
@@ -222,7 +222,7 @@ static struct resource tegra_otg_resources[] = {
 	},
 };
 
-/*static struct fsl_usb2_platform_data tegra_otg_pdata = {
+static struct fsl_usb2_platform_data tegra_otg_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 };
