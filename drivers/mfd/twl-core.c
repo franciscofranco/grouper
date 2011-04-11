@@ -58,6 +58,14 @@
 
 #define DRIVER_NAME			"twl"
 
+#if defined(CONFIG_TWL4030_BCI_BATTERY) || \
+	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE) || \
+	defined(CONFIG_TWL6030_BCI_BATTERY) || \
+	defined(CONFIG_TWL6030_BCI_BATTERY_MODULE)
+#define twl_has_bci()		true
+#else
+#define twl_has_bci()		false
+#endif
 #if defined(CONFIG_KEYBOARD_TWL4030) || defined(CONFIG_KEYBOARD_TWL4030_MODULE)
 #define twl_has_keypad()	true
 #else
@@ -77,7 +85,8 @@
 #define twl_has_regulator()	false
 #endif
 
-#if defined(CONFIG_TWL4030_MADC) || defined(CONFIG_TWL4030_MADC_MODULE)
+#if defined(CONFIG_TWL4030_MADC) || defined(CONFIG_TWL4030_MADC_MODULE) ||\
+    defined(CONFIG_TWL6030_GPADC) || defined(CONFIG_TWL6030_GPADC_MODULE)
 #define twl_has_madc()	true
 #else
 #define twl_has_madc()	false
@@ -125,7 +134,7 @@
 /* Triton Core internal information (BEGIN) */
 
 /* Last - for index max*/
-#define TWL4030_MODULE_LAST		TWL4030_MODULE_SECURED_REG
+#define TWL4030_MODULE_LAST		TWL6025_MODULE_CHARGER
 
 #define TWL_NUM_SLAVES		4
 
@@ -208,6 +217,10 @@
 #define TWL6030_BASEADD_RSV		0x0000
 #define TWL6030_BASEADD_ZERO		0x0000
 
+/* twl6030 SMPS EPROM values */
+#define TWL6030_SMPS_OFFSET		0xB0
+#define TWL6030_SMPS_MULT		0xB3
+
 /* Few power values */
 #define R_CFG_BOOT			0x05
 
@@ -239,6 +252,33 @@ unsigned int twl_rev(void)
 	return twl_id;
 }
 EXPORT_SYMBOL(twl_rev);
+
+static unsigned int twl_feat;
+unsigned int twl_features(void)
+{
+	return twl_feat;
+}
+EXPORT_SYMBOL(twl_features);
+
+u8 twl_get_smps_offset(void)
+{
+	u8 value;
+
+	twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &value,
+			TWL6030_SMPS_OFFSET);
+	return value;
+}
+EXPORT_SYMBOL(twl_get_smps_offset);
+
+u8 twl_get_smps_mult(void)
+{
+	u8 value;
+
+	twl_i2c_read_u8(TWL_MODULE_PM_RECEIVER, &value,
+			TWL6030_SMPS_MULT);
+	return value;
+}
+EXPORT_SYMBOL(twl_get_smps_mult);
 
 /* Structure for each TWL4030/TWL6030 Slave */
 struct twl_client {
@@ -490,6 +530,19 @@ int twl_i2c_read_u8(u8 mod_no, u8 *value, u8 reg)
 }
 EXPORT_SYMBOL(twl_i2c_read_u8);
 
+
+void twl_reg_dump(int module, int start, int end)
+{
+	int i;
+	u8 val;
+
+	for (i = start; i < end; i++) {
+		twl_i2c_read_u8(module, &val, i);
+		printk(KERN_ERR "reg 0x%2x val 0x%2x\n", i, val);
+	}
+}
+EXPORT_SYMBOL(twl_reg_dump);
+
 /*----------------------------------------------------------------------*/
 
 /**
@@ -660,11 +713,28 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
+	if (twl_has_bci() && pdata->bci &&
+	    (features & TWL6030_CLASS)) {
+		child = add_child(1, "twl6030_bci",
+				pdata->bci, sizeof(*pdata->bci),
+				false,
+				pdata->irq_base + CHARGER_INTR_OFFSET,
+				pdata->irq_base + CHARGERFAULT_INTR_OFFSET);
+	}
 
-	if (twl_has_madc() && pdata->madc) {
+	if (twl_has_madc() && pdata->madc && twl_class_is_4030()) {
 		child = add_child(2, "twl4030_madc",
 				pdata->madc, sizeof(*pdata->madc),
 				true, pdata->irq_base + MADC_INTR_OFFSET, 0);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	if (twl_has_madc() && pdata->madc && twl_class_is_6030()) {
+		child = add_child(1, "twl6030_gpadc",
+				pdata->madc, sizeof(*pdata->madc),
+				true, pdata->irq_base + MADC_INTR_OFFSET,
+				pdata->irq_base + GPADCSW_INTR_OFFSET);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
@@ -1269,7 +1339,16 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
 	}
 
+	twl_feat = id->driver_data;
+
 	status = add_children(pdata, id->driver_data);
+	if (status < 0 )
+		goto fail;
+
+	/* Board Specific Init Callback */
+	if(pdata->init)
+		status = pdata->init();
+
 fail:
 	if (status < 0)
 		twl_remove(client);
