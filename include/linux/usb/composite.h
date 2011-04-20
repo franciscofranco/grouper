@@ -36,7 +36,6 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/switch.h>
 
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
@@ -47,7 +46,6 @@
  */
 #define USB_GADGET_DELAYED_STATUS       0x7fff	/* Impossibly large value */
 
-struct usb_composite_dev;
 struct usb_configuration;
 
 /**
@@ -120,9 +118,6 @@ struct usb_function {
 
 	struct usb_configuration	*config;
 
-	/* disabled is zero if the function is enabled */
-	int				disabled;
-
 	/* REVISIT:  bind() functions can be marked __init, which
 	 * makes trouble for section mismatch analysis.  See if
 	 * we can't restructure things to avoid mismatching.
@@ -154,7 +149,6 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
-	struct device			*dev;
 };
 
 int usb_add_function(struct usb_configuration *, struct usb_function *);
@@ -163,9 +157,6 @@ int usb_function_deactivate(struct usb_function *);
 int usb_function_activate(struct usb_function *);
 
 int usb_interface_id(struct usb_configuration *, struct usb_function *);
-
-void usb_function_set_enabled(struct usb_function *, int);
-void usb_composite_force_reset(struct usb_composite_dev *);
 
 int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
 			struct usb_ep *_ep);
@@ -297,9 +288,6 @@ struct usb_composite_driver {
 	enum usb_device_speed			max_speed;
 	unsigned		needs_serial:1;
 
-	struct class		*class;
-	atomic_t		function_count;
-
 	int			(*unbind)(struct usb_composite_dev *);
 
 	void			(*disconnect)(struct usb_composite_dev *);
@@ -307,8 +295,6 @@ struct usb_composite_driver {
 	/* global suspend hooks */
 	void			(*suspend)(struct usb_composite_dev *);
 	void			(*resume)(struct usb_composite_dev *);
-
-	void			(*enable_function)(struct usb_function *f, int enable);
 };
 
 extern int usb_composite_probe(struct usb_composite_driver *driver,
@@ -379,15 +365,6 @@ struct usb_composite_dev {
 
 	/* protects deactivations and delayed_status counts*/
 	spinlock_t			lock;
-
-	/* switch indicating connected/disconnected state */
-	struct switch_dev		sw_connected;
-	/* switch indicating current configuration */
-	struct switch_dev		sw_config;
-	/* current connected state for sw_connected */
-	bool				connected;
-
-	struct work_struct switch_work;
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);
