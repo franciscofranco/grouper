@@ -140,7 +140,6 @@ struct tegra_i2c_bus {
 struct tegra_i2c_dev {
 	struct device *dev;
 	struct clk *clk;
-	struct clk *i2c_clk;
 	struct resource *iomem;
 	struct rt_mutex dev_lock;
 	void __iomem *base;
@@ -693,7 +692,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct resource *iomem;
 	struct clk *clk;
-	struct clk *i2c_clk;
 	const unsigned int *prop;
 	void *base;
 	int irq;
@@ -746,23 +744,15 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		goto err_release_region;
 	}
 
-	i2c_clk = clk_get(&pdev->dev, "i2c");
-	if (IS_ERR(i2c_clk)) {
-		dev_err(&pdev->dev, "missing bus clock");
-		ret = PTR_ERR(i2c_clk);
-		goto err_clk_put;
-	}
-
 	i2c_dev = kzalloc(sizeof(struct tegra_i2c_dev) +
 			  (nbus-1) * sizeof(struct tegra_i2c_bus), GFP_KERNEL);
 	if (!i2c_dev) {
 		ret = -ENOMEM;
-		goto err_i2c_clk_put;
+		goto err_clk_put;
 	}
 
 	i2c_dev->base = base;
 	i2c_dev->clk = clk;
-	i2c_dev->i2c_clk = i2c_clk;
 	i2c_dev->iomem = iomem;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
@@ -794,7 +784,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c_dev);
 
-	clk_enable(i2c_dev->i2c_clk);
 	if (i2c_dev->is_clkon_always)
 		clk_enable(i2c_dev->clk);
 
@@ -855,8 +844,6 @@ err_del_bus:
 	free_irq(i2c_dev->irq, i2c_dev);
 err_free:
 	kfree(i2c_dev);
-err_i2c_clk_put:
-	clk_put(i2c_clk);
 err_clk_put:
 	clk_put(clk);
 err_release_region:
@@ -876,7 +863,6 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 		clk_disable(i2c_dev->clk);
 
 	free_irq(i2c_dev->irq, i2c_dev);
-	clk_put(i2c_dev->i2c_clk);
 	clk_put(i2c_dev->clk);
 	release_mem_region(i2c_dev->iomem->start,
 		resource_size(i2c_dev->iomem));
