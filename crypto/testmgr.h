@@ -3033,8 +3033,8 @@ static struct cipher_testvec cast6_dec_tv_template[] = {
 #define AES_XTS_DEC_TEST_VECTORS 5
 #define AES_CTR_ENC_TEST_VECTORS 3
 #define AES_CTR_DEC_TEST_VECTORS 3
-#define AES_OFB_ENC_TEST_VECTORS 3
-#define AES_OFB_DEC_TEST_VECTORS 3
+#define AES_OFB_ENC_TEST_VECTORS 1
+#define AES_OFB_DEC_TEST_VECTORS 1
 #define AES_CTR_3686_ENC_TEST_VECTORS 7
 #define AES_CTR_3686_DEC_TEST_VECTORS 6
 #define AES_GCM_ENC_TEST_VECTORS 9
@@ -4467,8 +4467,6 @@ static struct cipher_testvec aes_xts_dec_tv_template[] = {
 
 	}
 };
-
-
 static struct cipher_testvec aes_ctr_enc_tv_template[] = {
 	{ /* From NIST Special Publication 800-38A, Appendix F.5 */
 		.key	= "\x2b\x7e\x15\x16\x28\xae\xd2\xa6"
