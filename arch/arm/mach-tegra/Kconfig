@@ -250,4 +250,9 @@ config TEGRA_EDP_LIMITS
 	  of on-line CPUs to keep CPU rail current within power supply
 	  capabilities.
 
+config TEGRA_EMC_TO_DDR_CLOCK
+	int "EMC to DDR clocks ratio"
+	default "2" if ARCH_TEGRA_2x_SOC
+	default "1"
+
 endif
