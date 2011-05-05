@@ -251,6 +251,7 @@
 #define   UTMIP_FORCE_PD_POWERDOWN		(1 << 14)
 #define   UTMIP_FORCE_PD2_POWERDOWN		(1 << 16)
 #define   UTMIP_FORCE_PDZI_POWERDOWN		(1 << 18)
+#define   UTMIP_XCVR_LSBIAS_SEL			(1 << 21)
 #define   UTMIP_XCVR_HSSLEW_MSB(x)		(((x) & 0x7f) << 25)
 
 #define UTMIP_BIAS_CFG0		0x80c
