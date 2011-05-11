@@ -1070,6 +1070,7 @@ static void ulpi_set_trimmer(void __iomem *base, u8 data, u8 sdn, u8 dir)
 static void ulpi_phy_restore_start(struct tegra_usb_phy *phy,
 				   enum tegra_usb_phy_port_speed port_speed)
 {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
@@ -1081,10 +1082,12 @@ static void ulpi_phy_restore_start(struct tegra_usb_phy *phy,
 	val = readl(base + ULPI_TIMING_CTRL_0);
 	val &= ~ULPI_OUTPUT_PINMUX_BYP;
 	writel(val, base + ULPI_TIMING_CTRL_0);
+#endif
 }
 
 static void ulpi_phy_restore_end(struct tegra_usb_phy *phy)
 {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
@@ -1095,6 +1098,7 @@ static void ulpi_phy_restore_end(struct tegra_usb_phy *phy)
 	tegra_pinmux_set_tristate(TEGRA_PINGROUP_UAA, TEGRA_TRI_NORMAL);
 	tegra_pinmux_set_tristate(TEGRA_PINGROUP_UAB, TEGRA_TRI_NORMAL);
 	tegra_pinmux_set_tristate(TEGRA_PINGROUP_UDA, TEGRA_TRI_NORMAL);
+#endif
 }
 
 static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
@@ -1133,12 +1137,16 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	val |= USB_SUSP_CLR;
 	writel(val, base + USB_SUSP_CTRL);
 
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
 						     USB_PHY_CLK_VALID) < 0)
 		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
 
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_CLKEN, USB_CLKEN) < 0)
 		pr_err("%s: timeout waiting for AHB clock\n", __func__);
+#else
+	udelay(100);
+#endif
 
 	val = readl(base + USB_SUSP_CTRL);
 	val &= ~USB_SUSP_CLR;
