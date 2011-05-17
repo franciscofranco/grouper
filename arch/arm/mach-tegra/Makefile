@@ -113,3 +113,4 @@ obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-memory.o
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-power.o
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-baseband.o
 obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-kbc.o
+obj-${CONFIG_MACH_TEGRA_ENTERPRISE}     += board-enterprise-sensors.o
