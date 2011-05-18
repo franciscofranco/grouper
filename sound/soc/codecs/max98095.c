@@ -1878,7 +1878,6 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 
 	cdata = &max98095->dai[channel];
 	cdata->eq_sel = sel;
-
 	fs = cdata->rate;
 
 	/* Find the selected configuration with nearest sample rate */
@@ -2025,7 +2024,6 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 
 	cdata = &max98095->dai[channel];
 	cdata->bq_sel = sel;
-
 	fs = cdata->rate;
 
 	/* Find the selected configuration with nearest sample rate */
