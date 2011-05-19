@@ -1051,6 +1051,10 @@ static void cardhu_panel_early_suspend(struct early_suspend *h)
 	unsigned i;
 	for (i = 0; i < num_registered_fb; i++)
 		fb_blank(registered_fb[i], FB_BLANK_POWERDOWN);
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_save_default_governor();
+	cpufreq_set_conservative_governor();
+#endif
 }
 
 static void cardhu_panel_late_resume(struct early_suspend *h)
@@ -1058,6 +1062,9 @@ static void cardhu_panel_late_resume(struct early_suspend *h)
 	unsigned i;
 	for (i = 0; i < num_registered_fb; i++)
 		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+	cpufreq_restore_default_governor();
+#endif
 }
 #endif
 
