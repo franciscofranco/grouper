@@ -372,6 +372,7 @@ done:
 	return retval;
 }
 
+#ifdef CONFIG_PM
 static void tegra_ehci_restart(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -539,6 +540,7 @@ restart:
 
 	return 0;
 }
+#endif
 
 static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 {
