@@ -31,6 +31,7 @@
 #define TEGRA_USB_PHY_CLK_VALID			(1 << 7)
 #define TEGRA_USB_SRT				(1 << 25)
 #define TEGRA_USB_PHY_CLK_VALID_INT_ENB        (1 << 9)
+#define TEGRA_USB_PHY_CLK_VALID_INT_STS        (1 << 8)
 
 #define TEGRA_USB_PORTSC1_OFFSET		0x184
 #define TEGRA_USB_PORTSC1_WKCN			(1 << 20)
@@ -145,19 +146,27 @@ static int tegra_ehci_internal_port_reset(
 static irqreturn_t tegra_ehci_irq (struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci (hcd);
+	struct ehci_regs __iomem *hw = ehci->regs;
 	u32 val;
 
-	spin_lock (&ehci->lock);
+	spin_lock(&ehci->lock);
 	val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
-	val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB;
-	writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
+	if ((val  & TEGRA_USB_PHY_CLK_VALID_INT_STS)) {
+		val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB |
+				TEGRA_USB_PHY_CLK_VALID_INT_STS;
+		writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
 
-	val = readl(hcd->regs + TEGRA_USB_PORTSC1_OFFSET);
-	val &= ~TEGRA_USB_PORTSC1_WKCN;
-	writel(val , (hcd->regs + TEGRA_USB_PORTSC1_OFFSET));
+		val = readl(hcd->regs + TEGRA_USB_PORTSC1_OFFSET);
+		val &= ~TEGRA_USB_PORTSC1_WKCN;
+		writel(val , (hcd->regs + TEGRA_USB_PORTSC1_OFFSET));
 
-	spin_unlock (&ehci->lock);
-
+		val = readl(&hw->status);
+		if (!(val  & STS_PCD)) {
+			spin_unlock(&ehci->lock);
+			return 0;
+		}
+	}
+	spin_unlock(&ehci->lock);
 	return ehci_irq(hcd);
 }
 
