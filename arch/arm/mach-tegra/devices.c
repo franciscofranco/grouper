@@ -72,7 +72,7 @@ static struct resource i2c_resource3[] = {
 	},
 };
 
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 static struct resource i2c_resource4[] = {
 	[0] = {
 		.start	= INT_DVC,
@@ -86,7 +86,7 @@ static struct resource i2c_resource4[] = {
 	},
 };
 
-#elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#else
 static struct resource i2c_resource4[] = {
 	[0] = {
 		.start  = INT_I2C4,
@@ -170,7 +170,7 @@ struct platform_device tegra_i2c_device4 = {
 	},
 };
 
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 struct platform_device tegra_i2c_device5 = {
 	.name		= "tegra-i2c",
 	.id		= 4,
@@ -233,7 +233,7 @@ static struct resource spi_resource4[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
-#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 static struct resource spi_resource5[] = {
 	[0] = {
 		.start  = INT_SPI_5,
@@ -300,7 +300,7 @@ struct platform_device tegra_spi_device4 = {
 		.coherent_dma_mask	= 0xffffffff,
 	},
 };
-#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 struct platform_device tegra_spi_device5 = {
 	.name           = "spi_tegra",
 	.id             = 4,
@@ -361,7 +361,7 @@ struct platform_device tegra_spi_slave_device4 = {
 		.coherent_dma_mask      = 0xffffffff,
 	},
 };
-#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 struct platform_device tegra_spi_slave_device5 = {
 	.name           = "spi_slave_tegra",
 	.id             = 4,
@@ -578,7 +578,7 @@ static struct resource tegra_pmu_resources[] = {
 		.end	= INT_CPU1_PMU_INTR,
 		.flags	= IORESOURCE_IRQ,
 	},
-#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	[2] = {
 		.start	= INT_CPU2_PMU_INTR,
 		.end	= INT_CPU2_PMU_INTR,
@@ -714,7 +714,7 @@ struct platform_device tegra_uarte_device = {
 	},
 };
 
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 static struct resource i2s_resource1[] = {
 	[0] = {
 		.start	= INT_I2S1,
@@ -789,7 +789,7 @@ static struct resource spdif_resource[] = {
 	}
 };
 
-#elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#else
 static struct resource audio_resource[] = {
 	[0] = {
 		.start	= TEGRA_AUDIO_CLUSTER_BASE,
@@ -1052,7 +1052,7 @@ static struct resource tegra_wdt_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-#elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#else
 static struct resource tegra_wdt_resources[] = {
 	[0] = {
 		.start	= TEGRA_WDT0_BASE,
