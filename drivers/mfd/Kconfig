@@ -791,6 +791,17 @@ config MFD_TPS6591X
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_TPS80031
+	bool "TI TPS80031 Power Management chips"
+	depends on I2C && GPIOLIB && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  If you say yes here you get support for the TPS80031 Power
+	  Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
