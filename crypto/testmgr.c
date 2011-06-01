@@ -1705,6 +1705,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
+	},{
+		.alg = "cmac(aes)",
+		.test = alg_test_hash,
+		.fips_allowed = 1,
+		.suite = {
+			.hash = {
+				.vecs = cmac_aes_tv_template,
+				.count = CMAC_AES_TEST_VECTORS
+			}
+		}
 	}, {
 		.alg = "crc32c",
 		.test = alg_test_crc32c,
