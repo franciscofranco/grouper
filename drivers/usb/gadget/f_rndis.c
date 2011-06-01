@@ -851,6 +851,9 @@ rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	if (gadget_is_superspeed(c->cdev->gadget))
 		usb_free_descriptors(f->ss_descriptors);
+
+	rndis_string_defs[0].id = 0;
+
 	if (gadget_is_dualspeed(c->cdev->gadget))
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);
