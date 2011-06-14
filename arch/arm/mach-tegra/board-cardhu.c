@@ -301,7 +301,7 @@ static struct platform_device tegra_camera = {
 };
 
 static struct platform_device *cardhu_devices[] __initdata = {
-	&pmu_device,
+	&tegra_pmu_device,
 	&tegra_udc_device,
 #if defined(CONFIG_SND_HDA_TEGRA)
 	&tegra_hda_device,
