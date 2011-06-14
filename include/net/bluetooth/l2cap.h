@@ -418,6 +418,8 @@ struct l2cap_conn {
 
 	struct timer_list security_timer;
 
+	struct timer_list security_timer;
+
 	struct list_head chan_l;
 	rwlock_t	chan_lock;
 };
