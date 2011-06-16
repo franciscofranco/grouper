@@ -36,6 +36,7 @@
 #include <linux/spi/spi.h>
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/tegra_uart.h>
+#include <linux/memblock.h>
 #include <linux/spi-tegra.h>
 
 #include <sound/wm8903.h>
@@ -62,6 +63,8 @@
 #include "pm.h"
 #include "baseband-xmm-power.h"
 
+static unsigned long ramconsole_start;
+static unsigned long ramconsole_size;
 
 /* !!!TODO: Change for cardhu (Taken from Ventana) */
 static struct tegra_utmip_config utmi_phy_config[] = {
@@ -550,6 +553,19 @@ static struct platform_device cardhu_audio_device = {
 	},
 };
 
+static struct resource ram_console_resources[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name 		= "ram_console",
+	.id 		= -1,
+	.num_resources	= ARRAY_SIZE(ram_console_resources),
+	.resource	= ram_console_resources,
+};
+
 static struct platform_device *cardhu_devices[] __initdata = {
 	&tegra_pmu_device,
 	&tegra_rtc_device,
@@ -580,6 +596,7 @@ static struct platform_device *cardhu_devices[] __initdata = {
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_AES)
 	&tegra_aes_device,
 #endif
+	&ram_console_device,
 };
 
 #define MXT_CONFIG_CRC  0xD62DE8
@@ -891,6 +908,14 @@ static void cardhu_sata_init(void)
 static void cardhu_sata_init(void) { }
 #endif
 
+static void cardhu_ramconsole_init(void)
+{
+	struct resource *res;
+	res = platform_get_resource(&ram_console_device, IORESOURCE_MEM, 0);
+	res->start = ramconsole_start;
+	res->end = res->start + ramconsole_size - 1;
+}
+
 static void __init tegra_cardhu_init(void)
 {
 	tegra_clk_init_from_table(cardhu_clk_init_table);
@@ -902,6 +927,7 @@ static void __init tegra_cardhu_init(void)
 	cardhu_edp_init();
 #endif
 	cardhu_uart_init();
+	cardhu_ramconsole_init();
 	cardhu_tsensor_init();
 	platform_add_devices(cardhu_devices, ARRAY_SIZE(cardhu_devices));
 	cardhu_sdhci_init();
@@ -930,6 +956,15 @@ static void __init tegra_cardhu_init(void)
 
 static void __init tegra_cardhu_reserve(void)
 {
+	long ret;
+	ramconsole_size = SZ_1M;
+	ramconsole_start = memblock_end_of_DRAM() - ramconsole_size;
+	ret = memblock_remove(ramconsole_start, ramconsole_size);
+	if (ret) {
+		ramconsole_size = 0;
+		pr_err("Failed to reserve memory block for ram console\n");
+	}
+
 #if defined(CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM)
 	/* support 1920X1200 with 24bpp */
 	tegra_reserve(0, SZ_8M + SZ_1M, SZ_8M + SZ_1M);
