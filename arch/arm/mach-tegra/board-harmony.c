@@ -175,6 +175,43 @@ static struct platform_device harmony_audio_device = {
 	},
 };
 
+static struct tegra_i2c_platform_data harmony_i2c1_platform_data = {
+	.adapter_nr     = 0,
+	.bus_count      = 1,
+	.bus_clk_rate   = { 400000, 0 },
+};
+
+static const struct tegra_pingroup_config i2c2_ddc = {
+	.pingroup       = TEGRA_PINGROUP_DDC,
+	.func           = TEGRA_MUX_I2C2,
+};
+
+static const struct tegra_pingroup_config i2c2_gen2 = {
+	.pingroup       = TEGRA_PINGROUP_PTA,
+	.func           = TEGRA_MUX_I2C2,
+};
+
+static struct tegra_i2c_platform_data harmony_i2c2_platform_data = {
+	.adapter_nr     = 1,
+	.bus_count      = 2,
+	.bus_clk_rate   = { 100000, 100000 },
+	.bus_mux        = { &i2c2_ddc, &i2c2_gen2 },
+	.bus_mux_len    = { 1, 1 },
+};
+
+static struct tegra_i2c_platform_data harmony_i2c3_platform_data = {
+	.adapter_nr     = 3,
+	.bus_count      = 1,
+	.bus_clk_rate   = { 400000, 0 },
+};
+
+static struct tegra_i2c_platform_data harmony_dvc_platform_data = {
+	.adapter_nr     = 4,
+	.bus_count      = 1,
+	.bus_clk_rate   = { 400000, 0 },
+	.is_dvc         = true,
+};
+
 static struct wm8903_platform_data harmony_wm8903_pdata = {
 	.irq_active_low = 0,
 	.micdet_cfg = 0,
@@ -197,6 +234,11 @@ static struct i2c_board_info __initdata wm8903_board_info = {
 
 static void __init harmony_i2c_init(void)
 {
+	tegra_i2c_device1.dev.platform_data = &harmony_i2c1_platform_data;
+	tegra_i2c_device2.dev.platform_data = &harmony_i2c2_platform_data;
+	tegra_i2c_device3.dev.platform_data = &harmony_i2c3_platform_data;
+	tegra_i2c_device4.dev.platform_data = &harmony_dvc_platform_data;
+
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device3);
