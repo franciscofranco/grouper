@@ -35,6 +35,5 @@
 void harmony_pinmux_init(void);
 int harmony_regulator_init(void);
 int harmony_panel_init(void);
-int harmony_sdhci_init(void);
 
 #endif
