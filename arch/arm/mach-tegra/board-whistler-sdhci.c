@@ -132,10 +132,7 @@ static struct resource sdhci_resource3[] = {
 	},
 };
 
-static struct tegra_sdhci_platform_data tegra_sdhci_platform_data1 = {
-	.clk_id = NULL,
-	.force_hs = 0,
-	.register_status_notify	= whistler_wifi_status_register,
+static struct embedded_sdio_data embedded_sdio_data1 = {
 	.cccr   = {
 		.sdio_vsn       = 2,
 		.multi_block    = 1,
@@ -147,6 +144,13 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data1 = {
 	.cis  = {
 		.vendor         = 0x02d0,
 		.device         = 0x4329,
+	},
+};
+
+static struct tegra_sdhci_platform_data tegra_sdhci_platform_data1 = {
+	.mmc_data = {
+		.register_status_notify	= whistler_wifi_status_register,
+		.embedded_sdio = &embedded_sdio_data1,
 	},
 	.cd_gpio = -1,
 	.wp_gpio = -1,
