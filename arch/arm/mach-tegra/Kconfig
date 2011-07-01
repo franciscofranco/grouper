@@ -126,8 +126,6 @@ config TEGRA_PWM
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"
 
-endif
-
 config TEGRA_CPU_DVFS
 	bool "Enable voltage scaling on Tegra CPU"
 	default y
@@ -164,3 +162,5 @@ config WIFI_CONTROL_FUNC
 	bool "Enable WiFi control function abstraction"
 	help
 	  Enables Power/Reset/Carddetect function abstraction
+
+endif
