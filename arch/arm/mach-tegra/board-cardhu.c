@@ -603,7 +603,7 @@ static void cardhu_gps_init(void)
 static void cardhu_modem_init(void)
 {
 	struct board_info board_info;
-	int w_disable_gpio;
+	int w_disable_gpio, ret;
 
 	tegra_get_board_info(&board_info);
 	switch (board_info.board_id) {
@@ -614,7 +614,12 @@ static void cardhu_modem_init(void)
 			w_disable_gpio = TEGRA_GPIO_PDD5;
 		}
 		tegra_gpio_enable(w_disable_gpio);
-		gpio_direction_input(w_disable_gpio);
+		ret = gpio_request(w_disable_gpio, "w_disable_gpio");
+		if (ret < 0)
+			pr_err("%s: gpio_request failed for gpio %d\n",
+				__func__, w_disable_gpio);
+		else
+			gpio_direction_input(w_disable_gpio);
 		break;
 	default:
 		break;
