@@ -1554,6 +1554,11 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = NO_DATA_INTERFACE,
 	},
 
+	/* Exclude XMM6260 boot rom (not running modem software yet) */
+	{ USB_DEVICE(0x058b, 0x0041),
+	.driver_info = NOT_A_MODEM,
+	},
+
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_PROTO_NONE) },
