@@ -1278,7 +1278,11 @@ get_rq:
 
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
 	    bio_flagged(bio, BIO_CPU_AFFINE))
+<<<<<<< HEAD
 		req->cpu = raw_smp_processor_id();
+=======
+		req->cpu = smp_processor_id();
+>>>>>>> c9f4c09... block: strict rq_affinity
 
 	plug = current->plug;
 	if (plug) {

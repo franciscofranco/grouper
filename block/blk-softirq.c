@@ -115,7 +115,11 @@ void __blk_complete_request(struct request *req)
 	/*
 	 * Select completion CPU
 	 */
+<<<<<<< HEAD
 	if (req->cpu != -1) {
+=======
+	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) && req->cpu != -1) {
+>>>>>>> c9f4c09... block: strict rq_affinity
 		ccpu = req->cpu;
 		if (!test_bit(QUEUE_FLAG_SAME_FORCE, &q->queue_flags)) {
 			ccpu = blk_cpu_to_group(ccpu);
