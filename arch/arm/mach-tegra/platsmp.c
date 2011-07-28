@@ -256,6 +256,14 @@ void __init smp_init_cpus(void)
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
 
+	/* If only one CPU is possible, platform_smp_prepare_cpus() will
+	   never get called. We must therefore initialize the reset handler
+	   here. If there is more than one CPU, we must wait until after
+	   the cpu_present_mask has been updated with all present CPUs in
+	   platform_smp_prepare_cpus() before initializing the reset handler. */
+	if (ncores == 1)
+		tegra_cpu_reset_handler_init();
+
 	set_smp_cross_call(gic_raise_softirq);
 }
 
@@ -268,6 +276,9 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus == 1)
 		tegra_all_cpus_booted = true;
 
+	/* If we're here, it means that more than one CPU was found by
+	   smp_init_cpus() which also means that it did not initialize the
+	   reset handler. Do it now before the secondary CPUs are started. */
 	tegra_cpu_reset_handler_init();
 	scu_enable(scu_base);
 }
