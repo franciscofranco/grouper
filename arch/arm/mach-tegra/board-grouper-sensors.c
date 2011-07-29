@@ -36,6 +36,13 @@
 static struct regulator *grouper_1v8_cam3;
 static struct regulator *grouper_vdd_cam3;
 
+static const struct i2c_board_info cardhu_i2c1_board_info_al3010[] = {
+	{
+		I2C_BOARD_INFO("al3010",0x1C),
+		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PZ2),
+	},
+};
+
 static struct cm3217_platform_data grouper_cm3217_pdata = {
 	.levels = {10, 160, 225, 320, 640, 1280, 2600, 5800, 8000, 10240},
 	.golden_adc = 0,
@@ -368,6 +375,9 @@ int __init grouper_sensors_init(void)
 		ARRAY_SIZE(grouper_i2c4_nct1008_board_info));
 
 	mpuirq_init();
+
+	i2c_register_board_info(2, cardhu_i2c1_board_info_al3010,
+		ARRAY_SIZE(cardhu_i2c1_board_info_al3010));
 
 	return 0;
 }
