@@ -1474,7 +1474,7 @@ struct platform_device tegra_kbc_device = {
 #if !defined(CONFIG_ARCH_TEGRA_2x_SOC)
 static struct resource tegra_tsensor_resources[]= {
 	{
-		.start 	= TEGRA_TSENSOR_BASE,
+		.start	= TEGRA_TSENSOR_BASE,
 		.end	= TEGRA_TSENSOR_BASE + TEGRA_TSENSOR_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
@@ -1512,6 +1512,11 @@ struct resource tegra_se_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
+		.start	= TEGRA_PMC_BASE,
+		.end	= TEGRA_PMC_BASE + SZ_256 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
 		.start = INT_SE,
 		.end = INT_SE,
 		.flags = IORESOURCE_IRQ,
