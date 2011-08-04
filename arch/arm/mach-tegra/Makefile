@@ -1,4 +1,4 @@
-obj-y                                   += ahb.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += ahb.o
 obj-y                                   += apbio.o
 obj-y                                   += common.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += common-t2.o
