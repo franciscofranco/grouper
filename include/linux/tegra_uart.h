@@ -20,6 +20,10 @@
 #ifndef _TEGRA_UART_H_
 #define _TEGRA_UART_H_
 
+struct tegra_uart_platform_data {
+	void (*wake_peer)(struct uart_port *);
+};
+
 int tegra_uart_is_tx_empty(struct uart_port *);
 void tegra_uart_request_clock_on(struct uart_port *);
 void tegra_uart_set_mctrl(struct uart_port *, unsigned int);
