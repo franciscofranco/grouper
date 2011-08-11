@@ -7,11 +7,14 @@
 
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+
 #include <asm/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 
 #include <linux/ktime.h>
+
+#include <linux/miscdevice.h>
 
 #define AL3010_DRV_NAME	"al3010"
 #define DRIVER_VERSION		"1.0"
@@ -34,6 +37,7 @@
 #define	AL3010_ADC_LSB	0x0c
 #define	AL3010_ADC_MSB	0x0d
 
+
 #define CAL_ALS_PATH "/data/lightsensor/AL3010_Config.ini"
 
 bool flagLoadAl3010Config = false;
@@ -46,6 +50,23 @@ static bool light_sensor_ready = true;
 static bool catch_first_poll_time = false;
 static int time_for_sensor_ready = 100; //milisecond
 
+#define AL3010_IOC_MAGIC 0xF3
+#define AL3010_IOC_MAXNR 2
+#define AL3010_POLL_DATA _IOR(AL3010_IOC_MAGIC,2,int )
+
+#define AL3010_IOCTL_START_HEAVY 2
+#define AL3010_IOCTL_START_NORMAL 1
+#define AL3010_IOCTL_END 0
+
+#define START_NORMAL	(HZ)
+#define START_HEAVY	(HZ)
+
+static int poll_mode=0;
+struct delayed_work al3010_poll_data_work;
+static struct workqueue_struct *sensor_work_queue;
+struct i2c_client *al3010_client;
+
+
 static u8 al3010_reg[AL3010_NUM_CACHABLE_REGS] = 
 	{0x00,0x01,0x0c,0x0d,0x10,0x1a,0x1b,0x1c,0x1d};
 
@@ -54,6 +75,7 @@ static int al3010_range[4] = {77806,19452,4863,1216};
 struct al3010_data {
 	struct i2c_client *client;
 	struct mutex lock;
+	struct miscdevice misc_dev;
 	u8 reg_cache[AL3010_NUM_CACHABLE_REGS];
 	u8 power_state_before_suspend;
 };
@@ -387,6 +409,80 @@ static int al3010_init_client(struct i2c_client *client)
 	return 0;
 }
 
+/**
+ * i2c stress test
+ */
+int al3010_open(struct inode *inode, struct file *filp)
+{
+	printk("light sensor info : %s\n", __func__);
+	return 0;
+}
+
+int al3010_release(struct inode *inode, struct file *filp)
+{
+	printk("light sensor info : %s\n", __func__);
+	return 0;
+}
+
+int al3010_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int err = 1;
+
+	if (_IOC_TYPE(cmd) != AL3010_IOC_MAGIC)
+	return -ENOTTY;
+	if (_IOC_NR(cmd) > AL3010_IOC_MAXNR)
+	return -ENOTTY;
+
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
+		err =  !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+
+	if (err)
+		return -EFAULT;
+
+	switch (cmd) {
+		case AL3010_POLL_DATA:
+			if (arg == AL3010_IOCTL_START_HEAVY){
+				printk("light sensor info : ioctl heavy\n");
+				poll_mode = START_HEAVY;
+				queue_delayed_work(sensor_work_queue, &al3010_poll_data_work, poll_mode);
+			}
+			else if (arg == AL3010_IOCTL_START_NORMAL){
+				printk("light sensor info : ioctl normal\n");
+				poll_mode = START_NORMAL;
+				queue_delayed_work(sensor_work_queue, &al3010_poll_data_work, poll_mode);
+			}
+			else if  (arg == AL3010_IOCTL_END){
+				printk("light sensor info : ioctl end\n");
+				cancel_delayed_work_sync(&al3010_poll_data_work);
+			}
+			else
+				return -ENOTTY;
+			break;
+		default: /* redundant, as cmd was checked against MAXNR */
+			return -ENOTTY;
+	}
+
+	return 0;
+}
+struct file_operations al3010_fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = al3010_ioctl,
+	.open =	al3010_open,
+	.release = al3010_release,
+};
+
+static void  al3010_poll_data(struct work_struct * work)
+{
+	int lux = al3010_get_adc_value(al3010_client);
+	//printk("FOR TEST , al3010_poll_data light sensor lux = %d\n",lux);
+	if(poll_mode ==0)
+		msleep(5);
+
+	queue_delayed_work(sensor_work_queue, &al3010_poll_data_work, poll_mode);
+}
+
 /*
  * I2C layer
  */
@@ -430,6 +526,25 @@ static int __devinit al3010_probe(struct i2c_client *client,
 
 	printk("light sensor info : al3010 probe successed\n");
 	dev_info(&client->dev, "driver version %s enabled\n", DRIVER_VERSION);
+
+	/* init for i2c stress test */
+	sensor_work_queue = create_singlethread_workqueue("i2c_lightsensor_wq");
+	if(!sensor_work_queue){
+		printk("al3010_probe: Unable to create workqueue");
+		goto exit_kfree;
+	}
+	INIT_DELAYED_WORK(&al3010_poll_data_work, al3010_poll_data);
+	al3010_client = client;
+	data->misc_dev.minor  = MISC_DYNAMIC_MINOR;
+	data->misc_dev.name = "lightsensor";
+	data->misc_dev.fops = &al3010_fops;
+	err = misc_register(&data->misc_dev);
+	if (err){
+		printk("light sensor err : Unable to register %s\misc device\n",
+				data->misc_dev.name);
+		goto exit_kfree;
+	}
+
 	return 0;
 
 exit_kfree:
@@ -439,6 +554,9 @@ exit_kfree:
 
 static int __devexit al3010_remove(struct i2c_client *client)
 {
+	struct al3010_data *data = i2c_get_clientdata(client);
+	misc_deregister(&data->misc_dev);
+
 	sysfs_remove_group(&client->dev.kobj, &al3010_attr_group);
 	al3010_set_power_state(client, 0);
 	kfree(i2c_get_clientdata(client));
