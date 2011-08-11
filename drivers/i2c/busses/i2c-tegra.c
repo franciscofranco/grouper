@@ -122,6 +122,8 @@ struct tegra_i2c_bus {
 	int mux_len;
 	unsigned long bus_clk_rate;
 	struct i2c_adapter adapter;
+	int scl_gpio;
+	int sda_gpio;
 };
 
 /**
@@ -175,8 +177,6 @@ struct tegra_i2c_dev {
 	u16 slave_addr;
 	bool is_clkon_always;
 	struct tegra_i2c_bus busses[1];
-	int scl_gpio;
-	int sda_gpio;
 	int (*arb_recovery)(int scl_gpio, int sda_gpio);
 };
 
@@ -661,7 +661,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	/* Arbitration Lost occurs, Start recovery */
 	if (i2c_dev->msg_err == I2C_ERR_ARBITRATION_LOST) {
 		if (i2c_dev->arb_recovery) {
-			arb_stat = i2c_dev->arb_recovery(i2c_dev->scl_gpio, i2c_dev->sda_gpio);
+			arb_stat = i2c_dev->arb_recovery(i2c_bus->scl_gpio, i2c_bus->sda_gpio);
 			if (!arb_stat)
 				return -EAGAIN;
 		}
@@ -848,8 +848,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev->slave_addr = plat->slave_addr;
 	i2c_dev->is_dvc = plat->is_dvc;
-	i2c_dev->scl_gpio = plat->scl_gpio;
-	i2c_dev->sda_gpio = plat->sda_gpio;
 	i2c_dev->arb_recovery = plat->arb_recovery;
 	init_completion(&i2c_dev->msg_complete);
 
@@ -881,6 +879,9 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		i2c_bus->mux = plat->bus_mux[i];
 		i2c_bus->mux_len = plat->bus_mux_len[i];
 		i2c_bus->bus_clk_rate = plat->bus_clk_rate[i] ?: 100000;
+
+		i2c_bus->scl_gpio = plat->scl_gpio[i];
+		i2c_bus->sda_gpio = plat->sda_gpio[i];
 
 		i2c_bus->adapter.dev.of_node = pdev->dev.of_node;
 		i2c_bus->adapter.algo = &tegra_i2c_algo;
