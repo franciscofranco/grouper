@@ -68,6 +68,7 @@ struct tegra_ehci_hcd {
 	bool clock_enabled;
 	int hsic_connect_retries;
 	struct work_struct irq_work;
+	struct mutex tegra_ehci_hcd_mutex;
 };
 
 static void tegra_ehci_power_up(struct usb_hcd *hcd, bool is_dpd)
@@ -594,6 +595,7 @@ static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
+	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	/* ehci_shutdown touches the USB controller registers, make sure
 	 * controller has clocks to it */
 	if (!tegra->host_resumed)
@@ -603,6 +605,7 @@ static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 
 	/* we are ready to shut down, powerdown the phy */
 	tegra_ehci_power_down(hcd, false);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 }
 
 static int tegra_ehci_setup(struct usb_hcd *hcd)
@@ -678,13 +681,17 @@ static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 static int tegra_ehci_bus_resume(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
+	int ehci_bus_resumed;
 
+	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	if (tegra->bus_suspended && tegra->power_down_on_bus_suspend) {
 		tegra_usb_resume(hcd, false);
 		tegra->bus_suspended = 0;
 	}
 
-	return ehci_bus_resume(hcd);
+	ehci_bus_resumed = ehci_bus_resume(hcd);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
+	return ehci_bus_resumed;
 }
 #endif
 
@@ -981,6 +988,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	tegra = kzalloc(sizeof(struct tegra_ehci_hcd), GFP_KERNEL);
 	if (!tegra)
 		return -ENOMEM;
+
+	mutex_init(&tegra->tegra_ehci_hcd_mutex);
 
 	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
 					dev_name(&pdev->dev));
