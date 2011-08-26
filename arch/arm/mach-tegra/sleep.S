@@ -162,7 +162,7 @@ ENDPROC(tegra_cpu_resume_phys)
 
 #if USE_TEGRA_CPU_SUSPEND
 tegra_phys_sleep_sp:
-	.rept	CONFIG_NR_CPUS
+	.rept	4
 	.long	0		@ preserve stack phys ptr here
 	.endr
 #endif
