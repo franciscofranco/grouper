@@ -50,7 +50,11 @@
 #define WDT_SEL_TMR1	(0 << 4)
 #define WDT_SYS_RST	(1 << 2)
 
-static int heartbeat = 30; /* must be greater than MIN_WDT_PERIOD and lower than MAX_WDT_PERIOD */
+/*
+ * For spinlock lockup detection to work, the heartbeat should be 2*lockup
+ * for cases where the spinlock disabled irqs.
+ */
+static int heartbeat = 120; /* must be greater than MIN_WDT_PERIOD and lower than MAX_WDT_PERIOD */
 
 struct tegra_wdt {
 	struct miscdevice	miscdev;
