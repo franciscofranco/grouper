@@ -18,6 +18,8 @@ obj-$(CONFIG_SND_SOC_TEGRA_SPDIF) += snd-soc-tegra-spdif.o
 # Tegra machine Support
 snd-soc-tegra-wm8903-objs := tegra_wm8903.o
 snd-soc-tegra-trimslice-objs := trimslice.o
+snd-soc-tegra-wm8753-objs := tegra_wm8753.o
 
 obj-$(CONFIG_SND_SOC_TEGRA_WM8903) += snd-soc-tegra-wm8903.o
 obj-$(CONFIG_SND_SOC_TEGRA_TRIMSLICE) += snd-soc-tegra-trimslice.o
+obj-$(CONFIG_SND_SOC_TEGRA_WM8753) += snd-soc-tegra-wm8753.o
