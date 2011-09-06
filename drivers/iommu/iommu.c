@@ -66,11 +66,14 @@ int bus_set_iommu(struct bus_type *bus, struct iommu_ops *ops)
 }
 EXPORT_SYMBOL_GPL(bus_set_iommu);
 
-bool iommu_found(void)
+bool iommu_present(struct bus_type *bus)
 {
-	return iommu_ops != NULL;
+	if (bus->iommu_ops != NULL)
+		return true;
+	else
+		return iommu_ops != NULL;
 }
-EXPORT_SYMBOL_GPL(iommu_found);
+EXPORT_SYMBOL_GPL(iommu_present);
 
 /**
  * iommu_set_fault_handler() - set a fault handler for an iommu domain
