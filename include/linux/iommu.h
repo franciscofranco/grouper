@@ -43,6 +43,8 @@ struct iommu_domain {
 #define IOMMU_CAP_CACHE_COHERENCY	0x1
 #define IOMMU_CAP_INTR_REMAP		0x2	/* isolates device intrs */
 
+#ifdef CONFIG_IOMMU_API
+
 struct iommu_ops {
 	int (*domain_init)(struct iommu_domain *domain);
 	void (*domain_destroy)(struct iommu_domain *domain);
@@ -57,8 +59,6 @@ struct iommu_ops {
 	int (*domain_has_cap)(struct iommu_domain *domain,
 			      unsigned long cap);
 };
-
-#ifdef CONFIG_IOMMU_API
 
 extern void register_iommu(struct iommu_ops *ops);
 extern bool iommu_found(void);
@@ -120,9 +120,7 @@ static inline int report_iommu_fault(struct iommu_domain *domain,
 
 #else /* CONFIG_IOMMU_API */
 
-static inline void register_iommu(struct iommu_ops *ops)
-{
-}
+struct iommu_ops {};
 
 static inline bool iommu_found(void)
 {
