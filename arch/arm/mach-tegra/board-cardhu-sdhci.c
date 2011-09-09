@@ -218,6 +218,7 @@ int __init cardhu_sdhci_init(void)
 	struct board_info board_info;
 	tegra_get_board_info(&board_info);
 	if ((board_info.board_id == BOARD_PM269) ||
+		(board_info.board_id == BOARD_E1257) ||
 		(board_info.board_id == BOARD_PM305) ||
 		(board_info.board_id == BOARD_PM311)) {
 		tegra_sdhci_platform_data2.max_clk = 12000000;
