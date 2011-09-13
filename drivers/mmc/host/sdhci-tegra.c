@@ -322,6 +322,10 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	if (plat->is_8bit)
 		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
 
+	if (plat->mmc_data.built_in) {
+		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+	}
+
 	rc = sdhci_add_host(host);
 	if (rc)
 		goto err_add_host;
