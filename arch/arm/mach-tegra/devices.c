@@ -990,6 +990,13 @@ static struct resource spdif_resource[] = {
 		.flags	= IORESOURCE_MEM
 	}
 };
+
+struct platform_device tegra_spdif_device = {
+	.name		= "tegra20-spdif",
+	.id		= -1,
+	.resource	= spdif_resource,
+	.num_resources	= ARRAY_SIZE(spdif_resource),
+};
 #else
 /* FIXME : Temporarly adding - find the right solution */
 
@@ -1005,7 +1012,6 @@ static struct resource spdif_resource[] = {
 		.flags	= IORESOURCE_MEM
 	}
 };
-#endif
 
 struct platform_device tegra_spdif_device = {
 	.name		= "spdif_out",
@@ -1013,6 +1019,7 @@ struct platform_device tegra_spdif_device = {
 	.resource	= spdif_resource,
 	.num_resources	= ARRAY_SIZE(spdif_resource),
 };
+#endif
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 static struct resource ahub_resource[] = {
@@ -1035,6 +1042,11 @@ struct platform_device tegra_ahub_device = {
 	.num_resources	= ARRAY_SIZE(ahub_resource),
 };
 #endif
+
+struct platform_device spdif_dit_device = {
+	.name = "spdif-dit",
+	.id = -1,
+};
 
 struct platform_device tegra_pcm_device = {
 	.name = "tegra-pcm-audio",
