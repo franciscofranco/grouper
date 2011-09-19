@@ -435,6 +435,7 @@ static void tegra_ehci_restart(struct usb_hcd *hcd)
 	unsigned int temp;
 
 	ehci->controller_resets_phy = 0;
+	tegra_ehci_pre_reset(tegra->phy, false);
 	ehci_reset(ehci);
 	tegra_ehci_post_reset(tegra->phy, false);
 
@@ -687,6 +688,7 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 	ehci->sbrn = 0x20;
 
 	if (tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_NULL_ULPI) {
+		tegra_ehci_pre_reset(tegra->phy, false);
 		ehci_reset(ehci);
 		tegra_ehci_post_reset(tegra->phy, false);
 
