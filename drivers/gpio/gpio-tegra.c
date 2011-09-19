@@ -32,8 +32,8 @@
 #include <asm/mach/irq.h>
 
 #include <mach/iomap.h>
-
 #include "pm-irq.h"
+#include <mach/pinmux.h>
 
 #define GPIO_BANK(x)		((x) >> 5)
 #define GPIO_PORT(x)		(((x) >> 3) & 0x3)
@@ -92,7 +92,6 @@ struct tegra_gpio_bank {
 #endif
 };
 
-
 static struct tegra_gpio_bank tegra_gpio_banks[] = {
 	{.bank = 0, .irq = INT_GPIO1},
 	{.bank = 1, .irq = INT_GPIO2},
@@ -109,6 +108,12 @@ static struct tegra_gpio_bank tegra_gpio_banks[] = {
 static int tegra_gpio_compose(int bank, int port, int bit)
 {
 	return (bank << 5) | ((port & 0x3) << 3) | (bit & 0x7);
+}
+
+void tegra_gpio_set_tristate(int gpio_nr, enum tegra_tristate ts)
+{
+	int pin_group  =  tegra_pinmux_get_pingroup(gpio_nr);
+	tegra_pinmux_set_tristate(pin_group, ts);
 }
 
 static void tegra_gpio_mask_write(u32 reg, int gpio, int value)
@@ -149,7 +154,7 @@ static void tegra_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int tegra_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	if (( __raw_readl(GPIO_OE(offset)) >> GPIO_BIT(offset)) & 0x1)
+	if ((__raw_readl(GPIO_OE(offset)) >> GPIO_BIT(offset)) & 0x1)
 		return (__raw_readl(GPIO_OUT(offset)) >> GPIO_BIT(offset)) & 0x1;
 	return (__raw_readl(GPIO_IN(offset)) >> GPIO_BIT(offset)) & 0x1;
 }
