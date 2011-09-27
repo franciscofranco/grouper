@@ -360,7 +360,8 @@ static int tegra_update_cpu_speed(unsigned long rate)
 	 * Vote on memory bus frequency based on cpu frequency
 	 * This sets the minimum frequency, display or avp may request higher
 	 */
-	clk_set_rate(emc_clk, tegra_emc_to_cpu_ratio(freqs.new));
+	if (freqs.old < freqs.new)
+		clk_set_rate(emc_clk, tegra_emc_to_cpu_ratio(freqs.new));
 
 	for_each_online_cpu(freqs.cpu)
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -379,6 +380,9 @@ static int tegra_update_cpu_speed(unsigned long rate)
 
 	for_each_online_cpu(freqs.cpu)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
+	if (freqs.old > freqs.new)
+		clk_set_rate(emc_clk, tegra_emc_to_cpu_ratio(freqs.new));
 
 	return 0;
 }
