@@ -549,19 +549,6 @@ static struct platform_device cardhu_audio_device = {
 	},
 };
 
-static struct resource ram_console_resources[] = {
-	{
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device ram_console_device = {
-	.name 		= "ram_console",
-	.id 		= -1,
-	.num_resources	= ARRAY_SIZE(ram_console_resources),
-	.resource	= ram_console_resources,
-};
-
 static struct platform_device *cardhu_devices[] __initdata = {
 	&tegra_pmu_device,
 	&tegra_rtc_device,
@@ -593,7 +580,6 @@ static struct platform_device *cardhu_devices[] __initdata = {
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_AES)
 	&tegra_aes_device,
 #endif
-	&ram_console_device,
 };
 
 #define MXT_CONFIG_CRC  0xD62DE8
@@ -982,6 +968,7 @@ static void __init tegra_cardhu_init(void)
 	cardhu_uart_init();
 	cardhu_tsensor_init();
 	platform_add_devices(cardhu_devices, ARRAY_SIZE(cardhu_devices));
+	tegra_ram_console_debug_init();
 	cardhu_sdhci_init();
 	cardhu_regulator_init();
 	cardhu_gpio_switch_regulator_init();
@@ -1014,19 +1001,7 @@ static void __init cardhu_ramconsole_reserve(unsigned long size)
 	struct resource *res;
 	long ret;
 
-	res = platform_get_resource(&ram_console_device, IORESOURCE_MEM, 0);
-	if (!res) {
-		pr_err("Failed to find memory resource for ram console\n");
-		return;
-	}
-	res->start = memblock_end_of_DRAM() - size;
-	res->end = res->start + size - 1;
-	ret = memblock_remove(res->start, size);
-	if (ret) {
-		ram_console_device.resource = NULL;
-		ram_console_device.num_resources = 0;
-		pr_err("Failed to reserve memory block for ram console\n");
-	}
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 static void __init tegra_cardhu_reserve(void)
