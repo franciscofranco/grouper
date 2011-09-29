@@ -1152,6 +1152,11 @@ static irqreturn_t threshold_isr(int irq, void *irq_data)
 	return IRQ_HANDLED;
 }
 
+static const struct iio_info isl29028_info = {
+	.attrs = &isl29108_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit isl29028_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
@@ -1191,16 +1196,15 @@ static int __devinit isl29028_probe(struct i2c_client *client,
 	}
 
 	chip->is_int_enable = true;
-	chip->indio_dev = iio_allocate_device();
+	chip->indio_dev = iio_allocate_device(0);
 	if (!chip->indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		goto exit_irq;
 	}
 
-	chip->indio_dev->attrs = &isl29108_group;
+	chip->indio_dev->info = &isl29028_info;
 	chip->indio_dev->dev.parent = &client->dev;
 	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->driver_module = THIS_MODULE;
 	chip->indio_dev->modes = INDIO_DIRECT_MODE;
 	err = iio_device_register(chip->indio_dev);
 	if (err) {
