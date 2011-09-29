@@ -1648,12 +1648,12 @@ static int __devinit tegra_nand_probe(struct platform_device *pdev)
 #ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(mtd, part_probes, &info->parts, 0);
 	if (err > 0) {
-		err = add_mtd_partitions(mtd, info->parts, err);
+		err = mtd_device_register(mtd, info->parts, err);
 	} else if (err <= 0 && plat->parts) {
-		err = add_mtd_partitions(mtd, plat->parts, plat->nr_parts);
+		err = mtd_device_register(mtd, plat->parts, plat->nr_parts);
 	} else
 #endif
-		err = add_mtd_device(mtd);
+		err = mtd_device_register(mtd, NULL, 0);
 	if (err != 0)
 		goto out_free_bbbmap;
 
