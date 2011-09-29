@@ -371,7 +371,6 @@ static int tps80031_charger_probe(struct platform_device *pdev)
 	charger->reg_desc.owner = THIS_MODULE;
 
 	charger->reg_init_data.supply_regulator = NULL;
-	charger->reg_init_data.supply_regulator_dev = NULL;
 	charger->reg_init_data.num_consumer_supplies =
 					pdata->num_consumer_supplies;
 	charger->reg_init_data.consumer_supplies = pdata->consumer_supplies;
