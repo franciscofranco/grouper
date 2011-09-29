@@ -424,7 +424,7 @@ static int adb_open(struct inode *ip, struct file *fp)
 		last_print = jiffies;
 	}
 
-	if (adb_lock(&_adb_dev->open_excl))
+	if (adb_lock(&_adb_dev->open_excl)) {
 		cpu_relax();
 		return -EBUSY;
 	}
