@@ -760,7 +760,9 @@ FIXED_REG(3, en_3v3_sys_a04,	en_3v3_sys,	NULL,				0,      0,      TPS6591X_GPIO_
 
 /* Specific to pm269 */
 FIXED_REG(4, en_vdd_bl_pm269,		en_vdd_bl,		NULL, 				0,      0,      TEGRA_GPIO_PH3,	true,	1, 5000);
+#ifndef CONFIG_TEGRA_CARDHU_DSI
 FIXED_REG(6, en_vdd_pnl1_pm269,		en_vdd_pnl1,		FIXED_SUPPLY(en_3v3_sys),	0,      0,      TEGRA_GPIO_PW1,	true,	1, 3300);
+#endif
 FIXED_REG(9, en_3v3_fuse_pm269,		en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys), 	0,      0,      TEGRA_GPIO_PC1,	true,	0, 3300);
 FIXED_REG(12, en_3v3_pex_hvdd_pm269,	en_3v3_pex_hvdd,	FIXED_SUPPLY(en_3v3_sys), 	0,      0,      TEGRA_GPIO_PC6,	true,	0, 3300);
 
@@ -888,9 +890,14 @@ GREG_INIT(17, en_vddio_vid_oc,		en_vddio_vid_oc,	"vdd_5v0_sys", 0,      0,      
 	ADD_GPIO_REG(en_vddio_vid_oc_pm269),
 
 
+#ifndef CONFIG_TEGRA_CARDHU_DSI
 #define E1247_DISPLAY_FIXED_REG			\
 	ADD_FIXED_REG(en_vdd_bl_pm269),		\
 	ADD_FIXED_REG(en_vdd_pnl1_pm269),
+#else
+#define E1247_DISPLAY_FIXED_REG			\
+	ADD_FIXED_REG(en_vdd_bl_pm269),
+#endif
 
 #define PM313_DISPLAY_FIXED_REG			\
 	ADD_FIXED_REG(en_vdd_bl_pm313),		\
