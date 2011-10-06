@@ -60,11 +60,13 @@
 
 #define enterprise_lcd_te		TEGRA_GPIO_PJ1
 
+#ifdef CONFIG_TEGRA_DC
 static struct regulator *enterprise_dsi_reg = NULL;
 
 static struct regulator *enterprise_hdmi_reg;
 static struct regulator *enterprise_hdmi_pll;
 static struct regulator *enterprise_hdmi_vddio;
+#endif
 
 static atomic_t sd_brightness = ATOMIC_INIT(255);
 
@@ -153,6 +155,7 @@ static struct platform_device enterprise_disp1_backlight_device = {
 	},
 };
 
+#ifdef CONFIG_TEGRA_DC
 static int enterprise_hdmi_vddio_enable(void)
 {
 	int ret;
@@ -459,6 +462,7 @@ static int enterprise_dsi_panel_disable(void)
 #endif
 	return 0;
 }
+#endif
 
 static void enterprise_stereo_set_mode(int mode)
 {
@@ -484,6 +488,7 @@ static void enterprise_stereo_set_orientation(int mode)
 	}
 }
 
+#ifdef CONFIG_TEGRA_DC
 static int enterprise_dsi_panel_postsuspend(void)
 {
 	int err = 0;
@@ -499,6 +504,7 @@ static int enterprise_dsi_panel_postsuspend(void)
 
 	return err;
 }
+#endif
 
 static struct tegra_dsi_cmd dsi_init_cmd[]= {
 	DSI_CMD_SHORT(0x05, 0x11, 0x00),
@@ -571,6 +577,7 @@ static struct tegra_stereo_out enterprise_stereo = {
 	.set_orientation	= &enterprise_stereo_set_orientation,
 };
 
+#ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	{
 		.pclk = 10000000,
@@ -587,7 +594,6 @@ static struct tegra_dc_mode enterprise_dsi_modes[] = {
 	},
 };
 
-
 static struct tegra_fb_data enterprise_dsi_fb_data = {
 	.win		= 0,
 	.xres		= 540,
@@ -595,7 +601,6 @@ static struct tegra_fb_data enterprise_dsi_fb_data = {
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
-
 
 static struct tegra_dc_out enterprise_disp1_out = {
 	.align		= TEGRA_DC_ALIGN_MSB,
@@ -625,6 +630,7 @@ static struct tegra_dc_platform_data enterprise_disp1_pdata = {
 	.emc_clk_rate	= 204000000,
 	.fb		= &enterprise_dsi_fb_data,
 };
+
 static struct nvhost_device enterprise_disp1_device = {
 	.name		= "tegradc",
 	.id		= 0,
@@ -644,6 +650,7 @@ static struct nvhost_device enterprise_disp2_device = {
 		.platform_data = &enterprise_disp2_pdata,
 	},
 };
+#endif
 
 static struct nvmap_platform_carveout enterprise_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
@@ -671,7 +678,9 @@ static struct platform_device enterprise_nvmap_device = {
 
 static struct platform_device *enterprise_gfx_devices[] __initdata = {
 	&enterprise_nvmap_device,
+#ifdef CONFIG_TEGRA_GRHOST
 	&tegra_grhost_device,
+#endif
 	&tegra_pwfm0_device,
 };
 
@@ -682,7 +691,7 @@ static struct platform_device *enterprise_bl_devices[]  = {
 int __init enterprise_panel_init(void)
 {
 	int err;
-	struct resource *res;
+	struct resource __maybe_unused *res;
 
 	bl_output = enterprise_bl_output_measured;
 
@@ -718,15 +727,18 @@ int __init enterprise_panel_init(void)
 	err = platform_add_devices(enterprise_gfx_devices,
 				ARRAY_SIZE(enterprise_gfx_devices));
 
+#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	res = nvhost_get_resource_byname(&enterprise_disp1_device,
 					 IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb_start;
 	res->end = tegra_fb_start + tegra_fb_size - 1;
+#endif
 
 	/* Copy the bootloader fb to the fb. */
 	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
 		min(tegra_fb_size, tegra_bootloader_fb_size));
 
+#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	if (!err)
 		err = nvhost_device_register(&enterprise_disp1_device);
 
@@ -736,8 +748,9 @@ int __init enterprise_panel_init(void)
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 	if (!err)
 		err = nvhost_device_register(&enterprise_disp2_device);
+#endif
 
-#if defined(CONFIG_TEGRA_NVAVP)
+#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_NVAVP)
 	if (!err)
 		err = nvhost_device_register(&nvavp_device);
 #endif
