@@ -591,8 +591,14 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			pcpu->freq_change_time_in_idle =
 				get_cpu_idle_time_us(j,
 					     &pcpu->freq_change_time);
+			pcpu->time_in_idle = pcpu->freq_change_time_in_idle;
+			pcpu->idle_exit_time = pcpu->freq_change_time;
+			pcpu->timer_idlecancel = 1;
 			pcpu->governor_enabled = 1;
 			smp_wmb();
+
+			if (!timer_pending(&pcpu->cpu_timer))
+				mod_timer(&pcpu->cpu_timer, jiffies + 2);
 		}
 
 		/*
