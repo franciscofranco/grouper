@@ -114,6 +114,8 @@ obj-${CONFIG_MACH_TEGRA_DT}             += board-harmony-pinmux.o
 obj-${CONFIG_MACH_TRIMSLICE}            += board-trimslice.o
 obj-${CONFIG_MACH_TRIMSLICE}            += board-trimslice-pinmux.o
 
+obj-${CONFIG_MACH_P852}                 += p852/
+
 obj-${CONFIG_MACH_VENTANA}              += board-ventana.o
 obj-${CONFIG_MACH_VENTANA}              += board-ventana-pinmux.o
 obj-${CONFIG_MACH_VENTANA}              += board-ventana-sdhci.o
