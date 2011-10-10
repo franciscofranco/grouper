@@ -7,7 +7,7 @@
  * Author: Mike Rapoport <mike@compulab.co.il>
  *
  * Based on NVIDIA PCIe driver
- * Copyright (c) 2008-2011, NVIDIA Corporation.
+ * Copyright (c) 2008-2012, NVIDIA Corporation.
  *
  * Bits taken from arch/arm/mach-dove/pcie.c
  *
@@ -346,6 +346,10 @@ static struct tegra_pcie_info tegra_pcie = {
 	},
 };
 
+static struct resource pcie_io_space;
+static struct resource pcie_mem_space;
+static struct resource pcie_prefetch_mem_space;
+
 void __iomem *tegra_pcie_io_base;
 EXPORT_SYMBOL(tegra_pcie_io_base);
 
@@ -514,6 +518,32 @@ static void __devinit tegra_pcie_relax_enable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, tegra_pcie_relax_enable);
 
+static void __init tegra_pcie_preinit(void)
+{
+	pcie_io_space.name = "PCIe I/O Space";
+	pcie_io_space.start = PCIBIOS_MIN_IO;
+	pcie_io_space.end = IO_SPACE_LIMIT;
+	pcie_io_space.flags = IORESOURCE_IO;
+	if (request_resource(&ioport_resource, &pcie_io_space))
+		panic("can't allocate PCIe I/O space");
+
+	pcie_mem_space.name = "PCIe MEM Space";
+	pcie_mem_space.start = MEM_BASE_0;
+	pcie_mem_space.end = MEM_BASE_0 + MEM_SIZE - 1;
+	pcie_mem_space.flags = IORESOURCE_MEM;
+	if (request_resource(&iomem_resource, &pcie_mem_space))
+		panic("can't allocate PCIe MEM space");
+
+	pcie_prefetch_mem_space.name = "PCIe PREFETCH MEM Space";
+	pcie_prefetch_mem_space.start = PREFETCH_MEM_BASE_0;
+	pcie_prefetch_mem_space.end = PREFETCH_MEM_BASE_0 + PREFETCH_MEM_SIZE
+					- 1;
+	pcie_prefetch_mem_space.flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
+	if (request_resource(&iomem_resource, &pcie_prefetch_mem_space))
+		panic("can't allocate PCIe PREFETCH MEM space");
+
+}
+
 static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct tegra_pcie_port *pp;
@@ -524,61 +554,10 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp = tegra_pcie.port + nr;
 	pp->root_bus_nr = sys->busnr;
 
-	/*
-	 * IORESOURCE_IO
-	 */
-	snprintf(pp->io_space_name, sizeof(pp->io_space_name),
-		 "PCIe %d I/O", pp->index);
-	pp->io_space_name[sizeof(pp->io_space_name) - 1] = 0;
-	pp->res[0].name = pp->io_space_name;
-	if (pp->index == 0) {
-		pp->res[0].start = PCIBIOS_MIN_IO;
-		pp->res[0].end = pp->res[0].start + SZ_32K - 1;
-	} else {
-		pp->res[0].start = PCIBIOS_MIN_IO + SZ_32K;
-		pp->res[0].end = IO_SPACE_LIMIT;
-	}
-	pp->res[0].flags = IORESOURCE_IO;
-	if (request_resource(&ioport_resource, &pp->res[0])) {
-		pr_err("Request PCIe IO resource failed\n");
-		/* return failure */
-		return -EBUSY;
-	}
-	sys->resource[0] = &pp->res[0];
+	sys->resource[0] = &pcie_io_space;
+	sys->resource[1] = &pcie_mem_space;
+	sys->resource[2] = &pcie_prefetch_mem_space;
 
-	/*
-	 * IORESOURCE_MEM
-	 */
-	snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
-		 "PCIe %d MEM", pp->index);
-	pp->mem_space_name[sizeof(pp->mem_space_name) - 1] = 0;
-	pp->res[1].name = pp->mem_space_name;
-	pp->res[1].start = MEM_BASE_0;
-	pp->res[1].end = pp->res[1].start + MEM_SIZE - 1;
-	pp->res[1].flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, &pp->res[1])) {
-		pr_err("Request PCIe Memory resource failed\n");
-		/* return failure */
-		return -EBUSY;
-	}
-	sys->resource[1] = &pp->res[1];
-
-	/*
-	 * IORESOURCE_MEM | IORESOURCE_PREFETCH
-	 */
-	snprintf(pp->prefetch_space_name, sizeof(pp->prefetch_space_name),
-		 "PCIe %d PREFETCH MEM", pp->index);
-	pp->prefetch_space_name[sizeof(pp->prefetch_space_name) - 1] = 0;
-	pp->res[2].name = pp->prefetch_space_name;
-	pp->res[2].start = PREFETCH_MEM_BASE_0;
-	pp->res[2].end = pp->res[2].start + PREFETCH_MEM_SIZE - 1;
-	pp->res[2].flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
-	if (request_resource(&iomem_resource, &pp->res[2])) {
-		pr_err("Request PCIe Prefetch Memory resource failed\n");
-		/* return failure */
-		return -EBUSY;
-	}
-	sys->resource[2] = &pp->res[2];
 	return 1;
 }
 
@@ -603,6 +582,7 @@ static struct pci_bus *tegra_pcie_scan_bus(int nr,
 
 static struct hw_pci tegra_pcie_hw = {
 	.nr_controllers	= MAX_PCIE_SUPPORTED_PORTS,
+	.preinit	= tegra_pcie_preinit,
 	.setup		= tegra_pcie_setup,
 	.scan		= tegra_pcie_scan_bus,
 	.swizzle	= pci_std_swizzle,
@@ -1057,7 +1037,6 @@ static int __init tegra_pcie_get_resources(void)
 		goto err_map_reg;
 	}
 	res_mmio = &tegra_pcie.res_mmio;
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	err = request_resource(&iomem_resource, res_mmio);
 	if (err) {
 		pr_err("PCIE: Failed to request resources: %d\n", err);
@@ -1071,7 +1050,7 @@ static int __init tegra_pcie_get_resources(void)
 		err = -ENOMEM;
 		goto err_map_io;
 	}
-#endif
+
 	err = request_irq(INT_PCIE_INTR, tegra_pcie_isr,
 			  IRQF_SHARED, "PCIE", &tegra_pcie);
 	if (err) {
@@ -1083,12 +1062,10 @@ static int __init tegra_pcie_get_resources(void)
 	return 0;
 
 err_irq:
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	iounmap(tegra_pcie_io_base);
 err_map_io:
 	release_resource(&tegra_pcie.res_mmio);
 err_req_io:
-#endif
 	iounmap(tegra_pcie.regs);
 err_map_reg:
 	tegra_pcie_power_off();

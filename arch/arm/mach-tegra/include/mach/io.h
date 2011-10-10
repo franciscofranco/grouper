@@ -2,7 +2,7 @@
  * arch/arm/mach-tegra/include/mach/io.h
  *
  * Copyright (C) 2010 Google, Inc.
- * Copyright (C) 2011 NVIDIA Corporation.
+ * Copyright (C) 2011-2012 NVIDIA Corporation.
  *
  * Author:
  *	Colin Cross <ccross@google.com>
@@ -104,7 +104,7 @@ void tegra_iounmap(volatile void __iomem *addr);
 
 #define IO_ADDRESS(n) ((void __iomem *) IO_TO_VIRT(n))
 
-#if (defined(CONFIG_TEGRA_PCI) && defined(CONFIG_ARCH_TEGRA_2x_SOC))
+#if defined(CONFIG_TEGRA_PCI)
 extern void __iomem *tegra_pcie_io_base;
 
 static inline void __iomem *__io(unsigned long addr)
