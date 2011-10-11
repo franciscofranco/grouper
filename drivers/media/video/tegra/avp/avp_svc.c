@@ -373,6 +373,7 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 			       aclk->mod->name);
 		} else if (--aclk->refcnt == 0) {
 			clk_disable(aclk->clk);
+			clk_set_rate(avp_svc->sclk, 0);
 			clk_disable(avp_svc->sclk);
 			clk_disable(avp_svc->emcclk);
 		}
@@ -765,6 +766,7 @@ void avp_svc_stop(struct avp_svc_info *avp_svc)
 				aclk->mod->name);
 			clk_disable(aclk->clk);
 			/* sclk/emcclk was enabled once for every clock */
+			clk_set_rate(avp_svc->sclk, 0);
 			clk_disable(avp_svc->sclk);
 			clk_disable(avp_svc->emcclk);
 		}
