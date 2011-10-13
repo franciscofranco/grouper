@@ -503,6 +503,7 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	host->mmc->pm_caps = plat->pm_flags;
 
 	host->mmc->caps |= MMC_CAP_ERASE;
+	host->mmc->caps |= MMC_CAP_DISABLE;
 	if (plat->is_8bit)
 		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
 	host->mmc->caps |= MMC_CAP_SDIO_IRQ;
