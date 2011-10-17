@@ -176,8 +176,8 @@ struct tegra_i2c_dev {
 	unsigned long last_bus_clk_rate;
 	u16 slave_addr;
 	bool is_clkon_always;
-	struct tegra_i2c_bus busses[1];
 	int (*arb_recovery)(int scl_gpio, int sda_gpio);
+	struct tegra_i2c_bus busses[1];
 };
 
 static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned long reg)
