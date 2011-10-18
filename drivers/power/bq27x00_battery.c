@@ -72,7 +72,6 @@
 #define BQ27510_ATRATE			0x02
 #define BQ27510_ENERGY_AVAIL		0x22
 #define BQ27510_POWER_AVG		0x24
-#define BQ27510_CYCLE_COUNT		0x2a
 
 /* bq27510-g2 control register sub-commands*/
 #define BQ27510_CNTL_DEVICE_TYPE	0x0001
@@ -139,7 +138,6 @@ static enum power_supply_property bq27x00_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_POWER_AVG,
-	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_HEALTH,
 };
@@ -550,21 +548,6 @@ static int bq27510_battery_power_avg(struct bq27x00_device_info *di,
 	return -1;
 }
 
-static int bq27510_battery_cycle_count(struct bq27x00_device_info *di,
-				int reg_offset)
-{
-	int ret;
-
-	if (di->chip == BQ27510) {
-		ret = bq27x00_read(di, reg_offset, false);
-		if (ret < 0)
-			dev_err(di->dev, "read failure\n");
-		return ret;
-	} else {
-		return -1;
-	}
-}
-
 #define to_bq27x00_device_info(x) container_of((x), \
 				struct bq27x00_device_info, bat);
 
@@ -633,10 +616,6 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		ret = bq27510_battery_power_avg(di, val);
-		break;
-	case POWER_SUPPLY_PROP_CYCLE_COUNT:
-		val->intval = bq27510_battery_cycle_count(di,
-					BQ27510_CYCLE_COUNT);
 		break;
 	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		if (bq27510_get_battery_serial_number(di, val))
