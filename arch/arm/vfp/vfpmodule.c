@@ -184,11 +184,11 @@ static int vfp_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 
 	switch (cmd) {
 	case CPU_PM_ENTER:
-		if (last_VFP_context[cpu]) {
+		if (vfp_current_hw_state[cpu]) {
 			fmxr(FPEXC, fpexc | FPEXC_EN);
-			vfp_save_state(last_VFP_context[cpu], fpexc);
+			vfp_save_state(vfp_current_hw_state[cpu], fpexc);
 			/* force a reload when coming back from idle */
-			last_VFP_context[cpu] = NULL;
+			vfp_current_hw_state[cpu] = NULL;
 			fmxr(FPEXC, fpexc & ~FPEXC_EN);
 		}
 		break;
@@ -442,7 +442,7 @@ static int vfp_pm_suspend(void)
 	u32 fpexc = fmrx(FPEXC);
 
 	/* If lazy disable, re-enable the VFP ready for it to be saved */
-	if (last_VFP_context[ti->cpu] != &ti->vfpstate) {
+	if (vfp_current_hw_state[ti->cpu] != &ti->vfpstate) {
 		fpexc |= FPEXC_EN;
 		fmxr(FPEXC, fpexc);
 	}

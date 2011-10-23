@@ -1147,13 +1147,12 @@ out:
 	return err < 0 ? err : count;
 }
 
-static int oom_adjust_permission(struct inode *inode, int mask,
-				 unsigned int flags)
+static int oom_adjust_permission(struct inode *inode, int mask)
 {
 	uid_t uid;
 	struct task_struct *p;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	p = get_proc_task(inode);
@@ -1173,7 +1172,7 @@ static int oom_adjust_permission(struct inode *inode, int mask,
 	}
 
 	/* Fall back to default. */
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask);
 }
 
 static const struct inode_operations proc_oom_adjust_inode_operations = {

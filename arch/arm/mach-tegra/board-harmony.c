@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/i2c-tegra.h>
 #include <linux/memblock.h>
 
 #include <sound/wm8903.h>

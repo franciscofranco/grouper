@@ -503,7 +503,8 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	tegra_host = kzalloc(sizeof(struct tegra_sdhci_host), GFP_KERNEL);
 	if (tegra_host == NULL) {
 		dev_err(mmc_dev(host->mmc), "failed to allocate tegra host\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err_no_mem;
 	}
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
@@ -680,9 +681,10 @@ err_cd_req:
 		gpio_free(plat->power_gpio);
 	}
 err_power_req:
+err_no_mem:
+	kfree(tegra_host);
 err_no_plat:
 	sdhci_pltfm_free(pdev);
-	kfree(tegra_host);
 	return rc;
 }
 

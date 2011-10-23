@@ -1470,7 +1470,7 @@ static int spi_tegra_suspend(struct platform_device *pdev, pm_message_t state)
 		dev_err(&pdev->dev, "Spi transfer is in progress "
 			"Avoiding suspend\n");
 		tspi->is_suspended = false;
-		spi_unlock_irqrestore(&tspi->lock, flags);
+		spin_unlock_irqrestore(&tspi->lock, flags);
 		return -EBUSY;
 	}
 
