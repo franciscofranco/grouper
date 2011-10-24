@@ -34,7 +34,7 @@
 
 #define CARDHU_SD_CD TEGRA_GPIO_PI5
 #define CARDHU_SD_WP TEGRA_GPIO_PT3
-#define PM269_SD_WP TEGRA_GPIO_PZ4
+#define PM269_SD_WP -1
 
 static struct resource sdhci_resource0[] = {
 	[0] = {
