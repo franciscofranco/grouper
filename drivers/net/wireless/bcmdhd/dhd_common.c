@@ -170,7 +170,7 @@ const bcm_iovar_t dhd_iovars[] = {
 };
 
 struct dhd_cmn *
-dhd_common_init(osl_t *osh)
+dhd_common_init(uint16 devid, osl_t *osh)
 {
 	dhd_cmn_t *cmn;
 
@@ -190,17 +190,22 @@ dhd_common_init(osl_t *osh)
 
 #ifdef CONFIG_BCMDHD_FW_PATH
 	bcm_strncpy_s(fw_path, sizeof(fw_path), CONFIG_BCMDHD_FW_PATH, MOD_PARAM_PATHLEN-1);
-#else /* CONFIG_BCMDHD_FW_PATH */
+#elif defined(CONFIG_BCMDHD_FW_DIR)  /* CONFIG_BCMDHD_FW_PATH */
+	sprintf(fw_path, "%s/bcm%x/fw_bcmdhd.bin", CONFIG_BCMDHD_FW_DIR, devid);
+#else
 	fw_path[0] = '\0';
-#endif /* CONFIG_BCMDHD_FW_PATH */
+#endif /* CONFIG_BCMDHD_FW_DIR */
 #ifdef CONFIG_BCMDHD_NVRAM_PATH
 	bcm_strncpy_s(nv_path, sizeof(nv_path), CONFIG_BCMDHD_NVRAM_PATH, MOD_PARAM_PATHLEN-1);
-#else /* CONFIG_BCMDHD_NVRAM_PATH */
+#elif defined(CONFIG_BCMDHD_NVRAM_DIR) /* CONFIG_BCMDHD_NVRAM_PATH */
+	sprintf(nv_path, "%s/nvram_%x.txt", CONFIG_BCMDHD_NVRAM_DIR, devid);
+#else
 	nv_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
 #ifdef SOFTAP
 	fw_path2[0] = '\0';
 #endif
+	DHD_ERROR(("bcmdhd: fw_path: %s nvram_path: %s\n", fw_path, nv_path));
 	return cmn;
 }
 
