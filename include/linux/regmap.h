@@ -145,6 +145,7 @@ int regmap_update_bits_lazy(struct regmap *map, unsigned int reg,
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
+void regcache_mark_dirty(struct regmap *map);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
