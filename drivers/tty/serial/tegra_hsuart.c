@@ -633,11 +633,12 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *t)
 	/* Reset the Rx and Tx FIFOs */
 	tegra_fifo_reset(t, UART_FCR_CLEAR_XMIT | UART_FCR_CLEAR_RCVR);
 
-	clk_disable(t->clk);
 	t->baud = 0;
 	t->uart_state = TEGRA_UART_CLOSED;
 
 	spin_unlock_irqrestore(&t->uport.lock, flags);
+
+	clk_disable(t->clk);
 }
 
 static void tegra_uart_free_rx_dma(struct tegra_uart_port *t)
@@ -1233,7 +1234,9 @@ static void tegra_set_termios(struct uart_port *u, struct ktermios *termios,
 
 	/* Baud rate. */
 	baud = uart_get_baud_rate(u, termios, oldtermios, 200, 4000000);
+	spin_unlock_irqrestore(&u->lock, flags);
 	tegra_set_baudrate(t, baud);
+	spin_lock_irqsave(&u->lock, flags);
 
 	/* Flow control */
 	if (termios->c_cflag & CRTSCTS)	{
@@ -1471,6 +1474,7 @@ void tegra_uart_request_clock_off(struct uart_port *uport)
 {
 	unsigned long flags;
 	struct tegra_uart_port *t;
+	bool is_clk_disable = false;
 
 	if (IS_ERR_OR_NULL(uport))
 		BUG();
@@ -1480,10 +1484,14 @@ void tegra_uart_request_clock_off(struct uart_port *uport)
 	t = container_of(uport, struct tegra_uart_port, uport);
 	spin_lock_irqsave(&uport->lock, flags);
 	if (t->uart_state == TEGRA_UART_OPENED) {
-		clk_disable(t->clk);
+		is_clk_disable = true;
 		t->uart_state = TEGRA_UART_CLOCK_OFF;
 	}
 	spin_unlock_irqrestore(&uport->lock, flags);
+
+	if (is_clk_disable)
+		clk_disable(t->clk);
+
 	return;
 }
 
@@ -1492,6 +1500,7 @@ void tegra_uart_request_clock_on(struct uart_port *uport)
 {
 	unsigned long flags;
 	struct tegra_uart_port *t;
+	bool is_clk_enable = false;
 
 	if (IS_ERR_OR_NULL(uport))
 		BUG();
@@ -1499,10 +1508,14 @@ void tegra_uart_request_clock_on(struct uart_port *uport)
 	t = container_of(uport, struct tegra_uart_port, uport);
 	spin_lock_irqsave(&uport->lock, flags);
 	if (t->uart_state == TEGRA_UART_CLOCK_OFF) {
-		clk_enable(t->clk);
+		is_clk_enable = true;
 		t->uart_state = TEGRA_UART_OPENED;
 	}
 	spin_unlock_irqrestore(&uport->lock, flags);
+
+	if (is_clk_enable)
+		clk_enable(t->clk);
+
 	return;
 }
 
