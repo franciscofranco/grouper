@@ -617,7 +617,6 @@ static struct snd_soc_dai_link tegra_wm8903_dai[] = {
 		.codec_dai_name = "dit-hifi",
 		.ops = &tegra_spdif_ops,
 	},
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	{
 		.name = "BT-SCO",
 		.stream_name = "BT SCO PCM",
@@ -627,7 +626,6 @@ static struct snd_soc_dai_link tegra_wm8903_dai[] = {
 		.codec_dai_name = "dit-hifi",
 		.ops = &tegra_wm8903_bt_sco_ops,
 	},
-#endif
 };
 
 static struct snd_soc_card snd_soc_tegra_wm8903 = {
@@ -678,6 +676,8 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		tegra_wm8903_dai[0].cpu_dai_name = "tegra30-i2s.1";
 
 		tegra_wm8903_dai[1].cpu_dai_name = "tegra30-spdif";
+
+		tegra_wm8903_dai[2].cpu_dai_name = "tegra30-i2s.3";
 	}
 
 	card->dev = &pdev->dev;
