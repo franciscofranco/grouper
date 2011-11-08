@@ -1,6 +1,7 @@
 #
 # Makefile for the WatchDog device drivers.
 #
+GCOV_PROFILE_tegra_wdt.o := y
 
 # The WatchDog Timer Driver Core.
 watchdog-objs	+= watchdog_core.o watchdog_dev.o
