@@ -374,13 +374,6 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	struct tegra_sdhci_host *tegra_host;
 	struct clk *clk;
 	int rc;
-	void __iomem *ioaddr_clk_rst;
-	unsigned int val = 0;
-
-	ioaddr_clk_rst = ioremap(0x60006300, 0x400);
-	val = readl(ioaddr_clk_rst + 0xa0);
-	val |= 0x68;
-	writel(val, ioaddr_clk_rst + 0xa0);
 
 	host = sdhci_pltfm_init(pdev, &sdhci_tegra_pdata);
 	if (IS_ERR(host))
