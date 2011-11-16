@@ -86,7 +86,7 @@ err_free:
 	return ret;
 }
 
-int regcache_init(struct regmap *map)
+int regcache_init(struct regmap *map, const struct regmap_config *config)
 {
 	int ret;
 	int i;
@@ -106,6 +106,13 @@ int regcache_init(struct regmap *map)
 			map->cache_type);
 		return -EINVAL;
 	}
+
+	map->reg_defaults = config->reg_defaults;
+	map->num_reg_defaults = config->num_reg_defaults;
+	map->num_reg_defaults_raw = config->num_reg_defaults_raw;
+	map->reg_defaults_raw = config->reg_defaults_raw;
+	map->cache_size_raw = (config->val_bits / 8) * config->num_reg_defaults_raw;
+	map->cache_word_size = config->val_bits / 8;
 
 	map->cache = NULL;
 	map->cache_ops = cache_types[i];
