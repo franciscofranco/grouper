@@ -1324,7 +1324,7 @@ struct platform_device tegra_das_device = {
 };
 #endif
 
-#if defined(CONFIG_TEGRA_IOVMM_GART)
+#if defined(CONFIG_TEGRA_IOVMM_GART) || defined(CONFIG_TEGRA_IOMMU_GART)
 static struct resource tegra_gart_resources[] = {
 	[0] = {
 		.name	= "mc",
