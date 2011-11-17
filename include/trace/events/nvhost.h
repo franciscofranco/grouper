@@ -3,7 +3,7 @@
  *
  * Nvhost event logging to ftrace.
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -291,40 +291,47 @@ TRACE_EVENT(nvhost_ioctl_ctrl_syncpt_incr,
 );
 
 TRACE_EVENT(nvhost_ioctl_ctrl_syncpt_read,
-	TP_PROTO(u32 id),
+	TP_PROTO(u32 id, u32 value),
 
-	TP_ARGS(id),
+	TP_ARGS(id, value),
 
 	TP_STRUCT__entry(
 	    __field(u32, id);
+		__field(u32, value);
 	),
 
 	TP_fast_assign(
 		__entry->id = id;
+		__entry->value = value;
 	),
 
-	TP_printk("id=%d", __entry->id)
+	TP_printk("id=%d, value=%d", __entry->id, __entry->value)
 );
 
 TRACE_EVENT(nvhost_ioctl_ctrl_syncpt_wait,
-	TP_PROTO(u32 id, u32 threshold, s32 timeout),
+	TP_PROTO(u32 id, u32 threshold, s32 timeout, u32 value, int err),
 
-	TP_ARGS(id, threshold, timeout),
+	TP_ARGS(id, threshold, timeout, value, err),
 
 	TP_STRUCT__entry(
 		__field(u32, id)
 		__field(u32, threshold)
 		__field(s32, timeout)
+		__field(u32, value)
+		__field(int, err)
 	),
 
 	TP_fast_assign(
 		__entry->id = id;
 		__entry->threshold = threshold;
 		__entry->timeout = timeout;
+		__entry->value = value;
+		__entry->err = err;
 	),
 
-	TP_printk("id=%u, threshold=%u, timeout=%d",
-	  __entry->id, __entry->threshold, __entry->timeout)
+	TP_printk("id=%u, threshold=%u, timeout=%d, value=%u, err=%d",
+	  __entry->id, __entry->threshold, __entry->timeout,
+	  __entry->value, __entry->err)
 );
 
 TRACE_EVENT(nvhost_ioctl_ctrl_module_regrdwr,
@@ -370,21 +377,24 @@ TRACE_EVENT(nvhost_channel_submitted,
 );
 
 TRACE_EVENT(nvhost_channel_submit_complete,
-	TP_PROTO(const char *name, int count),
+	TP_PROTO(const char *name, int count, u32 thresh),
 
-	TP_ARGS(name, count),
+	TP_ARGS(name, count, thresh),
 
 	TP_STRUCT__entry(
 		__field(const char *, name)
 		__field(int, count)
+		__field(u32, thresh)
 	),
 
 	TP_fast_assign(
 		__entry->name = name;
 		__entry->count = count;
+		__entry->thresh = thresh;
 	),
 
-	TP_printk("name=%s, count=%d", __entry->name, __entry->count)
+	TP_printk("name=%s, count=%d, thresh=%d",
+		__entry->name, __entry->count, __entry->thresh)
 );
 
 TRACE_EVENT(nvhost_wait_cdma,
