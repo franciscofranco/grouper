@@ -5,6 +5,7 @@ GCOV_PROFILE := y
 obj-y				+= avp/
 obj-$(CONFIG_TEGRA_MEDIASERVER)	+= mediaserver/
 obj-$(CONFIG_TEGRA_NVAVP)	+= nvavp/
+obj-$(CONFIG_TEGRA_DTV)		+= tegra_dtv.o
 obj-$(CONFIG_TEGRA_CAMERA)	+= tegra_camera.o
 obj-$(CONFIG_VIDEO_AR0832)	+= ar0832_main.o
 obj-$(CONFIG_VIDEO_OV5650)	+= ov5650.o

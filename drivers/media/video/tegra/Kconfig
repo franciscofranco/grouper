@@ -11,6 +11,15 @@ config TEGRA_CAMERA
 
           If unsure, say Y
 
+config TEGRA_DTV
+        bool "Enable support for tegra dtv interface"
+        depends on ARCH_TEGRA
+        default y
+        help
+          Enables support for the Tegra dtv interface
+
+          If unsure, say Y
+
 config VIDEO_OV5650
         tristate "OV5650 camera sensor support"
         depends on I2C && ARCH_TEGRA
