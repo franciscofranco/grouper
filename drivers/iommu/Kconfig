@@ -107,4 +107,14 @@ config INTR_REMAP
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
 
+config TEGRA_IOMMU_SMMU
+	bool "Tegra SMMU IOMMU Support"
+	depends on ARCH_TEGRA
+	select IOMMU_API
+	help
+	  Enables support for remapping discontiguous physical memory
+	  shared with the operating system into contiguous I/O virtual
+	  space through the SMMU (System Memory Management Unit)
+	  hardware included on Tegra SoCs.
+
 endif # IOMMU_SUPPORT
