@@ -178,6 +178,7 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 
 	/* Enable interrupts */
 	channel_set_bit(dw, MASK.XFER, dwc->mask);
+	channel_set_bit(dw, MASK.BLOCK, dwc->mask);
 	channel_set_bit(dw, MASK.ERROR, dwc->mask);
 
 	dwc->initialized = true;
@@ -205,6 +206,8 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		/* The tasklet will hopefully advance the queue... */
 		return;
 	}
+
+	dwc_initialize(dwc);
 
 	channel_writel(dwc, LLP, first->txd.phys);
 	channel_writel(dwc, CTL_LO,
@@ -965,10 +968,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc;
-	struct dw_dma_slave	*dws;
 	int			i;
-	u32			cfghi;
-	u32			cfglo;
 	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "alloc_chan_resources\n");
@@ -979,27 +979,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
-	dma_cookie_init(chan);
-
-	cfghi = DWC_CFGH_FIFO_MODE;
-	cfglo = 0;
-
-	dws = chan->private;
-	if (dws) {
-		/*
-		 * We need controller-specific data to set up slave
-		 * transfers.
-		 */
-		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
-
-		cfghi = dws->cfg_hi;
-		cfglo = dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
-	}
-
-	cfglo |= DWC_CFGL_CH_PRIOR(dwc->priority);
-
-	channel_writel(dwc, CFG_LO, cfglo);
-	channel_writel(dwc, CFG_HI, cfghi);
 	dma_cookie_init(chan);
 
 	/*
@@ -1033,11 +1012,6 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		i = ++dwc->descs_allocated;
 	}
 
-	/* Enable interrupts */
-	channel_set_bit(dw, MASK.XFER, dwc->mask);
-	channel_set_bit(dw, MASK.BLOCK, dwc->mask);
-	channel_set_bit(dw, MASK.ERROR, dwc->mask);
-
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	dev_dbg(chan2dev(chan),
@@ -1065,6 +1039,7 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&dwc->lock, flags);
 	list_splice_init(&dwc->free_list, &list);
 	dwc->descs_allocated = 0;
+	dwc->initialized = false;
 
 	/* Disable interrupts */
 	channel_clear_bit(dw, MASK.XFER, dwc->mask);
@@ -1342,6 +1317,8 @@ EXPORT_SYMBOL(dw_dma_cyclic_free);
 
 static void dw_dma_off(struct dw_dma *dw)
 {
+	int i;
+
 	dma_writel(dw, CFG, 0);
 
 	channel_clear_bit(dw, MASK.XFER, dw->all_chan_mask);
@@ -1352,6 +1329,9 @@ static void dw_dma_off(struct dw_dma *dw)
 
 	while (dma_readl(dw, CFG) & DW_CFG_DMA_EN)
 		cpu_relax();
+
+	for (i = 0; i < dw->dma.chancnt; i++)
+		dw->chan[i].initialized = false;
 }
 
 static int __init dw_probe(struct platform_device *pdev)
@@ -1418,17 +1398,8 @@ static int __init dw_probe(struct platform_device *pdev)
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 
 		dwc->chan.device = &dw->dma;
-<<<<<<< HEAD
 		dwc->chan.chan_id = i;
-		dwc->chan.cookie = dwc->chan.completed_cookie = 1;
-=======
-<<<<<<< HEAD
-		dwc->chan.cookie = dwc->completed = 1;
-		dwc->chan.chan_id = i;
-=======
 		dma_cookie_init(&dwc->chan);
->>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
->>>>>>> 1e15982... dmaengine: consolidate initialization of cookies
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
 			list_add_tail(&dwc->chan.device_node,
 					&dw->dma.channels);
@@ -1550,6 +1521,7 @@ static int dw_suspend_noirq(struct device *dev)
 
 	dw_dma_off(platform_get_drvdata(pdev));
 	clk_disable(dw->clk);
+
 	return 0;
 }
 
