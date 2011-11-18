@@ -22,6 +22,7 @@
 #include "board-whistler.h"
 #include "tegra2_emc.h"
 #include "board.h"
+#include "fuse.h"
 
 static const struct tegra_emc_table whistler_emc_tables_elpida_300Mhz[] = {
 	{
@@ -594,36 +595,38 @@ static const struct tegra_emc_chip whistler_emc_chips[] = {
 	{
 		.description = "Elpida 300MHz",
 		.mem_manufacturer_id = 0x0303,
-		.mem_revision_id1 = 0,
-		.mem_revision_id2 = 0,
-		.mem_pid = 0x1414,
+		.mem_revision_id1 = -1,
+		.mem_revision_id2 = -1,
+		.mem_pid = -1,
 		.table = whistler_emc_tables_elpida_300Mhz,
 		.table_size = ARRAY_SIZE(whistler_emc_tables_elpida_300Mhz)
 	},
-	{
-		.description = "Elpida 300MHz",
-		.mem_manufacturer_id = 0x0303,
-		.mem_revision_id1 = 0,
-		.mem_revision_id2 = 0,
-		.mem_pid = 0x5454,
-		.table = whistler_emc_tables_elpida_300Mhz,
-		.table_size = ARRAY_SIZE(whistler_emc_tables_elpida_300Mhz)
-	},
+};
+
+static const struct tegra_emc_chip whistler_ap25_emc_chips[] = {
 	{
 		.description = "Elpida 380MHz",
 		.mem_manufacturer_id = 0x0303,
-		.mem_revision_id1 = 0x0101,
-		.mem_revision_id2 = 0,
-		.mem_pid = 0x5454,
+		.mem_revision_id1 = -1,
+		.mem_revision_id2 = -1,
+		.mem_pid = -1,
 		.table = whistler_emc_tables_elpida_380Mhz,
 		.table_size = ARRAY_SIZE(whistler_emc_tables_elpida_380Mhz)
 	},
 };
 
+#define TEGRA25_SKU 0x17
+
 int __init whistler_emc_init(void)
 {
-	tegra_init_emc(whistler_emc_chips,
-		ARRAY_SIZE(whistler_emc_chips));
+	int sku_id = tegra_sku_id();
+
+	if (sku_id == TEGRA25_SKU)
+		tegra_init_emc(whistler_ap25_emc_chips,
+				ARRAY_SIZE(whistler_ap25_emc_chips));
+	else
+		tegra_init_emc(whistler_emc_chips,
+				ARRAY_SIZE(whistler_emc_chips));
 
 	return 0;
 }
