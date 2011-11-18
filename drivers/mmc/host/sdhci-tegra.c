@@ -532,6 +532,11 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 			dev_err(mmc_dev(host->mmc), "request irq error\n");
 			goto err_cd_irq_req;
 		}
+		rc = enable_irq_wake(gpio_to_irq(plat->cd_gpio));
+		if (rc < 0)
+			dev_err(mmc_dev(host->mmc),
+				"SD card wake-up event registration"
+					"failed with eroor: %d\n", rc);
 
 	} else if (plat->mmc_data.register_status_notify) {
 		plat->mmc_data.register_status_notify(sdhci_status_notify_cb, host);
@@ -675,6 +680,8 @@ static int __devexit sdhci_tegra_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, dead);
 
 	plat = pdev->dev.platform_data;
+
+	disable_irq_wake(gpio_to_irq(plat->cd_gpio));
 
 	if (tegra_host->vdd_slot_reg) {
 		regulator_disable(tegra_host->vdd_slot_reg);
