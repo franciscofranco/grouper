@@ -3,7 +3,7 @@
  *
  * Tegra I/O VM manager
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,22 +77,6 @@ static LIST_HEAD(iovmm_devices);
 static LIST_HEAD(iovmm_groups);
 static DEFINE_MUTEX(iovmm_group_list_lock);
 static struct kmem_cache *iovmm_cache;
-
-static tegra_iovmm_addr_t iovmm_align_up(struct tegra_iovmm_device *dev,
-	tegra_iovmm_addr_t addr)
-{
-	addr += (1<<dev->pgsize_bits);
-	addr--;
-	addr &= ~((1<<dev->pgsize_bits)-1);
-	return addr;
-}
-
-static tegra_iovmm_addr_t iovmm_align_down(struct tegra_iovmm_device *dev,
-	tegra_iovmm_addr_t addr)
-{
-	addr &= ~((1<<dev->pgsize_bits)-1);
-	return addr;
-}
 
 #define SIMALIGN(b, a)	(((b)->start % (a)) ? ((a) - ((b)->start % (a))) : 0)
 
@@ -318,10 +302,12 @@ static struct tegra_iovmm_block *iovmm_alloc_block(
 	struct rb_node *n;
 	struct tegra_iovmm_block *b, *best;
 	size_t simalign;
+	unsigned long page_size = 1 << domain->dev->pgsize_bits;
 
 	BUG_ON(!size);
-	size = iovmm_align_up(domain->dev, size);
-	align = iovmm_align_up(domain->dev, align);
+
+	size = round_up(size, page_size);
+	align = round_up(align, page_size);
 	for (;;) {
 		spin_lock(&domain->block_lock);
 		if (!iovmm_block_splitting)
@@ -397,11 +383,12 @@ static struct tegra_iovmm_block *iovmm_allocate_vm(
 {
 	struct rb_node *n;
 	struct tegra_iovmm_block *b, *best;
+	unsigned long page_size = 1 << domain->dev->pgsize_bits;
 
 	BUG_ON(iovm_start % align);
 	BUG_ON(!size);
 
-	size = iovmm_align_up(domain->dev, size);
+	size = round_up(size, page_size);
 	for (;;) {
 		spin_lock(&domain->block_lock);
 		if (!iovmm_block_splitting)
@@ -463,25 +450,30 @@ int tegra_iovmm_domain_init(struct tegra_iovmm_domain *domain,
 	tegra_iovmm_addr_t end)
 {
 	struct tegra_iovmm_block *b;
+	unsigned long page_size = 1 << dev->pgsize_bits;
 
 	b = kmem_cache_zalloc(iovmm_cache, GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 
 	domain->dev = dev;
+
 	atomic_set(&domain->clients, 0);
 	atomic_set(&domain->locks, 0);
 	atomic_set(&b->ref, 1);
 	spin_lock_init(&domain->block_lock);
 	init_rwsem(&domain->map_lock);
 	init_waitqueue_head(&domain->delay_lock);
-	b->start  = iovmm_align_up(dev, start);
-	b->length = iovmm_align_down(dev, end) - b->start;
+
+	b->start  = round_up(start, page_size);
+	b->length = round_down(end, page_size) - b->start;
+
 	set_bit(BK_free, &b->flags);
 	rb_link_node(&b->free_node, NULL, &domain->free_blocks.rb_node);
 	rb_insert_color(&b->free_node, &domain->free_blocks);
 	rb_link_node(&b->all_node, NULL, &domain->all_blocks.rb_node);
 	rb_insert_color(&b->all_node, &domain->all_blocks);
+
 	return 0;
 }
 
