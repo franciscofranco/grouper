@@ -127,13 +127,12 @@ static void do_gart_setup(struct gart_device *gart, const u32 *data)
 	unsigned long reg;
 	unsigned int i;
 
-	writel(1, gart->regs + GART_CONFIG);
-
 	reg = gart->iovmm_base;
 	for (i = 0; i < gart->page_count; i++) {
 		gart_set_pte(gart, reg, data ? data[i] : 0);
 		reg += 1 << GART_PAGE_SHIFT;
 	}
+	writel(1, gart->regs + GART_CONFIG);
 	FLUSH_GART_REGS(gart);
 }
 
