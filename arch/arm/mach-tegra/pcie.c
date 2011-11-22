@@ -205,7 +205,7 @@
 #define  PADS_PLL_CTL_TXCLKREF_DIV5				(1 << 20)
 
 /* PMC access is required for PCIE xclk (un)clamping */
-#define PMC_SCRATCH42							0x144
+#define PMC_SCRATCH42						0x144
 #define PMC_SCRATCH42_PCX_CLAMP					(1 << 0)
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -325,8 +325,6 @@ struct tegra_pcie_info {
 	struct regulator	*regulator_avdd_plle;
 	struct clk		*pcie_xclk;
 	struct clk		*pll_e;
-	struct clk		*clk_cml0;
-	struct clk		*clk_tera_pcie_cml;
 	struct tegra_pci_platform_data *plat_data;
 };
 
@@ -812,18 +810,6 @@ static void tegra_pcie_enable_controller(void)
 	return;
 }
 
-static void tegra_pcie_xclk_clamp(bool clamp)
-{
-	u32 reg;
-
-	reg = pmc_readl(PMC_SCRATCH42) & ~PMC_SCRATCH42_PCX_CLAMP;
-
-	if (clamp)
-		reg |= PMC_SCRATCH42_PCX_CLAMP;
-
-	pmc_writel(reg, PMC_SCRATCH42);
-}
-
 static int tegra_pci_enable_regulators(void)
 {
 	if (tegra_pcie.power_rails_enabled)
@@ -908,10 +894,6 @@ static int tegra_pcie_power_on(void)
 	err = tegra_unpowergate_partition_with_clk_on(TEGRA_POWERGATE_PCIE);
 	if (err)
 		goto err_exit;
-	if (tegra_pcie.clk_cml0)
-		clk_enable(tegra_pcie.clk_cml0);
-	if (tegra_pcie.clk_tera_pcie_cml)
-		clk_enable(tegra_pcie.clk_tera_pcie_cml);
 	if (tegra_pcie.pll_e)
 		clk_enable(tegra_pcie.pll_e);
 
@@ -925,15 +907,13 @@ static int tegra_pcie_power_off(void)
 	int err = 0;
 	if (tegra_pcie.pcie_power_enabled == 0)
 		return 0;
+	if (tegra_pcie.pll_e)
+		clk_disable(tegra_pcie.pll_e);
+
 	err = tegra_powergate_partition_with_clk_off(TEGRA_POWERGATE_PCIE);
 	if (err)
 		goto err_exit;
-	if (tegra_pcie.clk_cml0)
-		clk_disable(tegra_pcie.clk_cml0);
-	if (tegra_pcie.clk_tera_pcie_cml)
-		clk_disable(tegra_pcie.clk_tera_pcie_cml);
-	if (tegra_pcie.pll_e)
-		clk_disable(tegra_pcie.pll_e);
+
 	err = tegra_pci_disable_regulators();
 
 	tegra_pcie.pcie_power_enabled = 0;
@@ -956,7 +936,7 @@ static int tegra_pcie_power_regate(void)
 static int tegra_pcie_clocks_get(void)
 {
 	/* reset the PCIEXCLK */
-	tegra_pcie.pcie_xclk = clk_get(NULL, "pciex");
+	tegra_pcie.pcie_xclk = clk_get_sys("tegra_pcie", "pciex");
 	if (IS_ERR_OR_NULL(tegra_pcie.pcie_xclk)) {
 		pr_err("%s: unable to get PCIE Xclock\n", __func__);
 		goto error_exit;
@@ -966,29 +946,8 @@ static int tegra_pcie_clocks_get(void)
 		pr_err("%s: unable to get PLLE\n", __func__);
 		goto error_exit;
 	}
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
-
-	tegra_pcie.clk_cml0 = clk_get_sys(NULL, "cml0");
-	if (IS_ERR_OR_NULL(tegra_pcie.clk_cml0)) {
-		pr_err("%s: unable to get cml0\n", __func__);
-		goto error_exit;
-	}
-
-	tegra_pcie.clk_tera_pcie_cml = clk_get_sys("tegra_pcie", "cml");
-	if (IS_ERR_OR_NULL(tegra_pcie.clk_tera_pcie_cml)) {
-		pr_err("%s: unable to get cml0\n", __func__);
-		goto error_exit;
-	}
-	clk_enable(tegra_pcie.clk_cml0);
-	clk_enable(tegra_pcie.clk_tera_pcie_cml);
-#endif
-
 	return 0;
 error_exit:
-	if (tegra_pcie.clk_cml0)
-		clk_put(tegra_pcie.clk_cml0);
-	if (tegra_pcie.clk_tera_pcie_cml)
-		clk_put(tegra_pcie.clk_tera_pcie_cml);
 	if (tegra_pcie.pcie_xclk)
 		clk_put(tegra_pcie.pcie_xclk);
 	if (tegra_pcie.pll_e)
@@ -998,10 +957,6 @@ error_exit:
 
 static void tegra_pcie_clocks_put(void)
 {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
-	clk_put(tegra_pcie.clk_cml0);
-	clk_put(tegra_pcie.clk_tera_pcie_cml);
-#endif
 	clk_put(tegra_pcie.pll_e);
 	clk_put(tegra_pcie.pcie_xclk);
 }
@@ -1011,12 +966,12 @@ static int __init tegra_pcie_get_resources(void)
 	struct resource *res_mmio = 0;
 	int err;
 	tegra_pcie.power_rails_enabled = 0;
-	tegra_unpowergate_partition(TEGRA_POWERGATE_PCIE);
 	err = tegra_pci_enable_regulators();
 	if (err) {
 		pr_err("PCIE: failed to enable power rails %d\n", err);
 		goto err_pwr_on_rail;
 	}
+	tegra_unpowergate_partition(TEGRA_POWERGATE_PCIE);
 
 	err = tegra_pcie_clocks_get();
 	if (err) {
