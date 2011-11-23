@@ -2976,6 +2976,8 @@ static int amd_iommu_domain_init(struct iommu_domain *dom)
 	if (!domain->pt_root)
 		goto out_free;
 
+	domain->iommu_domain = dom;
+
 	dom->priv = domain;
 
 	return 0;
@@ -3500,3 +3502,19 @@ int amd_iommu_complete_ppr(struct pci_dev *pdev, int pasid,
 	return iommu_queue_command(iommu, &cmd);
 }
 EXPORT_SYMBOL(amd_iommu_complete_ppr);
+
+struct iommu_domain *amd_iommu_get_v2_domain(struct pci_dev *pdev)
+{
+	struct protection_domain *domain;
+
+	domain = get_domain(&pdev->dev);
+	if (IS_ERR(domain))
+		return NULL;
+
+	/* Only return IOMMUv2 domains */
+	if (!(domain->flags & PD_IOMMUV2_MASK))
+		return NULL;
+
+	return domain->iommu_domain;
+}
+EXPORT_SYMBOL(amd_iommu_get_v2_domain);
