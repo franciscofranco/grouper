@@ -244,6 +244,8 @@
 
 #define RESUME_READS		100
 
+#define MXT_DEFAULT_PRESSURE	100
+
 struct mxt_info {
 	u8 family_id;
 	u8 variant_id;
@@ -634,8 +636,7 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 	if (status != MXT_RELEASE) {
 		input_report_abs(input_dev, ABS_X, finger[single_id].x);
 		input_report_abs(input_dev, ABS_Y, finger[single_id].y);
-		input_report_abs(input_dev,
-				 ABS_PRESSURE, finger[single_id].pressure);
+		input_report_abs(input_dev, ABS_PRESSURE, finger[single_id].pressure);
 	}
 
 	input_sync(input_dev);
@@ -658,6 +659,7 @@ static void mxt_input_touchevent(struct mxt_data *data,
 			dev_dbg(dev, "[%d] released\n", id);
 
 			finger[id].status = MXT_RELEASE;
+			finger[id].pressure = 0;
 			mxt_input_report(data, id);
 		}
 		return;
@@ -676,6 +678,9 @@ static void mxt_input_touchevent(struct mxt_data *data,
 
 	area = message->message[4];
 	pressure = message->message[5];
+
+	if ((pressure <= 0) || (pressure > 255))
+		pressure = MXT_DEFAULT_PRESSURE;
 
 	dev_dbg(dev, "[%d] %s x: %d, y: %d, area: %d\n", id,
 		status & MXT_MOVE ? "moved" : "pressed",
@@ -1458,8 +1463,6 @@ int mxt_write_block(struct i2c_client *client, u16 addr, u16 length, u8 *value)
 		__le16 le_addr;
 		u8  data[256];
 	} i2c_block_transfer;
-
-	struct mxt_data *mxt;
 
 	if (length > 256)
 		return -EINVAL;
