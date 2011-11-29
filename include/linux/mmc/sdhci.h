@@ -87,6 +87,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC		(1<<30)
 /* The read-only detection via SDHCI_PRESENT_STATE register is unstable */
 #define SDHCI_QUIRK_UNSTABLE_RO_DETECT			(1<<31)
+/* Controller cannot report the line status in present state register */
+#define SDHCI_QUIRK_NON_STD_VOLTAGE_SWITCHING		(1UL<<32)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
