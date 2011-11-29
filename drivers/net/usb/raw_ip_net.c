@@ -315,14 +315,17 @@ struct baseband_usb *baseband_usb_open(int index,
 	err = usb_register(&baseband_usb_driver[index]);
 	if (err < 0) {
 		pr_err("cannot open usb driver - err %d\n", err);
-		goto error_exit;
+		kfree(usb);
+		return (struct baseband_usb *) 0;
 	}
 	usb->baseband_index = index;
 	usb->usb.driver = &baseband_usb_driver[index];
 	if (!g_usb_interface[index]) {
 		pr_err("cannot open usb driver - !g_usb_interface[%d]\n",
 			index);
-		goto error_exit;
+		usb_deregister(usb->usb.driver);
+		kfree(usb);
+		return (struct baseband_usb *) 0;
 	}
 	usb->usb.device = interface_to_usbdev(g_usb_interface[index]);
 	usb->usb.interface = g_usb_interface[index];
@@ -344,9 +347,6 @@ struct baseband_usb *baseband_usb_open(int index,
 
 	pr_debug("baseband_usb_open }\n");
 	return usb;
-
-error_exit:
-	return (struct baseband_usb *) 0;
 }
 
 void baseband_usb_close(struct baseband_usb *usb)
