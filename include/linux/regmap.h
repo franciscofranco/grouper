@@ -140,6 +140,9 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val);
 int regmap_update_bits_lazy(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val);
+int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+			     unsigned int mask, unsigned int val,
+			     bool *change);
 
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
