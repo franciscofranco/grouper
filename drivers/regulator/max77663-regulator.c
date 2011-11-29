@@ -833,7 +833,7 @@ static int max77663_regulator_probe(struct platform_device *pdev)
 	rdesc = &max77663_rdesc[pdev->id];
 	reg = &max77663_regs[pdev->id];
 	reg->dev = &pdev->dev;
-	reg->pdata = mfd_get_data(pdev);
+	reg->pdata = dev_get_platdata(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "probe: name=%s\n", rdesc->name);
 
