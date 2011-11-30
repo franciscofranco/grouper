@@ -41,6 +41,7 @@
 #include <linux/nfc/pn544.h>
 
 #include <sound/wm8903.h>
+#include <media/tegra_dtv.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -513,6 +514,16 @@ static void __init cardhu_spi_init(void)
 	}
 }
 
+static void __init cardhu_dtv_init(void)
+{
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
+	if (board_info.board_id == BOARD_E1186)
+		platform_device_register(&tegra_dtv_device);
+}
+
 static struct resource tegra_rtc_resources[] = {
 	[0] = {
 		.start = TEGRA_RTC_BASE,
@@ -971,6 +982,7 @@ static void __init tegra_cardhu_init(void)
 	tegra_ram_console_debug_init();
 	cardhu_sdhci_init();
 	cardhu_regulator_init();
+	cardhu_dtv_init();
 	cardhu_gpio_switch_regulator_init();
 	cardhu_suspend_init();
 	cardhu_power_off_init();
