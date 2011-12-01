@@ -554,22 +554,6 @@ static int __init ventana_gps_init(void)
 	return 0;
 }
 
-static void ventana_power_off(void)
-{
-	int ret;
-
-	ret = tps6586x_power_off();
-	if (ret)
-		pr_err("ventana: failed to power off\n");
-
-	while(1);
-}
-
-static void __init ventana_power_off_init(void)
-{
-	pm_power_off = ventana_power_off;
-}
-
 static void ventana_usb_init(void)
 {
 	tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
@@ -621,7 +605,6 @@ static void __init tegra_ventana_init(void)
 	ventana_panel_init();
 	ventana_sensors_init();
 	ventana_bt_rfkill();
-	ventana_power_off_init();
 	ventana_emc_init();
 
 	ventana_setup_bluesleep();
