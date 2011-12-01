@@ -358,18 +358,17 @@ int max77663_set_bits(struct device *dev, u8 addr, u8 mask, u8 value,
 }
 EXPORT_SYMBOL(max77663_set_bits);
 
-int max77663_power_off(void)
+static void max77663_power_off(void)
 {
 	struct max77663_chip *chip = max77663_chip;
 
 	if (!chip)
-		return -EINVAL;
+		return;
 
 	dev_info(chip->dev, "%s: Global shutdown\n", __func__);
-	return max77663_set_bits(chip->dev, MAX77663_REG_ONOFF_CFG1,
-				 ONOFF_SFT_RST_MASK, ONOFF_SFT_RST_MASK, 0);
+	max77663_set_bits(chip->dev, MAX77663_REG_ONOFF_CFG1,
+			  ONOFF_SFT_RST_MASK, ONOFF_SFT_RST_MASK, 0);
 }
-EXPORT_SYMBOL(max77663_power_off);
 
 static int max77663_sleep(struct max77663_chip *chip, bool on)
 {
@@ -1315,6 +1314,9 @@ static int max77663_probe(struct i2c_client *client,
 		dev_err(&client->dev, "probe: Failed to disable sleep\n");
 		goto out_exit;
 	}
+
+	if (pdata->use_power_off && !pm_power_off)
+		pm_power_off = max77663_power_off;
 
 	ret = mfd_add_devices(&client->dev, 0, pdata->sub_devices,
 			      pdata->num_subdevs, NULL, 0);
