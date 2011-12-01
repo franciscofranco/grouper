@@ -228,6 +228,7 @@ static struct max8907c_platform_data max8907c_pdata = {
 	.subdevs = whistler_max8907c_power_devices,
 	.irq_base = TEGRA_NR_IRQS,
 	.max8907c_setup = whistler_max8907c_setup,
+	.use_power_off = true,
 };
 
 static struct i2c_board_info __initdata whistler_regulators[] = {

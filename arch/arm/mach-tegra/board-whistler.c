@@ -538,22 +538,6 @@ static int __init whistler_gps_init(void)
 	return 0;
 }
 
-static void whistler_power_off(void)
-{
-	int ret;
-
-	ret = max8907c_power_off();
-	if (ret)
-		pr_err("whistler: failed to power off\n");
-
-	while (1);
-}
-
-static void __init whistler_power_off_init(void)
-{
-	pm_power_off = whistler_power_off;
-}
-
 static void whistler_usb_init(void)
 {
 	tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
@@ -581,7 +565,6 @@ static void __init tegra_whistler_init(void)
 	whistler_gps_init();
 	whistler_usb_init();
 	whistler_scroll_init();
-	whistler_power_off_init();
 	whistler_emc_init();
 	if (modem_id == 0x1)
 		whistler_baseband_init();
