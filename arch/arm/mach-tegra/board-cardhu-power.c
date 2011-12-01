@@ -328,6 +328,7 @@ static struct tps6591x_platform_data tps_platform = {
 	.gpio_base	= TPS6591X_GPIO_BASE,
 	.dev_slp_en	= true,
 	.slp_keepon	= &tps_slp_keepon,
+	.use_power_off	= true,
 };
 
 static struct i2c_board_info __initdata cardhu_regulators[] = {
@@ -1180,42 +1181,6 @@ int __init cardhu_suspend_init(void)
 	}
 
 	tegra_init_suspend(&cardhu_suspend_data);
-	return 0;
-}
-
-static void cardhu_power_off(void)
-{
-	int ret;
-	pr_err("cardhu: Powering off the device\n");
-	ret = tps6591x_power_off();
-	if (ret)
-		pr_err("cardhu: failed to power off\n");
-
-	while (1);
-}
-
-static void cardhu_pm298_power_off(void)
-{
-	int ret;
-	pr_err("cardhu-pm298: Powering off the device\n");
-	ret = max77663_power_off();
-	if (ret)
-		pr_err("cardhu-pm298: failed to power off\n");
-
-	while (1);
-}
-
-int __init cardhu_power_off_init(void)
-{
-	struct board_info pmu_board_info;
-
-	tegra_get_pmu_board_info(&pmu_board_info);
-
-	if (pmu_board_info.board_id == BOARD_PMU_PM298)
-		pm_power_off = cardhu_pm298_power_off;
-	else
-		pm_power_off = cardhu_power_off;
-
 	return 0;
 }
 

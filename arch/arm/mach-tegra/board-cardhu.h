@@ -207,7 +207,6 @@ int cardhu_scroll_init(void);
 int cardhu_keys_init(void);
 int cardhu_pins_state_init(void);
 int cardhu_emc_init(void);
-int cardhu_power_off_init(void);
 int cardhu_edp_init(void);
 int cardhu_pmon_init(void);
 int cardhu_pm298_gpio_switch_regulator_init(void);

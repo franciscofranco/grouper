@@ -332,6 +332,8 @@ static struct max77663_platform_data max7763_pdata = {
 
 	.num_subdevs	= ARRAY_SIZE(max77663_subdevs),
 	.sub_devices	= max77663_subdevs,
+
+	.use_power_off	= true,
 };
 
 static struct i2c_board_info __initdata max77663_regulators[] = {
