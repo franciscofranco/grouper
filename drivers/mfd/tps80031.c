@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/pm.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps80031.h>
@@ -498,14 +499,14 @@ int tps80031_get_pmu_version(struct device *dev)
 EXPORT_SYMBOL_GPL(tps80031_get_pmu_version);
 
 static struct tps80031 *tps80031_dev;
-int tps80031_power_off(void)
+static void tps80031_power_off(void)
 {
 	struct tps80031_client *tps = &tps80031_dev->tps_clients[SLAVE_ID1];
 
 	if (!tps->client)
-		return -EINVAL;
+		return;
 	dev_info(&tps->client->dev, "switching off PMU\n");
-	return __tps80031_write(tps->client, TPS80031_PHOENIX_DEV_ON, DEVOFF);
+	__tps80031_write(tps->client, TPS80031_PHOENIX_DEV_ON, DEVOFF);
 }
 
 static void tps80031_init_ext_control(struct tps80031 *tps80031,
@@ -1209,6 +1210,9 @@ static int __devinit tps80031_i2c_probe(struct i2c_client *client,
 	tps80031_clk32k_init(tps80031, pdata);
 
 	tps80031_debuginit(tps80031);
+
+	if (pdata->use_power_off && !pm_power_off)
+		pm_power_off = tps80031_power_off;
 
 	tps80031_dev = tps80031;
 
