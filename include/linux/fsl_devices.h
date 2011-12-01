@@ -95,6 +95,8 @@ struct fsl_usb2_platform_data {
 	u32		pm_configured_flag;
 	u32		pm_portsc;
 	u32		pm_usbgenctrl;
+
+        void		*phy_config;
 };
 
 /* Flags in fsl_usb2_mph_platform_data */
