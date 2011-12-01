@@ -27,6 +27,8 @@
 
 #include <mach/iomap.h>
 
+#include "asm_macros.h"
+
 #ifdef CONFIG_SMP
 /*
  *	tegra_secondary_startup
@@ -34,13 +36,15 @@
  *	 Initial secondary processor boot vector; jumps to kernel's
  *	 secondary_startup routine
  */
+#ifdef CONFIG_SMP
 ENTRY(tegra_secondary_startup)
 	bl	tegra_invalidate_l1
 	bl	tegra_enable_coresite
 	b	secondary_startup
 ENDPROC(tegra_secondary_startup)
+#endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  *	tegra_secondary_resume
  *
@@ -54,7 +58,7 @@ ENDPROC(tegra_secondary_resume)
 #endif
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  *	tegra_resume
  *
@@ -66,8 +70,18 @@ ENTRY(tegra_resume)
 	bl	tegra_invalidate_l1
 	bl	tegra_enable_coresite
 
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	@ Clear the flow controller flags for this CPU.
+	mov32	r2, TEGRA_FLOW_CTRL_BASE+8	@ CPU0 CSR
+	ldr	r1, [r2]
+	orr	r1, r1, #(1 << 15) | (1 << 14)	@ write to clear event & intr
+	movw	r0, #0x0FFD	@ enable, cluster_switch, immed, & bitmaps
+	bic	r1, r1, r0
+	str	r1, [r2]
+#endif
+
 	/* enable SCU */
-	ldr	r0, =TEGRA_ARM_PERIF_BASE
+	mov32	r0, TEGRA_ARM_PERIF_BASE
 	ldr	r1, [r0]
 	orr	r1, r1, #1
 	str	r1, [r0]
@@ -117,6 +131,6 @@ tegra_invalidate_l1:
 
 	/* Enable Coresight access on cpu */
 tegra_enable_coresite:
-	ldr	r0, =0xC5ACCE55
+	mov32	r0, 0xC5ACCE55
 	mcr	p14, 0, r0, c7, c12, 6
 	mov	pc, lr

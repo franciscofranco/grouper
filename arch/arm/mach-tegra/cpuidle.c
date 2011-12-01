@@ -3,7 +3,7 @@
  *
  * CPU idle driver for Tegra CPUs
  *
- * Copyright (c) 2010, NVIDIA Corporation.
+ * Copyright (c) 2010-2011, NVIDIA Corporation.
  * Copyright (c) 2011 Google, Inc.
  * Author: Colin Cross <ccross@android.com>
  *         Gary King <gking@nvidia.com>
@@ -43,11 +43,9 @@
 #include "pm.h"
 #include "sleep.h"
 
-#define TEGRA_CPUIDLE_BOTH_IDLE		INT_QUAD_RES_24
-#define TEGRA_CPUIDLE_TEAR_DOWN		INT_QUAD_RES_25
-
 static bool lp2_in_idle __read_mostly = true;
 module_param(lp2_in_idle, bool, 0644);
+static bool lp2_disabled_by_suspend;
 
 static struct {
 	unsigned int cpu_ready_count[2];
@@ -61,6 +59,8 @@ static struct {
 	unsigned int last_lp2_int_count[NR_IRQS];
 } idle_stats;
 
+static unsigned int tegra_lp2_min_residency;
+
 struct cpuidle_driver tegra_idle = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
@@ -68,7 +68,10 @@ struct cpuidle_driver tegra_idle = {
 
 static DEFINE_PER_CPU(struct cpuidle_device *, idle_devices);
 
-#define CLK_RESET_CLK_MASK_ARM 0x44
+void tegra_lp2_in_idle(bool enable)
+{
+	lp2_in_idle = enable;
+}
 
 static inline unsigned int time_to_bin(unsigned int time)
 {
@@ -102,8 +105,10 @@ static int tegra_idle_enter_lp2(struct cpuidle_device *dev,
 	ktime_t enter, exit;
 	s64 us;
 
+	if (!lp2_in_idle || lp2_disabled_by_suspend)
+		return tegra_idle_enter_lp3(dev, state);
+
 	local_irq_disable();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
 	enter = ktime_get();
 
 	idle_stats.cpu_ready_count[dev->cpu]++;
@@ -115,10 +120,14 @@ static int tegra_idle_enter_lp2(struct cpuidle_device *dev,
 	exit = ktime_sub(ktime_get(), enter);
 	us = ktime_to_us(exit);
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
 	local_irq_enable();
 
+	/* cpu clockevents may have been reset by powerdown */
+	hrtimer_peek_ahead_timers();
+
 	smp_rmb();
+	if (state->target_residency < tegra_lp2_min_residency)
+		state->target_residency = tegra_lp2_min_residency;
 
 	idle_stats.cpu_wants_lp2_time[dev->cpu] += us;
 
@@ -135,7 +144,7 @@ static int tegra_idle_prepare(struct cpuidle_device *dev)
 	return 0;
 }
 
-static int tegra_idle_enter(unsigned int cpu)
+static int tegra_cpuidle_register_device(unsigned int cpu)
 {
 	struct cpuidle_device *dev;
 	struct cpuidle_state *state;
@@ -165,6 +174,8 @@ static int tegra_idle_enter(unsigned int cpu)
 
 	state->target_residency = tegra_cpu_power_off_time() +
 		tegra_cpu_power_good_time();
+	if (state->target_residency < tegra_lp2_min_residency)
+		state->target_residency = tegra_lp2_min_residency;
 	state->power_usage = 0;
 	state->flags = CPUIDLE_FLAG_TIME_VALID;
 	state->enter = tegra_idle_enter_lp2;
@@ -183,33 +194,45 @@ static int tegra_idle_enter(unsigned int cpu)
 	return 0;
 }
 
+static int tegra_cpuidle_pm_notify(struct notifier_block *nb,
+	unsigned long event, void *dummy)
+{
+	if (event == PM_SUSPEND_PREPARE)
+		lp2_disabled_by_suspend = true;
+	else if (event == PM_POST_SUSPEND)
+		lp2_disabled_by_suspend = false;
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block tegra_cpuidle_pm_notifier = {
+	.notifier_call = tegra_cpuidle_pm_notify,
+};
+
 static int __init tegra_cpuidle_init(void)
 {
 	unsigned int cpu;
-	void __iomem *mask_arm;
-	unsigned int reg;
 	int ret;
 
-	mask_arm = IO_ADDRESS(TEGRA_CLK_RESET_BASE) + CLK_RESET_CLK_MASK_ARM;
-
-	reg = readl(mask_arm);
-	writel(reg | (1<<31), mask_arm);
-
 	ret = cpuidle_register_driver(&tegra_idle);
-
 	if (ret)
 		return ret;
 
+	/* !!!FIXME!!! Add tegra_lp2_power_off_time */
+	tegra_lp2_min_residency = tegra_cpu_lp2_min_residency();
+
 	for_each_possible_cpu(cpu) {
-		if (tegra_idle_enter(cpu))
+		if (tegra_cpuidle_register_device(cpu))
 			pr_err("CPU%u: error initializing idle loop\n", cpu);
 	}
 
+	register_pm_notifier(&tegra_cpuidle_pm_notifier);
 	return 0;
 }
 
 static void __exit tegra_cpuidle_exit(void)
 {
+	unregister_pm_notifier(&tegra_cpuidle_pm_notifier);
 	cpuidle_unregister_driver(&tegra_idle);
 }
 

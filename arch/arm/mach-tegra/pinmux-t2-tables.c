@@ -96,6 +96,10 @@ const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE
 		.mux_bit = mux_b,				\
 		.pupd_reg = pupd_r,				\
 		.pupd_bit = pupd_b,				\
+		.io_default = 0,				\
+		.od_bit = -1,					\
+		.lock_bit = -1,					\
+		.ioreset_bit = -1,				\
 	}
 
 const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
@@ -218,7 +222,7 @@ const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(XM2D,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 28),
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 #define TRISTATE_REG_A         0x14
 #define TRISTATE_REG_NUM       4
 #define PIN_MUX_CTL_REG_A      0x80
@@ -283,7 +287,7 @@ static struct syscore_ops tegra_pinmux_syscore_ops = {
 	.resume = tegra_pinmux_resume,
 };
 
-void tegra2_init_pinmux(void)
+void tegra_init_pinmux(void)
 {
 	register_syscore_ops(&tegra_pinmux_syscore_ops);
 }
