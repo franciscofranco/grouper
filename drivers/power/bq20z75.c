@@ -147,7 +147,7 @@ static enum power_supply_property bq20z75_properties[] = {
 struct bq20z75_info {
 	struct i2c_client		*client;
 	struct power_supply		power_supply;
-	struct bq20z75_platform_data	*pdata;
+	struct bq20z75_platform_data	plat_data;
 	bool				is_present;
 	bool				gpio_detect;
 	bool				enable_detection;
@@ -164,8 +164,7 @@ static int bq20z75_read_word_data(struct i2c_client *client, u8 address)
 	s32 ret = 0;
 	int retries = 1;
 
-	if (bq20z75_device->pdata)
-		retries = max(bq20z75_device->pdata->i2c_retry_count + 1, 1);
+	retries = max(bq20z75_device->plat_data.i2c_retry_count + 1, 1);
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_word_data(client, address);
@@ -191,8 +190,7 @@ static int bq20z75_write_word_data(struct i2c_client *client, u8 address,
 	s32 ret = 0;
 	int retries = 1;
 
-	if (bq20z75_device->pdata)
-		retries = max(bq20z75_device->pdata->i2c_retry_count + 1, 1);
+	retries = max(bq20z75_device->plat_data.i2c_retry_count + 1, 1);
 
 	while (retries > 0) {
 		ret = i2c_smbus_write_word_data(client, address,
@@ -222,8 +220,8 @@ static int bq20z75_get_battery_presence_and_health(
 	if (psp == POWER_SUPPLY_PROP_PRESENT &&
 		bq20z75_device->gpio_detect) {
 		ret = gpio_get_value(
-			bq20z75_device->pdata->battery_detect);
-		if (ret == bq20z75_device->pdata->battery_detect_present)
+			bq20z75_device->plat_data.battery_detect);
+		if (ret == bq20z75_device->plat_data.battery_detect_present)
 			val->intval = 1;
 		else
 			val->intval = 0;
@@ -574,7 +572,7 @@ static void bq20z75_external_power_changed(struct power_supply *psy)
 	cancel_delayed_work_sync(&bq20z75_device->work);
 
 	schedule_delayed_work(&bq20z75_device->work, HZ);
-	bq20z75_device->poll_time = bq20z75_device->pdata->poll_retry_count;
+	bq20z75_device->poll_time = bq20z75_device->plat_data.poll_retry_count;
 }
 
 static void bq20z75_delayed_work(struct work_struct *work)
@@ -645,7 +643,7 @@ static int __devinit bq20z75_probe(struct i2c_client *client,
 	if (pdata) {
 		bq20z75_device->gpio_detect =
 			gpio_is_valid(pdata->battery_detect);
-		bq20z75_device->pdata = pdata;
+		memcpy(&bq20z75_device->plat_data, pdata, sizeof(struct bq20z75_platform_data));
 	}
 
 	i2c_set_clientdata(client, bq20z75_device);
@@ -724,7 +722,7 @@ static int __devexit bq20z75_remove(struct i2c_client *client)
 	if (bq20z75_device->irq)
 		free_irq(bq20z75_device->irq, &bq20z75_device->power_supply);
 	if (bq20z75_device->gpio_detect)
-		gpio_free(bq20z75_device->pdata->battery_detect);
+		gpio_free(bq20z75_device->plat_data.battery_detect);
 
 	power_supply_unregister(&bq20z75_device->power_supply);
 
