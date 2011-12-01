@@ -240,6 +240,7 @@ struct max8907c_platform_data {
 	struct platform_device **subdevs;
 	int irq_base;
 	int (*max8907c_setup)(void);
+	bool use_power_off;
 };
 
 int max8907c_reg_read(struct i2c_client *i2c, u8 reg);
@@ -252,7 +253,6 @@ int max8907c_irq_init(struct max8907c *chip, int irq, int irq_base);
 void max8907c_irq_free(struct max8907c *chip);
 int max8907c_suspend(struct i2c_client *i2c, pm_message_t state);
 int max8907c_resume(struct i2c_client *i2c);
-int max8907c_power_off(void);
 void max8907c_deep_sleep(int enter);
 int max8907c_pwr_en_config(void);
 int max8907c_pwr_en_attach(void);
