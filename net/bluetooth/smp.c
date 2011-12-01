@@ -270,6 +270,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	mod_timer(&conn->security_timer, jiffies +
 					msecs_to_jiffies(SMP_TIMEOUT));
 
+	mod_timer(&conn->security_timer, jiffies +
+					msecs_to_jiffies(SMP_TIMEOUT));
+
 	return 0;
 }
 
