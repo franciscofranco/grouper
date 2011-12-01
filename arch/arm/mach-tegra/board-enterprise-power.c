@@ -323,6 +323,7 @@ static struct tps80031_platform_data tps_platform = {
 	.gpio_base	= ENT_TPS80031_GPIO_BASE,
 	.clk32k_init_data	= clk32k_idata,
 	.clk32k_init_data_size	= ARRAY_SIZE(clk32k_idata),
+	.use_power_off	= true,
 };
 
 static struct i2c_board_info __initdata enterprise_regulators[] = {
@@ -573,16 +574,6 @@ static int __init enterprise_regulators_fixed_gpio_init(void)
 }
 subsys_initcall_sync(enterprise_regulators_fixed_gpio_init);
 
-static void enterprise_power_off(void)
-{
-	int ret;
-	pr_info("enterprise: Powering off the device\n");
-	ret = tps80031_power_off();
-	if (ret)
-		pr_err("enterprise: failed to power off\n");
-	while(1);
-}
-
 void __init enterprise_tsensor_init(void)
 {
 	tegra3_tsensor_init(NULL);
@@ -611,7 +602,6 @@ int __init enterprise_regulator_init(void)
 	}
 
 	i2c_register_board_info(4, enterprise_regulators, 1);
-	pm_power_off = enterprise_power_off;
 	is_enterprise_machine = true;
 
 	return 0;
