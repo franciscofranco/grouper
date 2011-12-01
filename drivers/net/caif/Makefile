@@ -13,3 +13,7 @@ obj-$(CONFIG_CAIF_SHM) += caif_shm.o
 
 # HSI interface
 obj-$(CONFIG_CAIF_HSI) += caif_hsi.o
+
+# Tegra specific SPI slave physical interfaces module
+tegra_cfspi_slave-objs := tegra_caif_sspi.o
+obj-$(CONFIG_TEGRA_SPI_CAIF) += tegra_cfspi_slave.o

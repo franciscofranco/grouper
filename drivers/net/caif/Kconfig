@@ -47,3 +47,12 @@ config CAIF_HSI
        The caif low level driver for CAIF over HSI.
        Be aware that if you enable this then you also need to
        enable a low-level HSI driver.
+
+config TEGRA_SPI_CAIF
+	tristate "TEGRA specific CAIF SPI transport driver for slave interface"
+	depends on CAIF_SPI_SLAVE && TEGRA_SPI_SLAVE
+	default n
+	---help---
+	The CAIF Link layer SPI Protocol driver for Tegra Slave SPI interface.
+	This driver implements a platform driver to accommodate for a
+	Tegra Slave SPI device.
