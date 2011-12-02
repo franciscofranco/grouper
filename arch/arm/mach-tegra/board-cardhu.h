@@ -216,8 +216,9 @@ int cardhu_pm299_gpio_switch_regulator_init(void);
 int cardhu_pm299_regulator_init(void);
 void __init cardhu_tsensor_init(void);
 
-/* Invensense MPU Definitions */
-#define MPU_GYRO_NAME		"mpu3050"
+#define MPU_TYPE_MPU3050	1
+#define MPU_TYPE_MPU6050	2
+#define MPU_GYRO_TYPE		MPU_TYPE_MPU3050
 #define MPU_GYRO_IRQ_GPIO	TEGRA_GPIO_PX1
 #define MPU_GYRO_ADDR		0x68
 #define MPU_GYRO_BUS_NUM	2

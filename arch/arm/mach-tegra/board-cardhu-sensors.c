@@ -749,20 +749,28 @@ static int __init cam_tca6416_init(void)
 }
 #endif
 
-#ifdef CONFIG_MPU_SENSORS_MPU3050
-static struct mpu_platform_data mpu3050_data = {
+/* MPU board file definition	*/
+#if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
+#define MPU_GYRO_NAME		"mpu3050"
+#endif
+#if (MPU_GYRO_TYPE == MPU_TYPE_MPU6050)
+#define MPU_GYRO_NAME		"mpu6050"
+#endif
+static struct mpu_platform_data mpu_gyro_data = {
 	.int_config	= 0x10,
 	.level_shifter	= 0,
 	.orientation	= MPU_GYRO_ORIENTATION,	/* Located in board_[platformname].h	*/
 };
 
-static struct ext_slave_platform_data mpu3050_accel_data = {
+#if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
+static struct ext_slave_platform_data mpu_accel_data = {
 	.address	= MPU_ACCEL_ADDR,
 	.irq		= 0,
 	.adapt_num	= MPU_ACCEL_BUS_NUM,
 	.bus		= EXT_SLAVE_BUS_SECONDARY,
 	.orientation	= MPU_ACCEL_ORIENTATION,	/* Located in board_[platformname].h	*/
 };
+#endif
 
 static struct ext_slave_platform_data mpu_compass_data = {
 	.address	= MPU_COMPASS_ADDR,
@@ -776,15 +784,17 @@ static struct i2c_board_info __initdata inv_mpu_i2c2_board_info[] = {
 	{
 		I2C_BOARD_INFO(MPU_GYRO_NAME, MPU_GYRO_ADDR),
 		.irq = TEGRA_GPIO_TO_IRQ(MPU_GYRO_IRQ_GPIO),
-		.platform_data = &mpu3050_data,
+		.platform_data = &mpu_gyro_data,
 	},
+#if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
 	{
 		I2C_BOARD_INFO(MPU_ACCEL_NAME, MPU_ACCEL_ADDR),
 #if	MPU_ACCEL_IRQ_GPIO
 		.irq = TEGRA_GPIO_TO_IRQ(MPU_ACCEL_IRQ_GPIO),
 #endif
-		.platform_data = &mpu3050_accel_data,
+		.platform_data = &mpu_accel_data,
 	},
+#endif
 	{
 		I2C_BOARD_INFO(MPU_COMPASS_NAME, MPU_COMPASS_ADDR),
 #if	MPU_COMPASS_IRQ_GPIO
@@ -800,6 +810,7 @@ static void mpuirq_init(void)
 
 	pr_info("*** MPU START *** mpuirq_init...\n");
 
+#if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
 #if	MPU_ACCEL_IRQ_GPIO
 	/* ACCEL-IRQ assignment */
 	tegra_gpio_enable(MPU_ACCEL_IRQ_GPIO);
@@ -815,6 +826,7 @@ static void mpuirq_init(void)
 		gpio_free(MPU_ACCEL_IRQ_GPIO);
 		return;
 	}
+#endif
 #endif
 
 	/* MPU-IRQ assignment */
@@ -836,7 +848,6 @@ static void mpuirq_init(void)
 	i2c_register_board_info(MPU_GYRO_BUS_NUM, inv_mpu_i2c2_board_info,
 		ARRAY_SIZE(inv_mpu_i2c2_board_info));
 }
-#endif
 
 
 static struct i2c_board_info cardhu_i2c2_isl_board_info[] = {
@@ -908,9 +919,7 @@ int __init cardhu_sensors_init(void)
 	i2c_register_board_info(4, cardhu_i2c4_nct1008_board_info,
 		ARRAY_SIZE(cardhu_i2c4_nct1008_board_info));
 
-#ifdef CONFIG_MPU_SENSORS_MPU3050
 	mpuirq_init();
-#endif
 	return 0;
 }
 
