@@ -1059,6 +1059,7 @@ int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	struct mldl_cfg *mldl_cfg;
 	int res = 0;
 	int ii = 0;
+	unsigned long irq_flags;
 
 	dev_info(&client->adapter->dev, "%s: %d\n", __func__, ii++);
 
@@ -1138,7 +1139,12 @@ int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if (client->irq) {
 		dev_info(&client->adapter->dev,
 			 "Installing irq using %d\n", client->irq);
-		res = mpuirq_init(client, mldl_cfg);
+		if (BIT_ACTL_LOW == ((mldl_cfg->pdata->int_config) & BIT_ACTL))
+			irq_flags = IRQF_TRIGGER_FALLING;
+		else
+			irq_flags = IRQF_TRIGGER_RISING;
+		res = mpuirq_init(client, mldl_cfg, irq_flags);
+
 		if (res)
 			goto out_mpuirq_failed;
 	} else {

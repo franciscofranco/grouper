@@ -193,7 +193,8 @@ static struct miscdevice mpuirq_device = {
 	.fops = &mpuirq_fops,
 };
 
-int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg)
+int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg,
+		unsigned long irq_flags)
 {
 
 	int res;
@@ -211,15 +212,9 @@ int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg)
 	mpuirq_dev_data.dev = &mpuirq_device;
 
 	if (mpuirq_dev_data.irq) {
-		unsigned long flags;
-		if (BIT_ACTL_LOW == ((mldl_cfg->pdata->int_config) & BIT_ACTL))
-			flags = IRQF_TRIGGER_FALLING;
-		else
-			flags = IRQF_TRIGGER_RISING;
-
-		flags |= IRQF_SHARED;
+		irq_flags |= IRQF_SHARED;
 		res =
-		    request_irq(mpuirq_dev_data.irq, mpuirq_handler, flags,
+		    request_irq(mpuirq_dev_data.irq, mpuirq_handler, irq_flags,
 				interface, &mpuirq_dev_data.irq);
 		if (res) {
 			dev_err(&mpu_client->adapter->dev,
@@ -241,6 +236,7 @@ int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg)
 
 	return res;
 }
+EXPORT_SYMBOL(mpuirq_init);
 
 void mpuirq_exit(void)
 {
@@ -252,6 +248,7 @@ void mpuirq_exit(void)
 
 	return;
 }
+EXPORT_SYMBOL(mpuirq_exit);
 
 module_param(interface, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(interface, "The Interface name");

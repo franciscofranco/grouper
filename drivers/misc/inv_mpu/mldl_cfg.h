@@ -31,7 +31,11 @@
 #include "mltypes.h"
 #include "mlsl.h"
 #include <linux/mpu.h>
+#ifdef MPU_CURRENT_BUILD_MPU6050B1
+#include "mpu6050b1.h"
+#elif defined(MPU_CURRENT_BUILD_MPU3050)
 #include "mpu3050.h"
+#endif
 
 #include "log.h"
 

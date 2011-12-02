@@ -6,7 +6,7 @@ config MPU_SENSORS_TIMERIRQ
 	  or timer threads.  Reading from this device returns the same type of
 	  information as reading from the MPU and slave IRQ's.
 
-menuconfig: INV_SENSORS
+menuconfig INV_SENSORS
 	tristate "Motion Processing Unit"
 	depends on I2C
 	default y
@@ -14,12 +14,12 @@ menuconfig: INV_SENSORS
 if INV_SENSORS
 
 choice
-	prompt "MPU Master"
+	tristate "MPU Master"
 	depends on I2C && INV_SENSORS
 	default MPU_SENSORS_MPU3050
 
 config MPU_SENSORS_MPU3050
-	bool "MPU3050"
+	tristate "MPU3050"
 	depends on I2C
 	select MPU_SENSORS_MPU3050_GYRO
 	help
@@ -28,7 +28,7 @@ config MPU_SENSORS_MPU3050
 	  will be called mpu3050.
 
 config MPU_SENSORS_MPU6050A2
-	bool "MPU6050A2"
+	tristate "MPU6050A2"
 	depends on I2C
 	select MPU_SENSORS_MPU6050_GYRO
 	help
@@ -37,20 +37,15 @@ config MPU_SENSORS_MPU6050A2
 	  will be called mpu6050a2.
 
 config MPU_SENSORS_MPU6050B1
-	bool "MPU6050B1"
-	select MPU_SENSORS_MPU6050_GYRO
+	tristate "MPU6050B1"
 	depends on I2C
+	select MPU_SENSORS_MPU6050_GYRO
 	help
 	  If you say yes here you get support for the MPU6050 Gyroscope driver
 	  This driver can also be built as a module.  If so, the module
 	  will be called mpu6050b1.
 
 endchoice
-
-choice
-	prompt "Gyroscope Type"
-	depends on I2C && INV_SENSORS
-	default MPU_SENSORS_MPU3050_GYRO
 
 config MPU_SENSORS_MPU3050_GYRO
 	bool "MPU3050 built in gyroscope"
@@ -59,8 +54,6 @@ config MPU_SENSORS_MPU3050_GYRO
 config MPU_SENSORS_MPU6050_GYRO
 	bool "MPU6050 built in gyroscope"
 	depends on MPU_SENSORS_MPU6050B1 || MPU_SENSORS_MPU6050A2
-
-endchoice
 
 source "drivers/misc/inv_mpu/accel/Kconfig"
 source "drivers/misc/inv_mpu/compass/Kconfig"
