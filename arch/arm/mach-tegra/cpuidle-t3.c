@@ -247,6 +247,8 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 		exit_time = ktime_get();
 		if (!is_lp_cluster())
 			tegra_dvfs_rail_on(tegra_cpu_rail, exit_time);
+		idle_stats.in_lp2_time[cpu_number(dev->cpu)] +=
+			ktime_to_us(ktime_sub(exit_time, entry_time));
 	} else
 		exit_time = ktime_get();
 
@@ -279,8 +281,6 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 
 		idle_stats.lp2_completed_count++;
 		idle_stats.lp2_completed_count_bin[bin]++;
-		idle_stats.in_lp2_time[cpu_number(dev->cpu)] +=
-			ktime_to_us(ktime_sub(exit_time, entry_time));
 
 		pr_debug("%lld %lld %d %d\n", request,
 			ktime_to_us(ktime_sub(exit_time, entry_time)),
