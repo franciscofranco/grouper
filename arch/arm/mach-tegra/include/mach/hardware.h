@@ -19,6 +19,18 @@
 #ifndef MACH_TEGRA_HARDWARE_H
 #define MACH_TEGRA_HARDWARE_H
 
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+#define PCIBIOS_MIN_IO				0x1000
+#define PCIBIOS_MIN_MEM				0
+#define pcibios_assign_all_busses()		1
+
+#else
+
+#define PCIBIOS_MIN_IO				0x03000000ul
+#define PCIBIOS_MIN_MEM				0x10000000ul
+#define pcibios_assign_all_busses()		0
+#endif
+
 enum tegra_chipid {
 	TEGRA_CHIPID_UNKNOWN = 0,
 	TEGRA_CHIPID_TEGRA2 = 0x20,
