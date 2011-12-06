@@ -202,12 +202,13 @@ tegra_phys_sleep_sp:
  *	r3 = virtual return function
  * Output:
  *	sp is decremented to allocate space for CPU state on stack
- * r0-r3,r8-r10,lr corrupted
+ * r0-r3,ip,lr corrupted
  */
 	.align	L1_CACHE_SHIFT
 ENTRY(tegra_cpu_suspend)
 #if USE_TEGRA_CPU_SUSPEND
 	stmfd	sp!, {r3}
+	stmfd	sp!, {r4 - r11}
 	mov	r9, lr
 #ifdef MULTI_CPU
 	mov32	r10, processor
