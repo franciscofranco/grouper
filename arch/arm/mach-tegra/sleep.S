@@ -162,12 +162,11 @@ ENTRY(tegra_cpu_resume_phys)
 #endif
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set SVC, irqs off
 #ifdef MULTI_CPU
-	@ load v:p, stack, return fn, resume fn
-  ARM(	ldmia	r0!, {r1, sp, lr, pc}	)
-THUMB(	ldmia	r0!, {r1, r2, r3, r4}	)
+	@ load v:p, stack, resume fn
+  ARM(	ldmia	r0!, {r1, sp, pc}	)
+THUMB(	ldmia	r0!, {r1, r2, r3}	)
 THUMB(	mov	sp, r2			)
-THUMB(	mov	lr, r3			)
-THUMB(	bx	r4			)
+THUMB(	bx	r3			)
 #else
 	@ load v:p, stack, return fn
   ARM(	ldmia	r0!, {r1, sp, lr}	)
@@ -208,6 +207,7 @@ tegra_phys_sleep_sp:
 	.align	L1_CACHE_SHIFT
 ENTRY(tegra_cpu_suspend)
 #if USE_TEGRA_CPU_SUSPEND
+	stmfd	sp!, {r3}
 	mov	r9, lr
 #ifdef MULTI_CPU
 	mov32	r10, processor
@@ -217,7 +217,7 @@ ENTRY(tegra_cpu_suspend)
 	sub	sp, sp, r0		@ allocate CPU state on stack
 	mov	r0, sp			@ save pointer
 	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r1, r2, r3, ip}	@ save v:p, virt SP, retfn, phys resume fn
+	stmfd	sp!, {r1, r2, ip}	@ save v:p, virt SP, phys resume fn
 	mov	lr, pc
 	ldr	pc, [r10, #CPU_DO_SUSPEND] @ save CPU state
 #else
@@ -225,7 +225,7 @@ ENTRY(tegra_cpu_suspend)
 	mov32	r0, cpu_suspend_size
 	sub	sp, sp, r0		@ allocate CPU state on stack
 	mov	r0, sp			@ save pointer
-	stmfd	sp!, {r1, r2, r3}	@ save v:p, virt SP, return fn
+	stmfd	sp!, {r1, r2, ip}	@ save v:p, virt SP, phys resume fn
 	bl	cpu_do_suspend
 #endif
 	dsb
