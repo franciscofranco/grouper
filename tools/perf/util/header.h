@@ -10,12 +10,12 @@
 #include <linux/bitmap.h>
 
 enum {
-	HEADER_TRACE_INFO = 1,
+	HEADER_RESERVED		= 0,	/* always cleared */
+	HEADER_TRACE_INFO	= 1,
 	HEADER_BUILD_ID,
 	HEADER_LAST_FEATURE,
+	HEADER_FEAT_BITS	= 256,
 };
-
-#define HEADER_FEAT_BITS			256
 
 struct perf_file_section {
 	u64 offset;
