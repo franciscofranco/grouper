@@ -369,8 +369,8 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 	aclk = &avp_svc->clks[mod->clk_req];
 	if (msg->enable) {
 		if (aclk->refcnt++ == 0) {
-			clk_enable(avp_svc->emcclk);
 			clk_set_rate(avp_svc->emcclk, emc_rate);
+			clk_enable(avp_svc->emcclk);
 			clk_enable(avp_svc->sclk);
 			clk_enable(aclk->clk);
 		}
