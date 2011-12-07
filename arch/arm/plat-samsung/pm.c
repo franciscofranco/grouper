@@ -302,6 +302,10 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	cpu_suspend(0, pm_cpu_sleep);
 
+	/* restore the cpu state using the kernel's cpu init code. */
+
+	cpu_init();
+
 	/* restore the system state */
 
 	s3c_pm_restore_core();
