@@ -345,6 +345,9 @@ void tegra_init_speedo_data(void)
 {
 	u32 cpu_speedo_val, core_speedo_val;
 	int iv;
+	int fuse_sku = tegra_sku_id();
+	int sku_override = tegra_get_sku_override();
+	int new_sku = fuse_sku;
 
 	/* Package info: 4 bits - 0,3:reserved 1:MID 2:DSC */
 	package_id = tegra_fuse_readl(FUSE_PACKAGE_INFO) & 0x0F;
@@ -353,7 +356,66 @@ void tegra_init_speedo_data(void)
 	BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
 	       ARRAY_SIZE(core_process_speedos));
 
-	rev_sku_to_speedo_ids(tegra_get_revision(), tegra_sku_id());
+	/* SKU Overrides
+	* T33	=> T30, T30L
+	* T33S	=> T30S, T30SL
+	* T30	=> T30L
+	* T30S	=> T30SL
+	* AP33	=> AP30
+	*/
+	switch (sku_override) {
+	case 1:
+		/* Base sku override */
+		if (fuse_sku == 0x80) {
+			if (package_id == 1) {
+				/* T33 to T30 */
+				pr_info("%s: SKU OR: T33->T30\n", __func__);
+				new_sku = 0x81;
+			} else if (package_id == 2) {
+				/* T33S->T30S */
+				pr_info("%s: SKU OR: T33S->T30S\n", __func__);
+				new_sku = 0x83;
+			}
+		} else if (fuse_sku == 0x81) {
+			if (package_id == 2) {
+				/* AP33->AP30 */
+				pr_info("%s: SKU OR: AP33->AP30\n", __func__);
+				new_sku = 0x87;
+			}
+		}
+		break;
+	case 2:
+		/* L sku override */
+		if (fuse_sku == 0x80) {
+			if (package_id == 1) {
+				/* T33->T30L */
+				pr_info("%s: SKU OR: T33->T30L\n", __func__);
+				new_sku = 0x83;
+			} else if (package_id == 2) {
+				/* T33S->T33SL */
+				pr_info("%s: SKU OR: T33S->T30SL\n", __func__);
+				new_sku = 0x8f;
+			}
+		} else if (fuse_sku == 0x81) {
+			if (package_id == 1) {
+				pr_info("%s: SKU OR: T30->T30L\n", __func__);
+				/* T30->T30L */
+				new_sku = 0x83;
+			}
+		} else if (fuse_sku == 0x83) {
+			if (package_id == 2) {
+				pr_info("%s: SKU OR: T30S->T30SL\n", __func__);
+				/* T30S to T30SL */
+				new_sku = 0x8f;
+			}
+		}
+		break;
+	default:
+		/* no override */
+		break;
+	}
+
+	rev_sku_to_speedo_ids(tegra_get_revision(), new_sku);
 	BUG_ON(threshold_index >= ARRAY_SIZE(cpu_process_speedos));
 
 	fuse_speedo_calib(&cpu_speedo_val, &core_speedo_val);

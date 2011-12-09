@@ -141,6 +141,7 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 #endif
 }
 static int modem_id;
+static int sku_override;
 static int debug_uart_port_id;
 static enum audio_codec_type audio_codec_name;
 static enum image_type board_image_type = system_image;
@@ -476,6 +477,21 @@ static int __init tegra_bootloader_fb_arg(char *options)
 }
 early_param("tegra_fbmem", tegra_bootloader_fb_arg);
 
+static int __init tegra_sku_override(char *id)
+{
+	char *p = id;
+
+	sku_override = memparse(p, &p);
+
+	return 0;
+}
+early_param("sku_override", tegra_sku_override);
+
+int tegra_get_sku_override(void)
+{
+	return sku_override;
+}
+
 static int __init tegra_vpr_arg(char *options)
 {
 	char *p = options;
@@ -693,8 +709,6 @@ int tegra_get_modem_id(void)
 }
 
 __setup("modem_id=", tegra_modem_id);
-
-
 
 /*
  * Tegra has a protected aperture that prevents access by most non-CPU
