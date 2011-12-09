@@ -210,6 +210,7 @@
 #define   USB_PORTSC1_WKCN	(1 << 20)
 #define   USB_PORTSC1_PTC(x)	(((x) & 0xf) << 16)
 #define   USB_PORTSC1_PP	(1 << 12)
+#define   USB_PORTSC1_LS(x)	(((x) & 0x3) << 10)
 #define   USB_PORTSC1_SUSP	(1 << 7)
 #define   USB_PORTSC1_RESUME	(1 << 6)
 #define   USB_PORTSC1_PE	(1 << 2)
@@ -346,6 +347,7 @@
 #define   UHSIC_SUSPEND_EXIT_ON_EDGE		(1 << 7)
 #define   UHSIC_DETECT_SHORT_CONNECT		(1 << 8)
 #define   UHSIC_FORCE_XCVR_MODE			(1 << 15)
+#define   UHSIC_DISABLE_BUSRESET		(1 << 20)
 
 #define UHSIC_MISC_CFG1				0xc18
 #define   UHSIC_PLLU_STABLE_COUNT(x)		(((x) & 0xfff) << 2)
@@ -2135,6 +2137,10 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 
 	val = readl(base + UHSIC_MISC_CFG0);
 	val |= UHSIC_SUSPEND_EXIT_ON_EDGE;
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+	/* Disable generic bus reset, to allow AP30 specific bus reset*/
+	val |= UHSIC_DISABLE_BUSRESET;
+#endif
 	writel(val, base + UHSIC_MISC_CFG0);
 
 	val = readl(base + UHSIC_MISC_CFG1);
@@ -2653,7 +2659,6 @@ int tegra_usb_phy_bus_reset(struct tegra_usb_phy *phy)
 	void __iomem *base = phy->regs;
 
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC) {
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 		val = readl(base + USB_PORTSC1);
 		val |= USB_PORTSC1_PTC(5);
 		writel(val, base + USB_PORTSC1);
@@ -2663,21 +2668,24 @@ int tegra_usb_phy_bus_reset(struct tegra_usb_phy *phy)
 		val &= ~USB_PORTSC1_PTC(~0);
 		writel(val, base + USB_PORTSC1);
 		udelay(2);
-#endif
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 		if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_LS(0), 0) < 0) {
 			pr_err("%s: timeout waiting for SE0\n", __func__);
 			return -ETIMEDOUT;
 		}
-#endif
+
 		if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_CCS, USB_PORTSC1_CCS) < 0) {
 			pr_err("%s: timeout waiting for connection status\n", __func__);
 			return -ETIMEDOUT;
 		}
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
 		if (utmi_wait_register(base + USB_PORTSC1, USB_PORTSC1_PSPD(2), USB_PORTSC1_PSPD(2)) < 0) {
+			pr_err("%s: timeout waiting hsic high speed configuration\n", __func__);
+			return -ETIMEDOUT;
+		}
+#elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
+		if (utmi_wait_register(base + HOSTPC1_DEVLC, HOSTPC1_DEVLC_PSPD(2), HOSTPC1_DEVLC_PSPD(2)) < 0) {
 			pr_err("%s: timeout waiting hsic high speed configuration\n", __func__);
 			return -ETIMEDOUT;
 		}
