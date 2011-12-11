@@ -165,6 +165,9 @@
 #define UHSIC_HSRX_CFG1				0x80c
 #define   UHSIC_HS_SYNC_START_DLY(x)		(((x) & 0x1f) << 1)
 
+#define UHSIC_TX_CFG0				0x810
+#define   UHSIC_HS_POSTAMBLE_OUTPUT_ENABLE	(1 << 6)
+
 #define UHSIC_MISC_CFG0				0x814
 #define   UHSIC_SUSPEND_EXIT_ON_EDGE		(1 << 7)
 #define   UHSIC_DETECT_SHORT_CONNECT		(1 << 8)
@@ -344,6 +347,9 @@
 
 #define UHSIC_HSRX_CFG1				0xc0c
 #define   UHSIC_HS_SYNC_START_DLY(x)		(((x) & 0x1f) << 1)
+
+#define UHSIC_TX_CFG0				0xc10
+#define   UHSIC_HS_READY_WAIT_FOR_VALID		(1 << 9)
 
 #define UHSIC_MISC_CFG0				0xc14
 #define   UHSIC_SUSPEND_EXIT_ON_EDGE		(1 << 7)
@@ -563,9 +569,6 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 #define FUSE_USB_CALIB_XCVR_SETUP(x)	(((x) & 0x7F) << 0)
 
 #define UHSIC_PLL_CFG0		0x800
-
-#define UHSIC_TX_CFG0				0x810
-#define   UHSIC_HS_POSTAMBLE_OUTPUT_ENABLE	(1 << 6)
 
 #define UHSIC_CMD_CFG0				0x824
 #define   UHSIC_PRETEND_CONNECT_DETECT		(1 << 5)
@@ -2199,6 +2202,13 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 	val = readl(base + UHSIC_HSRX_CFG1);
 	val |= UHSIC_HS_SYNC_START_DLY(uhsic_config->sync_start_delay);
 	writel(val, base + UHSIC_HSRX_CFG1);
+
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+	/* WAR HSIC TX */
+	val = readl(base + UHSIC_TX_CFG0);
+	val &= ~UHSIC_HS_READY_WAIT_FOR_VALID;
+	writel(val, base + UHSIC_TX_CFG0);
+#endif
 
 	val = readl(base + UHSIC_MISC_CFG0);
 	val |= UHSIC_SUSPEND_EXIT_ON_EDGE;
