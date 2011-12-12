@@ -938,7 +938,6 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	struct tegra_aes_ctx *ctx = &rng_ctx;
 	struct tegra_aes_engine *eng = NULL;
 	struct tegra_aes_slot *key_slot;
-	int bsev_busy = false;
 	int bsea_busy = false;
 	unsigned long flags;
 	struct timespec ts;
@@ -946,24 +945,21 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	int ret = 0;
 	u8 *dt;
 
+	if (!dd)
+		return -EINVAL;
+
 	if (slen < (DEFAULT_RNG_BLK_SZ + AES_KEYSIZE_128)) {
 		return -ENOMEM;
 	}
 
 	spin_lock_irqsave(&dd->lock, flags);
-	bsev_busy = test_and_set_bit(FLAGS_BUSY, &dd->bsev.busy);
-	if (bsev_busy)
-		bsea_busy = test_and_set_bit(FLAGS_BUSY, &dd->bsea.busy);
+	bsea_busy = test_and_set_bit(FLAGS_BUSY, &dd->bsea.busy);
 	spin_unlock_irqrestore(&dd->lock, flags);
 
-	if (!bsev_busy) {
-		eng = &dd->bsev;
-	} else if (!bsea_busy) {
+	if (!bsea_busy)
 		eng = &dd->bsea;
-	} else {
-		dev_err(dd->dev, "%s: hardware engine is busy\n", __func__);
+	else
 		return -EBUSY;
-	}
 
 	ctx->eng = eng;
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
