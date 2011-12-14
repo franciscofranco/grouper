@@ -30,9 +30,13 @@
 
 static bool tegra_dvfs_cpu_disabled;
 static bool tegra_dvfs_core_disabled;
+static struct dvfs *cpu_dvfs;
 
 static const int cpu_millivolts[MAX_DVFS_FREQS] = {
 	800, 825, 850, 875, 900, 912, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1212, 1237};
+
+static const unsigned int cpu_cold_offs_mhz[MAX_DVFS_FREQS] = {
+	  50,  50,  50,  50,  50,  50,  50,  50,  50,   50,   50,   50,   50,   50,   50,   50,   50,   50};
 
 static const int core_millivolts[MAX_DVFS_FREQS] =
 	{1000, 1050, 1100, 1150, 1200, 1250, 1300};
@@ -422,6 +426,31 @@ static void __init init_dvfs_one(struct dvfs *d, int nominal_mv_index)
 	}
 }
 
+static void __init init_dvfs_cold(struct dvfs *d, int nominal_mv_index)
+{
+	int i;
+	unsigned long offs;
+
+	BUG_ON((nominal_mv_index == 0) || (nominal_mv_index > d->num_freqs));
+
+	for (i = 0; i < d->num_freqs; i++) {
+		offs = cpu_cold_offs_mhz[i] * MHZ;
+		if (i > nominal_mv_index)
+			d->alt_freqs[i] = d->alt_freqs[i - 1];
+		else if (d->freqs[i] > offs)
+			d->alt_freqs[i] = d->freqs[i] - offs;
+		else {
+			d->alt_freqs[i] = d->freqs[i];
+			pr_warn("tegra3_dvfs: cold offset %lu is too high for"
+				" regular dvfs limit %lu\n", offs, d->freqs[i]);
+		}
+
+		if (i)
+			BUG_ON(d->alt_freqs[i] < d->alt_freqs[i - 1]);
+	}
+	d->alt_freqs_state = ALT_FREQS_DISABLED;
+}
+
 static bool __init match_dvfs_one(struct dvfs *d, int speedo_id, int process_id)
 {
 	if ((d->process_id != -1 && d->process_id != process_id) ||
@@ -535,7 +564,6 @@ void __init tegra_soc_init_dvfs(void)
 	int i;
 	int core_nominal_mv_index;
 	int cpu_nominal_mv_index;
-	struct dvfs *cpu_dvfs = NULL;
 
 #ifndef CONFIG_TEGRA_CORE_DVFS
 	tegra_dvfs_core_disabled = true;
@@ -581,6 +609,7 @@ void __init tegra_soc_init_dvfs(void)
 	/* Initialize matching cpu dvfs entry already found when nominal
 	   voltage was determined */
 	init_dvfs_one(cpu_dvfs, cpu_nominal_mv_index);
+	init_dvfs_cold(cpu_dvfs, cpu_nominal_mv_index);
 
 	/* Finally disable dvfs on rails if necessary */
 	if (tegra_dvfs_core_disabled)
@@ -594,6 +623,17 @@ void __init tegra_soc_init_dvfs(void)
 	pr_info("tegra dvfs: VDD_CORE nominal %dmV, scaling %s\n",
 		tegra3_dvfs_rail_vdd_core.nominal_millivolts,
 		tegra_dvfs_core_disabled ? "disabled" : "enabled");
+}
+
+void tegra_cpu_dvfs_alter(int edp_thermal_index, bool before_clk_update)
+{
+	bool enable = !edp_thermal_index;
+
+	if (enable != before_clk_update) {
+		int ret = tegra_dvfs_alt_freqs_set(cpu_dvfs, enable);
+		WARN_ONCE(ret, "tegra dvfs: failed to set CPU alternative"
+			       " frequency limits for cold temeperature\n");
+	}
 }
 
 int tegra_dvfs_rail_disable_prepare(struct dvfs_rail *rail)

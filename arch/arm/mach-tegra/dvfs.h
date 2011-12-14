@@ -125,6 +125,7 @@ int tegra_dvfs_predict_millivolts(struct clk *c, unsigned long rate);
 void tegra_dvfs_core_cap_enable(bool enable);
 void tegra_dvfs_core_cap_level_set(int level);
 int tegra_dvfs_alt_freqs_set(struct dvfs *d, bool enable);
+void tegra_cpu_dvfs_alter(int edp_thermal_index, bool before_clk_update);
 #else
 static inline void tegra_soc_init_dvfs(void)
 {}
@@ -161,6 +162,9 @@ static inline void tegra_dvfs_core_cap_level_set(int level)
 {}
 static inline int tegra_dvfs_alt_freqs_set(struct dvfs *d, bool enable)
 { return 0; }
+static inline void tegra_cpu_dvfs_alter(int edp_thermal_index,
+					bool before_clk_update)
+{}
 #endif
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC

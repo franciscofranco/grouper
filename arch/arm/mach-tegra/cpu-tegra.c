@@ -41,6 +41,7 @@
 
 #include "clock.h"
 #include "cpu-tegra.h"
+#include "dvfs.h"
 
 /* tegra throttling and edp governors require frequencies in the table
    to be in ascending order */
@@ -226,11 +227,14 @@ int tegra_edp_update_thermal_zone(int temperature)
 	mutex_lock(&tegra_cpu_lock);
 	edp_thermal_index = index;
 
-	/* Update cpu rate if cpufreq (at least on cpu0) is already started */
+	/* Update cpu rate if cpufreq (at least on cpu0) is already started;
+	   alter cpu dvfs table for this thermal zone if necessary */
+	tegra_cpu_dvfs_alter(edp_thermal_index, true);
 	if (target_cpu_speed[0]) {
 		edp_update_limit();
 		tegra_cpu_set_speed_cap(NULL);
 	}
+	tegra_cpu_dvfs_alter(edp_thermal_index, false);
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
