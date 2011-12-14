@@ -489,7 +489,11 @@ static void tegra_ehci_restart(struct usb_hcd *hcd, bool is_dpd)
 	ehci_writel(ehci, (u32)ehci->async->qh_dma, &ehci->regs->async_next);
 	/* setup the command register and set the controller in RUN mode */
 	ehci->command &= ~(CMD_LRESET|CMD_IAAD|CMD_PSE|CMD_ASE|CMD_RESET);
-	ehci->command |= CMD_RUN;
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	/* dont start RS here for HSIC, it will be set by bus_reset */
+	if (tegra->phy->usb_phy_type != TEGRA_USB_PHY_TYPE_HSIC)
+#endif
+		ehci->command |= CMD_RUN;
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 
 	/* Enable the root Port Power */

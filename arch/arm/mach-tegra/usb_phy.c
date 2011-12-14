@@ -2806,14 +2806,26 @@ int tegra_usb_phy_bus_idle(struct tegra_usb_phy *phy)
 
 		val = readl(base + UHSIC_PADS_CFG1);
 		val &= ~UHSIC_RPD_STROBE;
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+		/* safe to enable RPU on STROBE at all times during idle */
 		val |= UHSIC_RPU_STROBE;
-#endif
 		writel(val, base + UHSIC_PADS_CFG1);
+
+		val = readl(base + USB_USBCMD);
+		val &= ~USB_USBCMD_RS;
+		writel(val, base + USB_USBCMD);
 
 		if (uhsic_config->usb_phy_ready &&
 					uhsic_config->usb_phy_ready())
 			return -EAGAIN;
+
+		/* wait for connect detect */
+		if (utmi_wait_register(base + UHSIC_STAT_CFG0,
+			    UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT) < 0) {
+			pr_err("%s: timeout waiting for hsic connect detect\n",
+				__func__);
+			return -ETIMEDOUT;
+		}
+
 	}
 	return 0;
 }
