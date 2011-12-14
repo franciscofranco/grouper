@@ -320,16 +320,23 @@ static int dvfs_rail_connect_to_regulator(struct dvfs_rail *rail)
 	return 0;
 }
 
+static inline unsigned long *dvfs_get_freqs(struct dvfs *d)
+{
+	return (d->alt_freqs_state == ALT_FREQS_ENABLED) ?
+		&d->alt_freqs[0] : &d->freqs[0];
+}
+
 static int
 __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 {
 	int i = 0;
 	int ret;
+	unsigned long *freqs = dvfs_get_freqs(d);
 
-	if (d->freqs == NULL || d->millivolts == NULL)
+	if (freqs == NULL || d->millivolts == NULL)
 		return -ENODEV;
 
-	if (rate > d->freqs[d->num_freqs - 1]) {
+	if (rate > freqs[d->num_freqs - 1]) {
 		pr_warn("tegra_dvfs: rate %lu too high for dvfs on %s\n", rate,
 			d->clk_name);
 		return -EINVAL;
@@ -338,7 +345,7 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 	if (rate == 0) {
 		d->cur_millivolts = 0;
 	} else {
-		while (i < d->num_freqs && rate > d->freqs[i])
+		while (i < d->num_freqs && rate > freqs[i])
 			i++;
 
 		if ((d->max_millivolts) &&
@@ -360,6 +367,31 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 	return ret;
 }
 
+static inline int dvfs_alt_freqs_set(struct dvfs *d, bool enable)
+{
+	if (d->alt_freqs_state == ALT_FREQS_NOT_SUPPORTED)
+		return -ENOSYS;
+
+	d->alt_freqs_state = enable ? ALT_FREQS_ENABLED : ALT_FREQS_DISABLED;
+	return 0;
+}
+
+int tegra_dvfs_alt_freqs_set(struct dvfs *d, bool enable)
+{
+	int ret;
+	enum dvfs_alt_freqs old_state;
+
+	mutex_lock(&dvfs_lock);
+
+	old_state = d->alt_freqs_state;
+	ret = dvfs_alt_freqs_set(d, enable);
+	if (!ret && (old_state != d->alt_freqs_state))
+		ret = __tegra_dvfs_set_rate(d, d->cur_rate);
+
+	mutex_unlock(&dvfs_lock);
+	return ret;
+}
+
 int tegra_dvfs_predict_millivolts(struct clk *c, unsigned long rate)
 {
 	int i;
@@ -369,6 +401,14 @@ int tegra_dvfs_predict_millivolts(struct clk *c, unsigned long rate)
 
 	if (!c->dvfs->millivolts)
 		return -ENODEV;
+
+	/*
+	 * Predicted voltage can not be used across the switch to alternative
+	 * frequency limits. For now, just fail the call for clock that has
+	 * alternative limits initialized.
+	 */
+	if (c->dvfs->alt_freqs_state != ALT_FREQS_NOT_SUPPORTED)
+		return -ENOSYS;
 
 	for (i = 0; i < c->dvfs->num_freqs; i++) {
 		if (rate <= c->dvfs->freqs[i])
