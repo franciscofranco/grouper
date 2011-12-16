@@ -693,10 +693,12 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	int ret = 0;
 	unsigned long flags;
 
-	if (i2c_dev->is_suspended)
-		return -EBUSY;
-
 	rt_mutex_lock(&i2c_dev->dev_lock);
+
+	if (i2c_dev->is_suspended) {
+		rt_mutex_unlock(&i2c_dev->dev_lock);
+		return -EBUSY;
+	}
 
 	if (i2c_dev->last_mux != i2c_bus->mux) {
 		tegra_pinmux_set_safe_pinmux_table(i2c_dev->last_mux,
