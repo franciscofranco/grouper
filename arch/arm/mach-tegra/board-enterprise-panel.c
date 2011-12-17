@@ -664,6 +664,7 @@ static struct nvhost_device enterprise_disp2_device = {
 };
 #endif
 
+#if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout enterprise_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
 	[1] = {
@@ -687,9 +688,12 @@ static struct platform_device enterprise_nvmap_device = {
 		.platform_data = &enterprise_nvmap_data,
 	},
 };
+#endif
 
 static struct platform_device *enterprise_gfx_devices[] __initdata = {
+#if defined(CONFIG_TEGRA_NVMAP)
 	&enterprise_nvmap_device,
+#endif
 #ifdef CONFIG_TEGRA_GRHOST
 	&tegra_grhost_device,
 #endif
@@ -748,8 +752,10 @@ int __init enterprise_panel_init(void)
 	enterprise_dsi.chip_id = tegra_get_chipid();
 	enterprise_dsi.chip_rev = tegra_get_revision();
 
+#if defined(CONFIG_TEGRA_NVAVP)
 	enterprise_carveouts[1].base = tegra_carveout_start;
 	enterprise_carveouts[1].size = tegra_carveout_size;
+#endif
 
 	tegra_gpio_enable(enterprise_hdmi_hpd);
 	gpio_request(enterprise_hdmi_hpd, "hdmi_hpd");

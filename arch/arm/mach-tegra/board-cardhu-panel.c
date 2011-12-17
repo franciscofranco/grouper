@@ -1005,6 +1005,7 @@ static int cardhu_disp1_check_fb(struct device *dev, struct fb_info *info)
 }
 #endif
 
+#if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout cardhu_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
 	[1] = {
@@ -1028,10 +1029,12 @@ static struct platform_device cardhu_nvmap_device = {
 		.platform_data = &cardhu_nvmap_data,
 	},
 };
-
+#endif
 
 static struct platform_device *cardhu_gfx_devices[] __initdata = {
+#if defined(CONFIG_TEGRA_NVMAP)
 	&cardhu_nvmap_device,
+#endif
 #ifdef CONFIG_TEGRA_GRHOST
 	&tegra_grhost_device,
 #endif
@@ -1073,8 +1076,10 @@ int __init cardhu_panel_init(void)
 	tegra_get_board_info(&board_info);
 	tegra_get_display_board_info(&display_board_info);
 
+#if defined(CONFIG_TEGRA_NVMAP)
 	cardhu_carveouts[1].base = tegra_carveout_start;
 	cardhu_carveouts[1].size = tegra_carveout_size;
+#endif
 
 	if (board_info.board_id == BOARD_E1291 &&
 		((board_info.sku & SKU_TOUCHSCREEN_MECH_FIX) == 0)) {

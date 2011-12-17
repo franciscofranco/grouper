@@ -309,6 +309,7 @@ static int ventana_disp1_check_fb(struct device *dev, struct fb_info *info)
 }
 #endif
 
+#if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout ventana_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
 	[1] = {
@@ -330,9 +331,12 @@ static struct platform_device ventana_nvmap_device = {
 		.platform_data = &ventana_nvmap_data,
 	},
 };
+#endif
 
 static struct platform_device *ventana_gfx_devices[] __initdata = {
+#if defined(CONFIG_TEGRA_NVMAP)
 	&ventana_nvmap_device,
+#endif
 #ifdef CONFIG_TEGRA_GRHOST
 	&tegra_grhost_device,
 #endif
@@ -403,8 +407,10 @@ int __init ventana_panel_init(void)
 	register_early_suspend(&ventana_panel_early_suspender);
 #endif
 
+#if defined(CONFIG_TEGRA_NVMAP)
 	ventana_carveouts[1].base = tegra_carveout_start;
 	ventana_carveouts[1].size = tegra_carveout_size;
+#endif
 
 	err = platform_add_devices(ventana_gfx_devices,
 				   ARRAY_SIZE(ventana_gfx_devices));

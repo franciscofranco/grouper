@@ -192,6 +192,7 @@ static int harmony_disp1_check_fb(struct device *dev, struct fb_info *info)
 	return info->device == &harmony_disp1_device.dev;
 }
 
+#if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout harmony_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
 	[1] = {
@@ -213,9 +214,12 @@ static struct platform_device harmony_nvmap_device = {
 		.platform_data = &harmony_nvmap_data,
 	},
 };
+#endif
 
 static struct platform_device *harmony_gfx_devices[] __initdata = {
+#if defined(CONFIG_TEGRA_NVMAP)
 	&harmony_nvmap_device,
+#endif
 	&tegra_grhost_device,
 	&tegra_pwfm0_device,
 	&harmony_backlight_device,
@@ -237,8 +241,10 @@ int __init harmony_panel_init(void) {
 	gpio_direction_output(harmony_lvds_shutdown, 1);
 	tegra_gpio_enable(harmony_lvds_shutdown);
 
+#if defined(CONFIG_TEGRA_NVMAP)
 	harmony_carveouts[1].base = tegra_carveout_start;
 	harmony_carveouts[1].size = tegra_carveout_size;
+#endif
 
 	err = platform_add_devices(harmony_gfx_devices,
 				   ARRAY_SIZE(harmony_gfx_devices));

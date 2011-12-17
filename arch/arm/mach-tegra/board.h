@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/power_supply.h>
 
+#if defined(CONFIG_TEGRA_NVMAP)
 #define NVMAP_HEAP_CARVEOUT_IRAM_INIT	\
 	{	.name		= "iram",					\
 		.usage_mask	= NVMAP_HEAP_CARVEOUT_IRAM,			\
@@ -32,6 +33,7 @@
 		.size		= TEGRA_IRAM_SIZE - TEGRA_RESET_HANDLER_SIZE,	\
 		.buddy_size	= 0, /* no buddy allocation for IRAM */		\
 	}
+#endif
 
 void tegra_assert_system_reset(char mode, const char *cmd);
 
