@@ -836,7 +836,7 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 	.functionality	= tegra_i2c_func,
 };
 
-static int tegra_i2c_probe(struct platform_device *pdev)
+static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
 	struct tegra_i2c_platform_data *plat = pdev->dev.platform_data;
@@ -1023,7 +1023,7 @@ err_iounmap:
 	return ret;
 }
 
-static int tegra_i2c_remove(struct platform_device *pdev)
+static int __devexit tegra_i2c_remove(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 	while (i2c_dev->bus_count--)
