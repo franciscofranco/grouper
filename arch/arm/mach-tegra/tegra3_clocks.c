@@ -210,8 +210,6 @@
 #define SUPER_CLOCK_SKIP_ENABLE		(0x1 << 31)
 #define SUPER_CLOCK_DIV_U71_SHIFT	16
 #define SUPER_CLOCK_DIV_U71_MASK	(0xff << SUPER_CLOCK_DIV_U71_SHIFT)
-/* guarantees safe cpu backup */
-#define SUPER_CLOCK_DIV_U71_MIN		0x2
 #define SUPER_CLOCK_SKIP_NOMIN_SHIFT	8
 #define SUPER_CLOCK_SKIP_DENOM_SHIFT	0
 #define SUPER_CLOCK_SKIP_MASK		(0xffff << SUPER_CLOCK_SKIP_DENOM_SHIFT)
@@ -302,6 +300,37 @@
 
 #define ROUND_DIVIDER_UP	0
 #define ROUND_DIVIDER_DOWN	1
+
+#ifdef CONFIG_TEGRA_SILICON_PLATFORM
+#define PLLP_FIXED_RATE			408000000
+#else
+#define PLLP_FIXED_RATE			216000000
+#endif
+
+/* sbus threshold must be exact factor of pll_p */
+#define SBUS_THRESHOLD_RATE		(PLLP_FIXED_RATE / 2)
+
+/*
+ * Backup rate targets for each CPU mode is selected below Fmax(Vmin), and
+ * high enough to avoid voltage droop when CPU clock is switched between
+ * backup and main clock sources. Actual backup rates will be rounded based
+ * on backup source fixed frequency. Maximum stay-on-backup rate will be set
+ * as a minimum of G and LP backup rates to be supported in both modes.
+ */
+#define CPU_G_BACKUP_RATE_TARGET	440000000
+#define CPU_G_BACKUP_RATE_DIV		\
+	 DIV_ROUND_UP(PLLP_FIXED_RATE, CPU_G_BACKUP_RATE_TARGET)
+#define CPU_G_BACKUP_RATE		\
+	 (PLLP_FIXED_RATE / CPU_G_BACKUP_RATE_DIV)
+
+#define CPU_LP_BACKUP_RATE_TARGET	220000000
+#define CPU_LP_BACKUP_RATE_DIV		\
+	 DIV_ROUND_UP(PLLP_FIXED_RATE, CPU_LP_BACKUP_RATE_TARGET)
+#define CPU_LP_BACKUP_RATE		\
+	 (PLLP_FIXED_RATE / CPU_LP_BACKUP_RATE_DIV)
+
+#define CPU_STAY_ON_BACKUP_MAX		\
+	 min(CPU_G_BACKUP_RATE, CPU_LP_BACKUP_RATE)
 
 static bool tegra3_clk_is_parent_allowed(struct clk *c, struct clk *p);
 
@@ -611,13 +640,19 @@ static void tegra3_super_clk_init(struct clk *c)
 		/* Init safe 7.1 divider value (does not affect PLLX path).
 		   Super skipper is enabled to be ready for emergency throttle,
 		   but set 1:1 */
-		val = SUPER_CLOCK_SKIP_ENABLE |
-			(SUPER_CLOCK_DIV_U71_MIN << SUPER_CLOCK_DIV_U71_SHIFT);
-		clk_writel(val, c->reg + SUPER_CLK_DIVIDER);
 		c->mul = 2;
 		c->div = 2;
-		if (!(c->parent->flags & PLLX))
-			c->div += SUPER_CLOCK_DIV_U71_MIN;
+		if (!(c->parent->flags & PLLX)) {
+			val = clk_readl(c->reg + SUPER_CLK_DIVIDER);
+			val &= SUPER_CLOCK_DIV_U71_MASK;
+			val >>= SUPER_CLOCK_DIV_U71_SHIFT;
+			val = max(val, c->u.cclk.div71);
+			c->u.cclk.div71 = val;
+			c->div += val;
+		}
+		val = SUPER_CLOCK_SKIP_ENABLE +
+			(c->u.cclk.div71 << SUPER_CLOCK_DIV_U71_SHIFT);
+		clk_writel(val, c->reg + SUPER_CLK_DIVIDER);
 	}
 	else
 		clk_writel(0, c->reg + SUPER_CLK_DIVIDER);
@@ -734,8 +769,11 @@ static int tegra3_super_clk_set_rate(struct clk *c, unsigned long rate)
 	if ((c->flags & DIV_U71) && (c->parent->flags & PLL_FIXED)) {
 		int div = clk_div71_get_divider(c->parent->u.pll.fixed_rate,
 					rate, c->flags, ROUND_DIVIDER_DOWN);
-		div = max(div, SUPER_CLOCK_DIV_U71_MIN);
+		if (div < 0)
+			return div;
+
 		tegra3_super_clk_divider_update(c, div);
+		c->u.cclk.div71 = div;
 		c->div = div + 2;
 		c->mul = 2;
 		return 0;
@@ -823,15 +861,29 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	 */
 	clk_enable(c->u.cpu.main);
 
-	ret = clk_set_parent(c->parent, c->u.cpu.backup);
-	if (ret) {
-		pr_err("Failed to switch cpu to clock %s\n", c->u.cpu.backup->name);
-		goto out;
+	if (c->parent->parent != c->u.cpu.backup) {
+		ret = clk_set_parent(c->parent, c->u.cpu.backup);
+		if (ret) {
+			pr_err("Failed to switch cpu to clock %s\n",
+			       c->u.cpu.backup->name);
+			goto out;
+		}
 	}
 
-	ret = clk_set_rate(c->parent, rate);
-	if (!ret && (rate <= clk_get_rate(c->parent)))
+	if (rate <= CPU_STAY_ON_BACKUP_MAX) {
+		ret = clk_set_rate(c->parent, rate);
+		if (ret)
+			pr_err("Failed to set cpu rate %lu on backup source\n",
+			       rate);
 		goto out;
+	} else {
+		ret = clk_set_rate(c->parent, c->u.cpu.backup_rate);
+		if (ret) {
+			pr_err("Failed to set cpu rate %lu on backup source\n",
+			       c->u.cpu.backup_rate);
+			goto out;
+		}
+	}
 
 	if (rate != clk_get_rate(c->u.cpu.main)) {
 		ret = clk_set_rate(c->u.cpu.main, rate);
@@ -3167,11 +3219,7 @@ static struct clk tegra_pll_p = {
 		.vco_max   = 1400000000,
 		.freq_table = tegra_pll_p_freq_table,
 		.lock_delay = 300,
-#ifdef CONFIG_TEGRA_SILICON_PLATFORM
-		.fixed_rate = 408000000,
-#else
-		.fixed_rate = 216000000,
-#endif
+		.fixed_rate = PLLP_FIXED_RATE,
 	},
 };
 
@@ -3710,6 +3758,9 @@ static struct clk tegra_clk_cclk_g = {
 	.reg	= 0x368,
 	.ops	= &tegra_super_ops,
 	.max_rate = 1700000000,
+	.u.cclk = {
+		.div71 = 2 * CPU_G_BACKUP_RATE_DIV - 2,
+	},
 };
 
 static struct clk tegra_clk_cclk_lp = {
@@ -3719,6 +3770,9 @@ static struct clk tegra_clk_cclk_lp = {
 	.reg	= 0x370,
 	.ops	= &tegra_super_ops,
 	.max_rate = 620000000,
+	.u.cclk = {
+		.div71 = 2 * CPU_LP_BACKUP_RATE_DIV - 2,
+	},
 };
 
 static struct clk tegra_clk_sclk = {
@@ -3738,6 +3792,7 @@ static struct clk tegra_clk_virtual_cpu_g = {
 	.u.cpu = {
 		.main      = &tegra_pll_x,
 		.backup    = &tegra_pll_p,
+		.backup_rate = CPU_G_BACKUP_RATE,
 		.mode      = MODE_G,
 	},
 };
@@ -3750,6 +3805,7 @@ static struct clk tegra_clk_virtual_cpu_lp = {
 	.u.cpu = {
 		.main      = &tegra_pll_x,
 		.backup    = &tegra_pll_p,
+		.backup_rate = CPU_LP_BACKUP_RATE,
 		.mode      = MODE_LP,
 	},
 };
@@ -3807,11 +3863,7 @@ static struct clk tegra_clk_sbus_cmplx = {
 		.hclk = &tegra_clk_hclk,
 		.sclk_low = &tegra_pll_p_out4,
 		.sclk_high = &tegra_pll_m_out1,
-#ifdef CONFIG_TEGRA_SILICON_PLATFORM
-		.threshold = 204000000, /* exact factor of low range pll_p */
-#else
-		.threshold = 108000000, /* exact factor of low range pll_p */
-#endif
+		.threshold = SBUS_THRESHOLD_RATE, /* exact factor of pll_p */
 	},
 	.rate_change_nh = &sbus_rate_change_nh,
 };

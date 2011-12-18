@@ -176,8 +176,12 @@ struct clk {
 		struct {
 			struct clk			*main;
 			struct clk			*backup;
+			unsigned long			backup_rate;
 			enum cpu_mode			mode;
 		} cpu;
+		struct {
+			u32				div71;
+		} cclk;
 		struct {
 			struct clk			*pclk;
 			struct clk			*hclk;
