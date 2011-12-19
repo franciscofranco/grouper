@@ -22,6 +22,7 @@
 #define __MACH_TEGRA_DEVICES_H
 
 #include <linux/platform_device.h>
+#include <linux/nvhost.h>
 
 extern struct platform_device tegra_sdhci_device1;
 extern struct platform_device tegra_sdhci_device2;
@@ -123,4 +124,6 @@ extern struct platform_device tegra_se_device;
 extern struct platform_device debug_uarte_device;
 #endif
 
+extern struct nvhost_device tegra_disp1_device;
+extern struct platform_device tegra_nvmap_device;
 #endif
