@@ -24,7 +24,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/pm.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/vmalloc.h>
 #include <linux/signal.h>
 #ifdef CONFIG_ANDROID
@@ -87,23 +87,19 @@ static long tf_device_ioctl(
 /*
  * Implements the device shutdown callback.
  */
-static int tf_device_shutdown(
-		struct sys_device *sysdev);
+static int tf_device_shutdown(void);
 
 
 /*
  * Implements the device suspend callback.
  */
-static int tf_device_suspend(
-		struct sys_device *sysdev,
-		pm_message_t state);
+static int tf_device_suspend(void);
 
 
 /*
  * Implements the device resume callback.
  */
-static int tf_device_resume(
-		struct sys_device *sysdev);
+static int tf_device_resume(void);
 
 
 /*---------------------------------------------------------------------------
@@ -157,11 +153,6 @@ module_param_named(post_vmalloc, tf_self_test_blkcipher_use_vmalloc, int, 0644);
 static struct class *tf_class;
 #endif
 
-/*
- * Interfaces the system device with the kernel.
- */
-struct sys_device g_tf_sysdev;
-
 /*----------------------------------------------------------------------------
  * Global Variables
  *----------------------------------------------------------------------------*/
@@ -180,8 +171,7 @@ static const struct file_operations g_tf_device_file_ops = {
 };
 
 
-static struct sysdev_class g_tf_device_sys_class = {
-	.name = TF_DEVICE_BASE_NAME,
+static struct syscore_ops g_tf_device_syscore_ops = {
 	.shutdown = tf_device_shutdown,
 	.suspend = tf_device_suspend,
 	.resume = tf_device_resume,
@@ -326,9 +316,6 @@ static int __init tf_device_register(void)
 	cdev_init(&dev->cdev, &g_tf_device_file_ops);
 	dev->cdev.owner = THIS_MODULE;
 
-	g_tf_sysdev.id = 0;
-	g_tf_sysdev.cls = &g_tf_device_sys_class;
-
 	INIT_LIST_HEAD(&dev->connection_list);
 	spin_lock_init(&dev->connection_list_lock);
 
@@ -365,22 +352,7 @@ static int __init tf_device_register(void)
 	/*
 	 * Register the system device.
 	 */
-
-	error = sysdev_class_register(&g_tf_device_sys_class);
-	if (error != 0) {
-		printk(KERN_ERR "tf_device_register():"
-			" sysdev_class_register failed (error %d)!\n",
-			error);
-		goto sysdev_class_register_failed;
-	}
-
-	error = sysdev_register(&g_tf_sysdev);
-	if (error != 0) {
-		dprintk(KERN_ERR "tf_device_register(): "
-			"sysdev_register failed (error %d)!\n",
-			error);
-		goto sysdev_register_failed;
-	}
+	register_syscore_ops(&g_tf_device_syscore_ops);
 
 	/*
 	 * Register the char device.
@@ -473,10 +445,7 @@ init_failed:
 cdev_add_failed:
 	unregister_chrdev_region(dev->dev_number, 1);
 register_chrdev_region_failed:
-	sysdev_unregister(&g_tf_sysdev);
-sysdev_register_failed:
-	sysdev_class_unregister(&g_tf_device_sys_class);
-sysdev_class_register_failed:
+	unregister_syscore_ops(&g_tf_device_syscore_ops);
 kobject_init_and_add_failed:
 	kobject_del(&g_tf_dev.kobj);
 
@@ -793,7 +762,7 @@ exit:
 
 /*----------------------------------------------------------------------------*/
 
-static int tf_device_shutdown(struct sys_device *sysdev)
+static int tf_device_shutdown(void)
 {
 
 	return tf_power_management(&g_tf_dev.sm,
@@ -802,7 +771,7 @@ static int tf_device_shutdown(struct sys_device *sysdev)
 
 /*----------------------------------------------------------------------------*/
 
-static int tf_device_suspend(struct sys_device *sysdev, pm_message_t state)
+static int tf_device_suspend(void)
 {
 	dprintk(KERN_INFO "tf_device_suspend: Enter\n");
 	return tf_power_management(&g_tf_dev.sm,
@@ -812,7 +781,7 @@ static int tf_device_suspend(struct sys_device *sysdev, pm_message_t state)
 
 /*----------------------------------------------------------------------------*/
 
-static int tf_device_resume(struct sys_device *sysdev)
+static int tf_device_resume(void)
 {
 	return tf_power_management(&g_tf_dev.sm,
 		TF_POWER_OPERATION_RESUME);
