@@ -559,6 +559,8 @@ static void baseband_xmm_power_work_func(struct work_struct *work)
 		}
 		/* reset / power on sequence */
 		baseband_xmm_power_reset_on();
+		/* set power status as on */
+		power_onoff = 1;
 		/* optional delay
 		 * 0 = flashless
 		 *   ==> causes next step to enumerate modem boot rom
