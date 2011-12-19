@@ -59,6 +59,8 @@ struct nvmap_device;
 
 #define nvmap_ref_to_handle(_ref) (*(struct nvmap_handle **)(_ref))
 #define nvmap_id_to_handle(_id) ((struct nvmap_handle *)(_id))
+/* Convert User space handle to Kernel. */
+#define nvmap_convert_handle_u2k(h) h
 
 struct nvmap_pinarray_elem {
 	__u32 patch_mem;
