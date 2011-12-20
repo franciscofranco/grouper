@@ -470,6 +470,7 @@ static long mediasrv_unlocked_ioctl(struct file *file, unsigned int cmd,
 copy_fail:
 	e = -EFAULT;
 fail:
+	mutex_unlock(&mediasrv->lock);
 	return e;
 }
 
