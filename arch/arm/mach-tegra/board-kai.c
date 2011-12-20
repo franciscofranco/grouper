@@ -35,6 +35,9 @@
 #include <linux/tegra_uart.h>
 #include <linux/memblock.h>
 #include <linux/spi-tegra.h>
+#include <linux/skbuff.h>
+#include <linux/ti_wilink_st.h>
+#include <linux/regulator/consumer.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -111,6 +114,94 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 			.xcvr_lsrslew = 2,
 	},
 };
+
+
+static struct regulator *vdd_com_bt = NULL;
+
+static int plat_kim_set_power(int state)
+{
+	static int bt_power_state;
+	if (state == bt_power_state)
+		return 0;
+
+	if (vdd_com_bt == NULL) {
+		vdd_com_bt = regulator_get(NULL, "vdd_com_bd");
+		if (WARN_ON(IS_ERR(vdd_com_bt))) {
+			pr_err("%s: couldn't get regulator vdd_com_bt: %ld\n",
+				__func__, PTR_ERR(vdd_com_bt));
+			vdd_com_bt = NULL;
+			return -ENODEV;
+		}
+	}
+
+	pr_info("Powering %s bluetooth\n", (state ? "on" : "off"));
+	bt_power_state = state;
+
+	if (state) {
+		regulator_enable(vdd_com_bt);
+		mdelay(100);
+	} else
+		regulator_disable(vdd_com_bt);
+
+	return 0;
+}
+
+static unsigned long retry_suspend;
+
+static int plat_kim_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct kim_data_s *kim_gdata;
+	struct st_data_s *core_data;
+	kim_gdata = dev_get_drvdata(&pdev->dev);
+	core_data = kim_gdata->core_data;
+	if (st_ll_getstate(core_data) != ST_LL_INVALID) {
+		/* Prevent suspend until sleep indication from chip */
+		while (st_ll_getstate(core_data) != ST_LL_ASLEEP &&
+			(retry_suspend++ < 5)) {
+				return -1;
+		}
+	}
+	return 0;
+}
+
+static int plat_kim_resume(struct platform_device *pdev)
+{
+	retry_suspend = 0;
+	return 0;
+}
+
+
+/* wl128x BT, FM, GPS connectivity chip */
+struct ti_st_plat_data wilink_pdata = {
+	.nshutdown_gpio	= TEGRA_GPIO_PU0,
+	.dev_name	= BLUETOOTH_UART_DEV_NAME,
+	.flow_cntrl	= 1,
+	.baud_rate	= 3000000,
+	.suspend	= plat_kim_suspend,
+	.resume		= plat_kim_resume,
+	.set_power	= plat_kim_set_power,
+};
+
+static struct platform_device wl128x_device = {
+	.name		= "kim",
+	.id		= -1,
+	.dev.platform_data = &wilink_pdata,
+};
+
+static struct platform_device btwilink_device = {
+	.name = "btwilink",
+	.id = -1,
+};
+
+static noinline void __init kai_bt_st(void)
+{
+	pr_info("kai_bt_st");
+
+	platform_device_register(&wl128x_device);
+	platform_device_register(&btwilink_device);
+	tegra_gpio_enable(TEGRA_GPIO_PU0);
+	return;
+}
 
 static __initdata struct tegra_clk_init_table kai_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -566,6 +657,7 @@ static void __init tegra_kai_init(void)
 	kai_touch_init();
 	kai_keys_init();
 	kai_panel_init();
+	kai_bt_st();
 	kai_pins_state_init();
 	tegra_release_bootloader_fb();
 #ifdef CONFIG_TEGRA_WDT_RECOVERY
