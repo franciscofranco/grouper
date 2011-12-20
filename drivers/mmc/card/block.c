@@ -59,6 +59,8 @@ MODULE_ALIAS("mmc:block");
 #define INAND_CMD38_ARG_SECTRIM1 0x81
 #define INAND_CMD38_ARG_SECTRIM2 0x88
 
+#define MMC_CMD_RETRIES 	3
+
 static DEFINE_MUTEX(block_mutex);
 
 /*
@@ -943,6 +945,7 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 	if (!mmc_card_blockaddr(card))
 		brq->cmd.arg <<= 9;
 	brq->cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+	brq->cmd.retries = MMC_CMD_RETRIES;
 	brq->data.blksz = 512;
 	brq->stop.opcode = MMC_STOP_TRANSMISSION;
 	brq->stop.arg = 0;
