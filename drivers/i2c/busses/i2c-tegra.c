@@ -1104,7 +1104,7 @@ MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
-	.remove  = tegra_i2c_remove,
+	.remove  = __devexit_p(tegra_i2c_remove),
 	.driver  = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,
