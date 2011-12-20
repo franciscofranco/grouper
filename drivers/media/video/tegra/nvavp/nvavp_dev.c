@@ -43,7 +43,7 @@
 #include <mach/nvmap.h>
 
 #include "../../../../video/tegra/nvmap/nvmap.h"
-#include "../../../../video/tegra/host/t20/syncpt_t20.h"
+#include "../../../../video/tegra/host/host1x/host1x_syncpt.h"
 #include "../../../../video/tegra/host/dev.h"
 #include "../../../../video/tegra/host/nvhost_acm.h"
 
