@@ -1089,8 +1089,6 @@ made_compressed_probe:
 	acm->rx_buflimit = num_rx_buf;
 	INIT_WORK(&acm->work, acm_softint);
 	init_usb_anchor(&acm->deferred);
-	init_waitqueue_head(&acm->drain_wait);
-	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
