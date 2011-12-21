@@ -517,12 +517,6 @@ static int ak8975_probe(struct i2c_client *client,
 		goto exit_gpio;
 	}
 	data = iio_priv(indio_dev);
-	/* Perform some basic start-of-day setup of the device. */
-	err = ak8975_setup(client);
-	if (err < 0) {
-		dev_err(&client->dev, "AK8975 initialization fails\n");
-		goto exit_gpio;
-	}
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -532,6 +526,13 @@ static int ak8975_probe(struct i2c_client *client,
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ak8975_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	/* Perform some basic start-of-day setup of the device. */
+	err = ak8975_setup(client);
+	if (err < 0) {
+		dev_err(&client->dev, "AK8975 initialization fails\n");
+		goto exit_gpio;
+	}
 
 	err = iio_device_register(indio_dev);
 	if (err < 0)
