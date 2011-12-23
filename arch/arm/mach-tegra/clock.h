@@ -239,6 +239,7 @@ int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_set_parent_locked(struct clk *c, struct clk *parent);
 int tegra_clk_shared_bus_update(struct clk *c);
 void tegra2_sdmmc_tap_delay(struct clk *c, int delay);
+void tegra3_set_cpu_skipper_delay(int delay);
 int tegra_emc_set_rate(unsigned long rate);
 long tegra_emc_round_rate(unsigned long rate);
 struct clk *tegra_emc_predict_parent(unsigned long rate, u32 *div_value);

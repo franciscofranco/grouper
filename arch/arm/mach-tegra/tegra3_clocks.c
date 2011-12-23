@@ -210,9 +210,13 @@
 #define SUPER_CLOCK_SKIP_ENABLE		(0x1 << 31)
 #define SUPER_CLOCK_DIV_U71_SHIFT	16
 #define SUPER_CLOCK_DIV_U71_MASK	(0xff << SUPER_CLOCK_DIV_U71_SHIFT)
-#define SUPER_CLOCK_SKIP_NOMIN_SHIFT	8
-#define SUPER_CLOCK_SKIP_DENOM_SHIFT	0
-#define SUPER_CLOCK_SKIP_MASK		(0xffff << SUPER_CLOCK_SKIP_DENOM_SHIFT)
+#define SUPER_CLOCK_SKIP_MUL_SHIFT	8
+#define SUPER_CLOCK_SKIP_MUL_MASK	(0xff << SUPER_CLOCK_SKIP_MUL_SHIFT)
+#define SUPER_CLOCK_SKIP_DIV_SHIFT	0
+#define SUPER_CLOCK_SKIP_DIV_MASK	(0xff << SUPER_CLOCK_SKIP_DIV_SHIFT)
+#define SUPER_CLOCK_SKIP_MASK		\
+	(SUPER_CLOCK_SKIP_MUL_MASK | SUPER_CLOCK_SKIP_DIV_MASK)
+#define SUPER_CLOCK_SKIP_TERM_MAX	256
 
 #define BUS_CLK_DISABLE			(1<<3)
 #define BUS_CLK_DIV_MASK		0x3
@@ -332,6 +336,9 @@
 #define CPU_STAY_ON_BACKUP_MAX		\
 	 min(CPU_G_BACKUP_RATE, CPU_LP_BACKUP_RATE)
 
+/* Threshold to engage CPU clock skipper during CPU rate change */
+#define SKIPPER_ENGAGE_RATE		 800000000
+
 static bool tegra3_clk_is_parent_allowed(struct clk *c, struct clk *p);
 
 static int tegra3_clk_shared_bus_update(struct clk *bus);
@@ -340,6 +347,14 @@ static struct clk *emc_bridge;
 
 static bool detach_shared_bus;
 module_param(detach_shared_bus, bool, 0644);
+
+static int skipper_delay = 10;
+module_param(skipper_delay, int, 0644);
+
+void tegra3_set_cpu_skipper_delay(int delay)
+{
+	skipper_delay = delay;
+}
 
 /**
 * Structure defining the fields for USB UTMI clocks Parameters.
@@ -741,16 +756,45 @@ static void tegra3_super_clk_divider_update(struct clk *c, u8 div)
 	udelay(2);
 }
 
-static void tegra3_super_clk_skipper_update(struct clk *c, u8 nomin, u8 denom)
+static void tegra3_super_clk_skipper_update(struct clk *c, u8 mul, u8 div)
 {
 	u32 val;
 	unsigned long flags;
 
 	spin_lock_irqsave(&super_divider_lock, flags);
 	val = clk_readl(c->reg + SUPER_CLK_DIVIDER);
+
+	/* multiplier or divider value = the respective field + 1 */
+	if (mul && div) {
+		u32 old_mul = ((val & SUPER_CLOCK_SKIP_MUL_MASK) >>
+			       SUPER_CLOCK_SKIP_MUL_SHIFT) + 1;
+		u32 old_div = ((val & SUPER_CLOCK_SKIP_DIV_MASK) >>
+			       SUPER_CLOCK_SKIP_DIV_SHIFT) + 1;
+
+		if (mul >= div) {
+			/* improper fraction is only used to reciprocate the
+			   previous proper one - the division below is exact */
+			old_mul /= div;
+			old_div /= mul;
+		} else {
+			old_mul *= mul;
+			old_div *= div;
+		}
+		mul = (old_mul <= SUPER_CLOCK_SKIP_TERM_MAX) ?
+			old_mul : SUPER_CLOCK_SKIP_TERM_MAX;
+		div = (old_div <= SUPER_CLOCK_SKIP_TERM_MAX) ?
+			old_div : SUPER_CLOCK_SKIP_TERM_MAX;
+	}
+
+	if (!mul || (mul >= div)) {
+		mul = 1;
+		div = 1;
+	}
 	val &= ~SUPER_CLOCK_SKIP_MASK;
-	val |= (nomin << SUPER_CLOCK_SKIP_NOMIN_SHIFT) |
-		(denom << SUPER_CLOCK_SKIP_DENOM_SHIFT);
+	val |= SUPER_CLOCK_SKIP_ENABLE |
+		((mul - 1) << SUPER_CLOCK_SKIP_MUL_SHIFT) |
+		((div - 1) << SUPER_CLOCK_SKIP_DIV_SHIFT);
+
 	clk_writel(val, c->reg + SUPER_CLK_DIVIDER);
 	spin_unlock_irqrestore(&super_divider_lock, flags);
 }
@@ -816,8 +860,9 @@ static struct clk tegra3_clk_twd = {
 /* some clocks can not be stopped (cpu, memory bus) while the SoC is running.
    To change the frequency of these clocks, the parent pll may need to be
    reprogrammed, so the clock must be moved off the pll, the pll reprogrammed,
-   and then the clock moved back to the pll.  To hide this sequence, a virtual
-   clock handles it.
+   and then the clock moved back to the pll. Clock skipper maybe temporarily
+   engaged during the switch to limit frequency jumps. To hide this sequence,
+   a virtual clock handles it.
  */
 static void tegra3_cpu_clk_init(struct clk *c)
 {
@@ -839,6 +884,11 @@ static void tegra3_cpu_clk_disable(struct clk *c)
 static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret = 0;
+	bool skipped = false;
+	bool skip = (c->u.cpu.mode == MODE_G) && skipper_delay;
+	bool skip_from_backup = skip && (rate >= SKIPPER_ENGAGE_RATE);
+	bool skip_to_backup =
+		skip && (clk_get_rate_all_locked(c) >= SKIPPER_ENGAGE_RATE);
 
 	/* Hardware clock control is not possible on FPGA platforms.
 	   Report success so that upper level layers don't complain
@@ -862,11 +912,23 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	clk_enable(c->u.cpu.main);
 
 	if (c->parent->parent != c->u.cpu.backup) {
+		if (skip_to_backup) {
+			/* on G CPU use 1/2 skipper step for main <=> backup */
+			skipped = true;
+			tegra3_super_clk_skipper_update(c->parent, 1, 2);
+			udelay(skipper_delay);
+		}
+
 		ret = clk_set_parent(c->parent, c->u.cpu.backup);
 		if (ret) {
 			pr_err("Failed to switch cpu to clock %s\n",
 			       c->u.cpu.backup->name);
 			goto out;
+		}
+
+		if (skipped && !skip_from_backup) {
+			skipped = false;
+			tegra3_super_clk_skipper_update(c->parent, 2, 1);
 		}
 	}
 
@@ -893,6 +955,11 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 		}
 	}
 
+	if (!skipped && skip_from_backup) {
+		skipped = true;
+		tegra3_super_clk_skipper_update(c->parent, 1, 2);
+	}
+
 	ret = clk_set_parent(c->parent, c->u.cpu.main);
 	if (ret) {
 		pr_err("Failed to switch cpu to clock %s\n", c->u.cpu.main->name);
@@ -900,6 +967,10 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	}
 
 out:
+	if (skipped) {
+		udelay(skipper_delay);
+		tegra3_super_clk_skipper_update(c->parent, 2, 1);
+	}
 	clk_disable(c->u.cpu.main);
 #endif
 	return ret;
@@ -4347,8 +4418,8 @@ void tegra_edp_throttle_cpu_now(u8 factor)
 	if (factor > 1) {
 		if (!is_lp_cluster())
 			tegra3_super_clk_skipper_update(
-				&tegra_clk_cclk_g, 0, factor - 1);
-	} else {
+				&tegra_clk_cclk_g, 1, factor);
+	} else if (factor == 0) {
 		tegra3_super_clk_skipper_update(&tegra_clk_cclk_g, 0, 0);
 		tegra3_super_clk_skipper_update(&tegra_clk_cclk_lp, 0, 0);
 	}
