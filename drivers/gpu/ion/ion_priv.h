@@ -145,7 +145,8 @@ void ion_handle_add(struct ion_client *client, struct ion_handle *handle);
  * @vaddr:		the kenrel mapping if kmap_cnt is not zero
  * @dmap_cnt:		number of times the buffer is mapped for dma
  * @sglist:		the scatterlist for the buffer is dmap_cnt is not zero
-*/
+ * @pages:		list for allocated pages for the buffer
+ */
 struct ion_buffer {
 	struct kref ref;
 	struct rb_node node;
@@ -162,6 +163,7 @@ struct ion_buffer {
 	void *vaddr;
 	int dmap_cnt;
 	struct scatterlist *sglist;
+	struct page **pages;
 };
 
 /**
@@ -266,6 +268,18 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
 				      unsigned long align);
 void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 		       unsigned long size);
+#ifdef CONFIG_ION_IOMMU
+struct ion_heap *ion_iommu_heap_create(struct ion_platform_heap *);
+void ion_iommu_heap_destroy(struct ion_heap *);
+#else
+static inline struct ion_heap *ion_iommu_heap_create(struct ion_platform_heap *)
+{
+	return NULL;
+}
+static inline void ion_iommu_heap_destroy(struct ion_heap *)
+{
+}
+#endif
 /**
  * The carveout heap returns physical addresses, since 0 may be a valid
  * physical address, this is used to indicate allocation failed
