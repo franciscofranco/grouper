@@ -59,7 +59,7 @@ MODULE_ALIAS("mmc:block");
 #define INAND_CMD38_ARG_SECTRIM1 0x81
 #define INAND_CMD38_ARG_SECTRIM2 0x88
 
-#define MMC_CMD_RETRIES 	3
+#define MMC_CMD_RETRIES 	10
 
 static DEFINE_MUTEX(block_mutex);
 
