@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  */
-#ifdef CONFIG_TEGRA_IOVMM_SMMU
+#if defined(CONFIG_TEGRA_IOVMM_SMMU) || defined(CONFIG_TEGRA_IOMMU_SMMU)
 struct tegra_smmu_window {
 	unsigned long start;
 	unsigned long end;
