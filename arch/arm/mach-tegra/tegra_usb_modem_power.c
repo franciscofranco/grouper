@@ -194,7 +194,7 @@ static int tegra_usb_modem_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&(tegra_mdm.recovery_work), tegra_usb_modem_recovery);
 
 	/* create threaded irq for remote wakeup */
-	if (pdata->wake_gpio) {
+	if (gpio_is_valid(pdata->wake_gpio)) {
 		/* get remote wakeup gpio from platform data */
 		tegra_mdm.wake_gpio = pdata->wake_gpio;
 
@@ -236,7 +236,11 @@ static int tegra_usb_modem_probe(struct platform_device *pdev)
 static int __exit tegra_usb_modem_remove(struct platform_device *pdev)
 {
 	usb_unregister_notify(&usb_nb);
-	free_irq(tegra_mdm.irq, &tegra_mdm);
+
+	if (tegra_mdm.irq) {
+		disable_irq_wake(tegra_mdm.irq);
+		free_irq(tegra_mdm.irq, &tegra_mdm);
+	}
 	return 0;
 }
 
