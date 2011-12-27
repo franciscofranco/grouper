@@ -786,22 +786,25 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 	clone->bi_destructor = dm_crypt_bio_destructor;
 }
 
-static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
+static void kcryptd_io_read(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
+
+	crypt_inc_pending(io);
 
 	/*
 	 * The block layer might modify the bvec array, so always
 	 * copy the required bvecs because we need the original
 	 * one in order to decrypt the whole bio data *afterwards*.
 	 */
-	clone = bio_alloc_bioset(gfp, bio_segments(base_bio), cc->bs);
-	if (!clone)
-		return 1;
-
-	crypt_inc_pending(io);
+	clone = bio_alloc_bioset(GFP_NOIO, bio_segments(base_bio), cc->bs);
+	if (unlikely(!clone)) {
+		io->error = -ENOMEM;
+		crypt_dec_pending(io);
+		return;
+	}
 
 	clone_init(io, clone);
 	clone->bi_idx = 0;
@@ -812,7 +815,6 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 	       sizeof(struct bio_vec) * clone->bi_vcnt);
 
 	generic_make_request(clone);
-	return 0;
 }
 
 static void kcryptd_io_write(struct dm_crypt_io *io)
@@ -825,12 +827,9 @@ static void kcryptd_io(struct work_struct *work)
 {
 	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
 
-	if (bio_data_dir(io->base_bio) == READ) {
-		crypt_inc_pending(io);
-		if (kcryptd_io_read(io, GFP_NOIO))
-			io->error = -ENOMEM;
-		crypt_dec_pending(io);
-	} else
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_io_read(io);
+	else
 		kcryptd_io_write(io);
 }
 
@@ -1463,10 +1462,9 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 
 	io = crypt_io_alloc(ti, bio, dm_target_offset(ti, bio->bi_sector));
 
-	if (bio_data_dir(io->base_bio) == READ) {
-		if (kcryptd_io_read(io, GFP_NOWAIT))
-			kcryptd_queue_io(io);
-	} else
+	if (bio_data_dir(io->base_bio) == READ)
+		kcryptd_queue_io(io);
+	else
 		kcryptd_queue_crypt(io);
 
 	return DM_MAPIO_SUBMITTED;
