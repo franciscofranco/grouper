@@ -492,6 +492,9 @@ static int tegra_sdhci_signal_voltage_switch(struct sdhci_host *sdhci,
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
 
+	/* Wait for 1 msec after enabling clock */
+	mdelay(1);
+
 	if (signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
 		/* Do Auto Calibration for 1.8V signal voltage */
 		val = sdhci_readl(sdhci, SDMMC_AUTO_CAL_CONFIG);
