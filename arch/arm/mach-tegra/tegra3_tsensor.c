@@ -16,16 +16,18 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-
-#ifdef CONFIG_SENSORS_TEGRA_TSENSOR
-#include <mach/tsensor.h>
-#include <mach/tegra_fuse.h>
-#include <devices.h>
-#include <mach/iomap.h>
-#include <mach/thermal.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
+
+#include <mach/tsensor.h>
+#include <mach/tegra_fuse.h>
+#include <mach/iomap.h>
+#include <mach/thermal.h>
+#include <mach/tsensor.h>
+
+#include "devices.h"
+#include "tegra3_tsensor.h"
 
 /* fuse revision constants used for tsensor */
 #define TSENSOR_FUSE_REVISION_DECIMAL 8
@@ -187,8 +189,4 @@ labelSkipPowerOff:
 labelEnd:
 	return;
 }
-
-#else
-void __init tegra3_tsensor_init(void) { }
-#endif
 

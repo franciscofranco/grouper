@@ -37,13 +37,13 @@
 #include <mach/irqs.h>
 #include <mach/pinmux.h>
 #include <mach/edp.h>
-#include <mach/tsensor.h>
 
 #include "gpio-names.h"
 #include "board.h"
 #include "board-cardhu.h"
 #include "pm.h"
 #include "wakeups-t3.h"
+#include "tegra3_tsensor.h"
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
