@@ -796,6 +796,8 @@ static void ion_vma_open(struct vm_area_struct *vma)
 		vma->vm_private_data = NULL;
 		return;
 	}
+	ion_buffer_get(buffer);
+	ion_handle_get(handle);
 	pr_debug("%s: %d client_cnt %d handle_cnt %d alloc_cnt %d\n",
 		 __func__, __LINE__,
 		 atomic_read(&client->ref.refcount),
@@ -821,6 +823,7 @@ static void ion_vma_close(struct vm_area_struct *vma)
 		 atomic_read(&buffer->ref.refcount));
 	ion_handle_put(handle);
 	ion_client_put(client);
+	ion_buffer_put(buffer);
 	pr_debug("%s: %d client_cnt %d handle_cnt %d alloc_cnt %d\n",
 		 __func__, __LINE__,
 		 atomic_read(&client->ref.refcount),
@@ -866,6 +869,7 @@ static int ion_share_mmap(struct file *file, struct vm_area_struct *vma)
 		ret = -EINVAL;
 		goto err;
 	}
+	ion_buffer_get(buffer);
 
 	if (!handle->buffer->heap->ops->map_user) {
 		pr_err("%s: this heap does not define a method for mapping "
