@@ -33,77 +33,6 @@
 #include "ion_priv.h"
 #define DEBUG
 
-/**
- * struct ion_device - the metadata of the ion device node
- * @dev:		the actual misc device
- * @buffers:	an rb tree of all the existing buffers
- * @lock:		lock protecting the buffers & heaps trees
- * @heaps:		list of all the heaps in the system
- * @user_clients:	list of all the clients created from userspace
- */
-struct ion_device {
-	struct miscdevice dev;
-	struct rb_root buffers;
-	struct mutex lock;
-	struct rb_root heaps;
-	long (*custom_ioctl) (struct ion_client *client, unsigned int cmd,
-			      unsigned long arg);
-	struct rb_root user_clients;
-	struct rb_root kernel_clients;
-	struct dentry *debug_root;
-};
-
-/**
- * struct ion_client - a process/hw block local address space
- * @ref:		for reference counting the client
- * @node:		node in the tree of all clients
- * @dev:		backpointer to ion device
- * @handles:		an rb tree of all the handles in this client
- * @lock:		lock protecting the tree of handles
- * @heap_mask:		mask of all supported heaps
- * @name:		used for debugging
- * @task:		used for debugging
- *
- * A client represents a list of buffers this client may access.
- * The mutex stored here is used to protect both handles tree
- * as well as the handles themselves, and should be held while modifying either.
- */
-struct ion_client {
-	struct kref ref;
-	struct rb_node node;
-	struct ion_device *dev;
-	struct rb_root handles;
-	struct mutex lock;
-	unsigned int heap_mask;
-	const char *name;
-	struct task_struct *task;
-	pid_t pid;
-	struct dentry *debug_root;
-};
-
-/**
- * ion_handle - a client local reference to a buffer
- * @ref:		reference count
- * @client:		back pointer to the client the buffer resides in
- * @buffer:		pointer to the buffer
- * @node:		node in the client's handle rbtree
- * @kmap_cnt:		count of times this client has mapped to kernel
- * @dmap_cnt:		count of times this client has mapped for dma
- * @usermap_cnt:	count of times this client has mapped for userspace
- *
- * Modifications to node, map_cnt or mapping should be protected by the
- * lock in the client.  Other fields are never changed after initialization.
- */
-struct ion_handle {
-	struct kref ref;
-	struct ion_client *client;
-	struct ion_buffer *buffer;
-	struct rb_node node;
-	unsigned int kmap_cnt;
-	unsigned int dmap_cnt;
-	unsigned int usermap_cnt;
-};
-
 /* this function should only be called while dev->lock is held */
 static void ion_buffer_add(struct ion_device *dev,
 			   struct ion_buffer *buffer)
@@ -171,7 +100,7 @@ static void ion_buffer_destroy(struct kref *kref)
 	kfree(buffer);
 }
 
-static void ion_buffer_get(struct ion_buffer *buffer)
+void ion_buffer_get(struct ion_buffer *buffer)
 {
 	kref_get(&buffer->ref);
 }
@@ -181,7 +110,7 @@ static int ion_buffer_put(struct ion_buffer *buffer)
 	return kref_put(&buffer->ref, ion_buffer_destroy);
 }
 
-static struct ion_handle *ion_handle_create(struct ion_client *client,
+struct ion_handle *ion_handle_create(struct ion_client *client,
 				     struct ion_buffer *buffer)
 {
 	struct ion_handle *handle;
@@ -217,12 +146,12 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle)
 	return handle->buffer;
 }
 
-static void ion_handle_get(struct ion_handle *handle)
+void ion_handle_get(struct ion_handle *handle)
 {
 	kref_get(&handle->ref);
 }
 
-static int ion_handle_put(struct ion_handle *handle)
+int ion_handle_put(struct ion_handle *handle)
 {
 	return kref_put(&handle->ref, ion_handle_destroy);
 }
@@ -241,7 +170,7 @@ static struct ion_handle *ion_handle_lookup(struct ion_client *client,
 	return NULL;
 }
 
-static bool ion_handle_validate(struct ion_client *client, struct ion_handle *handle)
+bool ion_handle_validate(struct ion_client *client, struct ion_handle *handle)
 {
 	struct rb_node *n = client->handles.rb_node;
 
@@ -258,7 +187,7 @@ static bool ion_handle_validate(struct ion_client *client, struct ion_handle *ha
 	return false;
 }
 
-static void ion_handle_add(struct ion_client *client, struct ion_handle *handle)
+void ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 {
 	struct rb_node **p = &client->handles.rb_node;
 	struct rb_node *parent = NULL;
@@ -349,9 +278,6 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 	}
 	ion_handle_put(handle);
 }
-
-static void ion_client_get(struct ion_client *client);
-static int ion_client_put(struct ion_client *client);
 
 static bool _ion_map(int *buffer_cnt, int *handle_cnt)
 {
@@ -754,12 +680,12 @@ static void _ion_client_destroy(struct kref *kref)
 	kfree(client);
 }
 
-static void ion_client_get(struct ion_client *client)
+void ion_client_get(struct ion_client *client)
 {
 	kref_get(&client->ref);
 }
 
-static int ion_client_put(struct ion_client *client)
+int ion_client_put(struct ion_client *client)
 {
 	return kref_put(&client->ref, _ion_client_destroy);
 }
