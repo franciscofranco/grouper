@@ -542,6 +542,8 @@ static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
 			mmc_hostname(card->host));
 	else {
 		mmc_set_timing(card->host, timing);
+		if (timing == MMC_TIMING_UHS_DDR50)
+			mmc_card_set_ddr_mode(card);
 		mmc_set_clock(card->host, card->sw_caps.uhs_max_dtr);
 	}
 
