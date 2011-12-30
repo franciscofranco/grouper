@@ -62,6 +62,13 @@ struct tegra_suspend_platform_data {
 	void (*board_resume)(int lp_state, enum resume_stage stg);
 };
 
+/* Tegra io dpd entry - for each supported driver */
+struct tegra_io_dpd {
+	const char *name;	/* driver name */
+	u8 io_dpd_reg_index;	/* io dpd register index */
+	u8 io_dpd_bit;		/* bit position for driver in dpd register */
+};
+
 unsigned long tegra_cpu_power_good_time(void);
 unsigned long tegra_cpu_power_off_time(void);
 unsigned long tegra_cpu_lp2_min_residency(void);
