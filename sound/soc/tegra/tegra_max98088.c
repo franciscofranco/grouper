@@ -1046,8 +1046,6 @@ static int tegra30_soc_set_bias_level(struct snd_soc_card *card,
 		level != SND_SOC_BIAS_OFF)
 		tegra_asoc_utils_clk_enable(&machine->util_data);
 
-	machine->bias_level = level;
-
 	return 0;
 }
 
@@ -1056,8 +1054,11 @@ static int tegra30_soc_set_bias_level_post(struct snd_soc_card *card,
 {
 	struct tegra_max98088 *machine = snd_soc_card_get_drvdata(card);
 
-	if (level == SND_SOC_BIAS_OFF)
+	if (machine->bias_level != SND_SOC_BIAS_OFF &&
+		level == SND_SOC_BIAS_OFF)
 		tegra_asoc_utils_clk_disable(&machine->util_data);
+
+	machine->bias_level = level;
 
 	return 0 ;
 }
