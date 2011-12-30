@@ -35,6 +35,7 @@
 #include <mach/iomap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/smmu.h>
 
 #include "board.h"
 #include "board-cardhu.h"
@@ -1034,8 +1035,17 @@ static struct platform_device cardhu_nvmap_device = {
 #endif
 
 #if defined(CONFIG_ION_TEGRA)
+
+static struct platform_device tegra_iommu_device = {
+	.name = "tegra_iommu_device",
+	.id = -1,
+	.dev = {
+		.platform_data = (void *)((1 << HWGRP_COUNT) - 1),
+	},
+};
+
 static struct ion_platform_data tegra_ion_data = {
-	.nr = 3,
+	.nr = 4,
 	.heaps = {
 		{
 			.type = ION_HEAP_TYPE_CARVEOUT,
@@ -1057,6 +1067,14 @@ static struct ion_platform_data tegra_ion_data = {
 			.name = "vpr",
 			.base = 0,
 			.size = 0,
+		},
+		{
+			.type = ION_HEAP_TYPE_IOMMU,
+			.id = TEGRA_ION_HEAP_IOMMU,
+			.name = "iommu",
+			.base = TEGRA_SMMU_BASE,
+			.size = TEGRA_SMMU_SIZE,
+			.dev = &tegra_iommu_device.dev,
 		},
 	},
 };
