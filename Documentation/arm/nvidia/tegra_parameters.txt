@@ -1,0 +1,169 @@
+This file documents NVIDIA Tegra specific sysfs and debugfs files and
+kernel module parameters.
+
+/sys/power/suspend/mode
+-----------------------
+
+Used to select the LP1 or LP0 power state during system suspend.
+# echo lp0 > /sys/kernel/debug/suspend_mode
+# echo lp1 > /sys/kernel/debug/suspend_mode
+
+/sys/module/cpuidle/parameters/lp2_in_idle
+------------------------------------------
+
+Used to enable/disable LP2 in idle.
+# echo 1 > /sys/module/cpuidle/parameters/lp2_in_idle
+# echo 0 > /sys/module/cpuidle/parameters/lp2_in_idle
+
+/sys/kernel/debug/cpuidle/lp2
+-----------------------------
+
+Contains LP2 statistics.
+# cat /sys/kernel/debug/cpuidle/lp2
+
+/sys/kernel/debug/powergate
+---------------------------
+
+Contains power gating state of different tegra blocks.
+
+# cat /sys/kernel/debug/powergate
+
+/sys/module/cpu_tegra3/parameters/auto_hotplug
+----------------------------------------------
+
+Used to control auto hotplug governor
+# echo 0 >/sys/module/cpu_tegra3/parameters/auto_hotplug
+# echo 1 >/sys/module/cpu_tegra3/parameters/auto_hotplug
+# cat /sys/module/cpu_tegra3/parameters/auto_hotplug
+0: disabled
+1: idle
+2: down
+3: up
+
+/sys/module/cpu_tegra3/parameters/no_lp
+---------------------------------------
+
+Used to enable/disable shadow cluster.
+# echo 0 >/sys/module/cpu_tegra3/parameters/no_lp
+# echo 1 >/sys/module/cpu_tegra3/parameters/no_lp
+
+/sys/module/cpu_tegra3/parameters/idle_bottom_freq
+--------------------------------------------------
+
+Shadow cluster maximum frequency.
+
+/sys/module/cpu_tegra3/parameters/idle_top_freq
+-----------------------------------------------
+
+Main cluster minimum frequency.
+
+/sys/module/cpu_tegra3/parameters/down_delay
+---------------------------------------------
+
+Auto hotplug delay (in jiffies) for reducing cores.
+
+/sys/module/cpu_tegra3/parameters/up2g0_delay
+---------------------------------------------
+
+Delay (in jiffies) for swithing to main cluster.
+
+/sys/module/cpu_tegra3/parameters/up2gn_delay
+---------------------------------------------
+
+Delay (in jiffies) for bringing additional cores online in main
+cluster.
+
+/sys/module/cpu_tegra3/parameters/balance_level
+-----------------------------------------------
+
+Percentage of max speed considered to be in balance. Half of balanced
+speed is considered skewed. Speed balance states:
+* balanced: freq targets for all CPUs are above 50% of highest speed
+* biased: freq target for at least one CPU is below 50% threshold
+* skewed: freq targets for at least 2 CPUs are below 25% threshold
+Speed balance state and hotplug state dictates auto hotlug behavior.
+
+/sys/module/cpu_tegra3/parameters/mp_overhead
+---------------------------------------------
+
+Multi-core overhead percentage for EDP limit calculation.
+
+/sys/kernel/debug/tegra_hotplug/stats
+-------------------------------------
+
+Contains hotplug statistics.
+
+/sys/kernel/cluster/active
+--------------------------
+
+Controls active CPU cluster: main (G) or shadow (LP).
+For manual control disable auto hotlug, enable immediate switch and
+possibly force switch to happen always:
+# echo 0 > /sys/module/cpu_tegra3/parameters/auto_hotplug
+# echo 1 > /sys/kernel/cluster/immediate
+# echo 1 > /sys/kernel/cluster/force
+
+Cluster switching can happen only when only core 0 is online.
+
+Active cluster can be set or toggled:
+# echo "G" > /sys/kernel/cluster/active
+# echo "LP" > /sys/kernel/cluster/active
+# echo "toggle" > /sys/kernel/cluster/active
+
+/sys/module/tegra3_clocks/parameters/detach_shared_bus
+------------------------------------------------------
+
+Enable/disable shared bus clock update.
+
+/sys/module/tegra3_emc/parameters/emc_enable
+--------------------------------------------
+
+Enable/disable EMC DFS.
+
+/sys/kernel/debug/tegra_emc/stats
+---------------------------------
+
+Contains EMC clock statistics.
+
+/sys/module/tegra3_dvfs/parameters/disable_cpu
+----------------------------------------------
+
+Enable/disable DVFS for CPU domain.
+
+/sys/module/tegra3_dvfs/parameters/disable_core
+-----------------------------------------------
+
+Enable/disable DVFS for CORE domain.
+
+/sys/kernel/debug/clock/emc/rate
+--------------------------------
+
+Get/set EMC clock rate.
+
+/sys/kernel/debug/clock/<module>/rate
+-------------------------------------
+
+/sys/kernel/debug/clock/<module>/parent
+---------------------------------------
+
+/sys/kernel/debug/clock/<module>/state
+--------------------------------------
+
+/sys/kernel/debug/clock/<module>/time_on
+----------------------------------------
+
+/sys/kernel/debug/clock/clock_tree
+----------------------------------
+
+Shows the state of the clock tree.
+
+/sys/kernel/debug/clock/dvfs
+----------------------------
+
+Contains voltage state.
+
+/sys/kernel/debug/tegra_actmon/avp/state
+----------------------------------------
+
+/sys/kernel/debug/clock/mon.avp/rate
+------------------------------------
