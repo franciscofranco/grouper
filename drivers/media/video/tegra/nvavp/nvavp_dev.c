@@ -1024,7 +1024,7 @@ static int tegra_nvavp_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = clientctx;
 
-	nvhost_module_busy(nvavp->nvhost_dev->host->dev);
+	nvhost_module_busy(nvhost_get_host(nvavp->nvhost_dev)->dev);
 	mutex_unlock(&nvavp->open_lock);
 
 	return ret;
@@ -1039,7 +1039,7 @@ static int tegra_nvavp_release(struct inode *inode, struct file *filp)
 	dev_dbg(&nvavp->nvhost_dev->dev, "%s: ++\n", __func__);
 
 	filp->private_data = NULL;
-	nvhost_module_idle(nvavp->nvhost_dev->host->dev);
+	nvhost_module_idle(nvhost_get_host(nvavp->nvhost_dev)->dev);
 
 	mutex_lock(&nvavp->open_lock);
 
@@ -1124,7 +1124,7 @@ static int tegra_nvavp_probe(struct nvhost_device *ndev)
 
 	memset(nvavp, 0, sizeof(*nvavp));
 
-	nvavp->nvhost_syncpt = &ndev->host->syncpt;
+	nvavp->nvhost_syncpt = &nvhost_get_host(ndev)->syncpt;
 	if (!nvavp->nvhost_syncpt) {
 		dev_err(&ndev->dev, "cannot get syncpt handle\n");
 		ret = -ENOENT;

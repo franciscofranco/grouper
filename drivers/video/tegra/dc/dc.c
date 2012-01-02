@@ -1283,7 +1283,7 @@ u32 tegra_dc_incr_syncpt_max(struct tegra_dc *dc, int i)
 	u32 max;
 
 	mutex_lock(&dc->lock);
-	max = nvhost_syncpt_incr_max(&dc->ndev->host->syncpt,
+	max = nvhost_syncpt_incr_max(&nvhost_get_host(dc->ndev)->syncpt,
 		dc->syncpt[i].id, ((dc->enabled) ? 1 : 0));
 	dc->syncpt[i].max = max;
 	mutex_unlock(&dc->lock);
@@ -1297,7 +1297,8 @@ void tegra_dc_incr_syncpt_min(struct tegra_dc *dc, int i, u32 val)
 	if ( dc->enabled )
 		while (dc->syncpt[i].min < val) {
 			dc->syncpt[i].min++;
-			nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt,
+			nvhost_syncpt_cpu_incr(
+					&nvhost_get_host(dc->ndev)->syncpt,
 					dc->syncpt[i].id);
 		}
 	mutex_unlock(&dc->lock);
@@ -2125,7 +2126,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	unsigned long underflow_mask;
 	u32 val;
 
-	if (!nvhost_module_powered(dc->ndev->host->dev)) {
+	if (!nvhost_module_powered(nvhost_get_host(dc->ndev)->dev)) {
 		WARN(1, "IRQ when DC not powered!\n");
 		tegra_dc_io_start(dc);
 		status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
@@ -2333,7 +2334,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 		dc->syncpt[i].id = syncpt;
 
 		dc->syncpt[i].min = dc->syncpt[i].max =
-			nvhost_syncpt_read(&dc->ndev->host->syncpt, syncpt);
+			nvhost_syncpt_read(&nvhost_get_host(dc->ndev)->syncpt,
+					syncpt);
 	}
 
 	print_mode(dc, &dc->mode, __func__);
@@ -2480,7 +2482,8 @@ static void _tegra_dc_controller_disable(struct tegra_dc *dc)
 		/* flush any pending syncpt waits */
 		while (dc->syncpt[i].min < dc->syncpt[i].max) {
 			dc->syncpt[i].min++;
-			nvhost_syncpt_cpu_incr(&dc->ndev->host->syncpt,
+			nvhost_syncpt_cpu_incr(
+				&nvhost_get_host(dc->ndev)->syncpt,
 				dc->syncpt[i].id);
 		}
 	}
