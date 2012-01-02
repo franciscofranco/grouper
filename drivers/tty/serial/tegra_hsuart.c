@@ -90,8 +90,6 @@ const int dma_req_sel[] = {
 #define TEGRA_UART_TX_TRIG_4B  0x20
 #define TEGRA_UART_TX_TRIG_1B  0x30
 
-#define TX_EMPTY_TIMEOUT_CNT	10000
-
 struct tegra_uart_port {
 	struct uart_port	uport;
 	char			port_name[32];
@@ -631,16 +629,40 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *t)
 {
 	unsigned long flags;
 	int retry = 0;
+	unsigned long char_time = DIV_ROUND_UP(10000000, t->baud);
+	unsigned long fifo_empty_time = t->uport.fifosize * char_time;
+	unsigned long wait_time;
+	unsigned char lsr;
+	unsigned char msr;
+	unsigned char mcr;
 
 	/* Disable interrupts */
 	uart_writeb(t, 0, UART_IER);
 
-	while ((uart_readb(t, UART_LSR) & UART_LSR_TEMT) != UART_LSR_TEMT) {
-		udelay(200);
-		if (retry++ > TX_EMPTY_TIMEOUT_CNT) {
-			dev_err(t->uport.dev, "%s: Tx Empty timeout! (%d)\n",
-					__func__, TX_EMPTY_TIMEOUT_CNT);
-			break;
+	lsr = uart_readb(t, UART_LSR);
+	if ((lsr & UART_LSR_TEMT) != UART_LSR_TEMT) {
+		msr = uart_readb(t, UART_MSR);
+		mcr = uart_readb(t, UART_MCR);
+		if ((mcr & UART_MCR_CTS_EN) && (msr & UART_MSR_CTS))
+			dev_err(t->uport.dev, "%s: Tx fifo not empty and "
+				"slave disabled CTS, Waiting for slave to"
+				" be ready\n", __func__);
+
+		/* Wait for Tx fifo to be empty */
+		while ((lsr & UART_LSR_TEMT) != UART_LSR_TEMT) {
+			wait_time = min(fifo_empty_time, 100);
+			udelay(wait_time);
+			fifo_empty_time -= wait_time;
+			if (!fifo_empty_time) {
+				msr = uart_readb(t, UART_MSR);
+				mcr = uart_readb(t, UART_MCR);
+				if ((mcr & UART_MCR_CTS_EN) &&
+					(msr & UART_MSR_CTS))
+					dev_err(t->uport.dev, "%s: Slave is "
+					"still not ready!\n", __func__);
+				break;
+			}
+			lsr = uart_readb(t, UART_LSR);
 		}
 	}
 
