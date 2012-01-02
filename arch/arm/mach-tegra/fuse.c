@@ -79,6 +79,8 @@ static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_A02] = "A02",
 	[TEGRA_REVISION_A03] = "A03",
 	[TEGRA_REVISION_A03p] = "A03 prime",
+	[TEGRA_REVISION_A04] = "A04",
+	[TEGRA_REVISION_A04p] = "A04 prime",
 };
 
 u32 tegra_fuse_readl(unsigned long offset)
@@ -309,6 +311,8 @@ static struct chip_revision tegra_chip_revisions[] = {
 	CHIP_REVISION(TEGRA2, 1, 2, 0,   A02),
 	CHIP_REVISION(TEGRA2, 1, 3, 0,   A03),
 	CHIP_REVISION(TEGRA2, 1, 3, 'p', A03p),
+	CHIP_REVISION(TEGRA2, 1, 4, 0,   A04),
+	CHIP_REVISION(TEGRA2, 1, 4, 'p', A04p),
 	CHIP_REVISION(TEGRA3, 1, 1, 0,   A01),
 	CHIP_REVISION(TEGRA3, 1, 2, 0,   A02),
 	CHIP_REVISION(TEGRA3, 1, 3, 0,   A03),
