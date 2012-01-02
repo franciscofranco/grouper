@@ -219,6 +219,12 @@ static struct regulator_init_data ldo9_data = REGULATOR_INIT(ldo9, 1250, 3300);
 
 static struct tps6586x_rtc_platform_data rtc_data = {
 	.irq = TEGRA_NR_IRQS + TPS6586X_INT_RTC_ALM1,
+	.start = {
+		.year = 2009,
+		.month = 1,
+		.day = 1,
+	},
+	.cl_sel = TPS6586X_RTC_CL_SEL_1_5PF /* use lowest (external 20pF cap) */
 };
 
 #define TPS_REG(_id, _data)			\
