@@ -26,6 +26,7 @@
 
 #include <mach/gpio.h>
 #include <mach/sdhci.h>
+#include <mach/io_dpd.h>
 
 #include "sdhci-pltfm.h"
 
@@ -91,6 +92,7 @@ struct tegra_sdhci_host {
 	unsigned int vddio_max_uv;
 	/* max clk supported by the platform */
 	unsigned int max_clk_limit;
+	struct tegra_io_dpd *dpd;
 };
 
 static u32 tegra_sdhci_readl(struct sdhci_host *host, int reg)
@@ -423,6 +425,9 @@ static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 		mmc_hostname(sdhci->mmc), clock, tegra_host->clk_enabled);
 
 	if (clock) {
+		/* bring out sd instance from io dpd mode */
+		tegra_io_dpd_disable(tegra_host->dpd);
+
 		if (!tegra_host->clk_enabled) {
 			clk_enable(pltfm_host->clk);
 			ctrl = sdhci_readb(sdhci, SDHCI_VENDOR_CLOCK_CNTRL);
@@ -441,6 +446,8 @@ static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 		sdhci_writeb(sdhci, ctrl, SDHCI_VENDOR_CLOCK_CNTRL);
 		clk_disable(pltfm_host->clk);
 		tegra_host->clk_enabled = false;
+		/* io dpd enable call for sd instance */
+		tegra_io_dpd_enable(tegra_host->dpd);
 	}
 }
 
@@ -744,6 +751,7 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	tegra_host->clk_enabled = true;
 	tegra_host->max_clk_limit = plat->max_clk_limit;
 	tegra_host->instance = pdev->id;
+	tegra_host->dpd = tegra_io_dpd_get(mmc_dev(host->mmc));
 
 	host->mmc->pm_caps = plat->pm_flags;
 
