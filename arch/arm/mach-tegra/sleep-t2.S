@@ -258,6 +258,9 @@ ENTRY(tegra2_sleep_wfi)
 #endif
 
 #ifdef CONFIG_CACHE_L2X0
+	cpu_id  r2
+	cmp r2, #0
+	bne no_l2_sync
 	/* Issue a PL310 cache sync operation */
 	dsb
 	mov32	r2, TEGRA_PL310_VIRT
@@ -265,6 +268,8 @@ ENTRY(tegra2_sleep_wfi)
 	add	r2, r2, r1
 	mov	r1, #0
 	str	r1, [r2]
+
+no_l2_sync:
 #endif
 
 	pop_ctx_regs r0, r1		@ restore context registers
