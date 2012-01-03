@@ -74,6 +74,9 @@ static struct tegra_kbc_platform_data cardhu_kbc_platform_data = {
 	.keymap_data = &keymap_data,
 	.wake_cnt = 1,
 	.wake_cfg = &cardhu_wake_cfg[0],
+#ifdef CONFIG_ANDROID
+	.disable_ev_rep = true,
+#endif
 };
 
 int __init cardhu_kbc_init(void)

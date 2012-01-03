@@ -89,6 +89,9 @@ static struct tegra_kbc_platform_data whistler_kbc_platform_data = {
 	.keymap_data = &whistler_keymap_data,
 	.use_fn_map = false,
 	.wakeup = true,
+#ifdef CONFIG_ANDROID
+	.disable_ev_rep = true,
+#endif
 };
 
 static struct resource whistler_kbc_resources[] = {

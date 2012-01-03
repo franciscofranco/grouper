@@ -77,6 +77,9 @@ static struct tegra_kbc_platform_data enterprise_kbc_platform_data = {
 	.keymap_data = &keymap_data,
 	.wake_cnt = 4,
 	.wake_cfg = &enterprise_wake_cfg[0],
+#ifdef CONFIG_ANDROID
+	.disable_ev_rep = true,
+#endif
 };
 
 int __init enterprise_kbc_init(void)
