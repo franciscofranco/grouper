@@ -707,7 +707,10 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input_dev, kbc);
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);
+	if (!pdata->disable_ev_rep)
+		input_dev->evbit[0] |= BIT_MASK(EV_REP);
+
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	input_dev->keycode = kbc->keycode;
