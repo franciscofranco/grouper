@@ -1193,6 +1193,14 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 	int ret;
+	u32 val;
+
+	if (tegra->phy->hotplug) {
+		/* Disable PHY clock valid interrupts while going into suspend*/
+		val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
+		val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB;
+		writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
+	}
 
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {
 #ifdef CONFIG_USB_HOTPLUG
