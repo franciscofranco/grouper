@@ -765,7 +765,7 @@ int /*__devinit*/ snd_hda_bus_new(struct snd_card *card,
 
 	snprintf(bus->workq_name, sizeof(bus->workq_name),
 		 "hd-audio%d", card->number);
-	bus->workq = create_singlethread_workqueue(bus->workq_name);
+	bus->workq = create_freezable_workqueue(bus->workq_name);
 	if (!bus->workq) {
 		snd_printk(KERN_ERR "cannot create workqueue %s\n",
 			   bus->workq_name);
