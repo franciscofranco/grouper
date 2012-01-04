@@ -576,6 +576,8 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 #define TDP_SRC_ON_MS	 100
 #define TDPSRC_CON_MS	 40
 
+#define CONNECT_DETECT_TIMEOUT		25000
+
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
 
@@ -777,6 +779,18 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
 {
 	unsigned long timeout = 2500;
+	do {
+		if ((readl(reg) & mask) == result)
+			return 0;
+		udelay(1);
+		timeout--;
+	} while (timeout);
+	return -1;
+}
+
+static int utmi_wait_register_timeout(void __iomem *reg, u32 mask, u32 result,
+	unsigned long timeout)
+{
 	do {
 		if ((readl(reg) & mask) == result)
 			return 0;
@@ -2688,7 +2702,10 @@ int tegra_usb_phy_bus_connect(struct tegra_usb_phy *phy)
 					uhsic_config->usb_phy_ready())
 			return -EAGAIN;
 
-		if (utmi_wait_register(base + UHSIC_STAT_CFG0, UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT) < 0) {
+		/* connect detect on T30 requires extra wait */
+		if (utmi_wait_register_timeout(base + UHSIC_STAT_CFG0,
+			    UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT,
+			    CONNECT_DETECT_TIMEOUT) < 0) {
 			pr_err("%s: timeout waiting for hsic connect detect\n", __func__);
 			return -ETIMEDOUT;
 		}
@@ -2710,6 +2727,17 @@ int tegra_usb_phy_bus_reset(struct tegra_usb_phy *phy)
 	void __iomem *base = phy->regs;
 
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC) {
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+		/* Change the USB controller PHY type to HSIC */
+		val = readl(base + HOSTPC1_DEVLC);
+		val &= ~HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_MASK);
+		val |= HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_HSIC);
+		val &= ~HOSTPC1_DEVLC_PSPD(HOSTPC1_DEVLC_PSPD_MASK);
+		val |= HOSTPC1_DEVLC_PSPD(HOSTPC1_DEVLC_PSPD_HIGH_SPEED);
+		writel(val, base + HOSTPC1_DEVLC);
+		/* wait here, otherwise HOSTPC1_DEVLC_PSPD will timeout */
+		mdelay(5);
+#endif
 		val = readl(base + USB_PORTSC1);
 		val |= USB_PORTSC1_PTC(5);
 		writel(val, base + USB_PORTSC1);
@@ -2736,7 +2764,9 @@ int tegra_usb_phy_bus_reset(struct tegra_usb_phy *phy)
 			return -ETIMEDOUT;
 		}
 #elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
-		if (utmi_wait_register(base + HOSTPC1_DEVLC, HOSTPC1_DEVLC_PSPD(2), HOSTPC1_DEVLC_PSPD(2)) < 0) {
+		if (utmi_wait_register(base + HOSTPC1_DEVLC,
+				HOSTPC1_DEVLC_PSPD(2),
+				HOSTPC1_DEVLC_PSPD(2)) < 0) {
 			pr_err("%s: timeout waiting hsic high speed configuration\n", __func__);
 			return -ETIMEDOUT;
 		}
@@ -2818,14 +2848,14 @@ int tegra_usb_phy_bus_idle(struct tegra_usb_phy *phy)
 					uhsic_config->usb_phy_ready())
 			return -EAGAIN;
 
-		/* wait for connect detect */
-		if (utmi_wait_register(base + UHSIC_STAT_CFG0,
-			    UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT) < 0) {
+		/* connect detect on T30 requires extra wait */
+		if (utmi_wait_register_timeout(base + UHSIC_STAT_CFG0,
+			    UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT,
+			    CONNECT_DETECT_TIMEOUT) < 0) {
 			pr_err("%s: timeout waiting for hsic connect detect\n",
 				__func__);
 			return -ETIMEDOUT;
 		}
-
 	}
 	return 0;
 }
