@@ -847,6 +847,7 @@ static int tegra_startup(struct uart_port *u)
 	struct tegra_uart_port *t = container_of(u,
 		struct tegra_uart_port, uport);
 	int ret = 0;
+	struct tegra_uart_platform_data *pdata;
 
 	t = container_of(u, struct tegra_uart_port, uport);
 	sprintf(t->port_name, "tegra_uart_%d", u->line);
@@ -889,6 +890,9 @@ static int tegra_startup(struct uart_port *u)
 	if (ret)
 		goto fail;
 
+	pdata = u->dev->platform_data;
+	if (pdata->is_loopback)
+		t->mcr_shadow |= UART_MCR_LOOP;
 	dev_dbg(u->dev, "Requesting IRQ %d\n", u->irq);
 	msleep(1);
 
