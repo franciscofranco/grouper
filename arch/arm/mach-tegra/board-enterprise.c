@@ -388,6 +388,7 @@ static struct uart_clk_parent uart_parent_clk[] = {
 #endif
 };
 static struct tegra_uart_platform_data enterprise_uart_pdata;
+static struct tegra_uart_platform_data enterprise_loopback_uart_pdata;
 
 static void __init uart_debug_init(void)
 {
@@ -438,11 +439,16 @@ static void __init enterprise_uart_init(void)
 	}
 	enterprise_uart_pdata.parent_clk_list = uart_parent_clk;
 	enterprise_uart_pdata.parent_clk_count = ARRAY_SIZE(uart_parent_clk);
+	enterprise_loopback_uart_pdata.parent_clk_list = uart_parent_clk;
+	enterprise_loopback_uart_pdata.parent_clk_count =
+						ARRAY_SIZE(uart_parent_clk);
+	enterprise_loopback_uart_pdata.is_loopback = true;
 	tegra_uarta_device.dev.platform_data = &enterprise_uart_pdata;
 	tegra_uartb_device.dev.platform_data = &enterprise_uart_pdata;
 	tegra_uartc_device.dev.platform_data = &enterprise_uart_pdata;
 	tegra_uartd_device.dev.platform_data = &enterprise_uart_pdata;
-	tegra_uarte_device.dev.platform_data = &enterprise_uart_pdata;
+	/* UARTE is used for loopback test purpose */
+	tegra_uarte_device.dev.platform_data = &enterprise_loopback_uart_pdata;
 
 	/* Register low speed only if it is selected */
 	if (!is_tegra_debug_uartport_hs())
