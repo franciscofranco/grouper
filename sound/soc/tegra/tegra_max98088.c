@@ -899,6 +899,7 @@ static int tegra_max98088_init(struct snd_soc_pcm_runtime *rtd)
 	machine->init_done = true;
 
 	machine->pcard = card;
+	machine->bias_level = SND_SOC_BIAS_STANDBY;
 
 	if (gpio_is_valid(pdata->gpio_spkr_en)) {
 		ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
