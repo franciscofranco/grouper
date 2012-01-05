@@ -611,7 +611,10 @@ static int baseband_xmm_power2_driver_remove(struct platform_device *device)
 	}
 
 	/* free work structure */
-	destroy_workqueue(workqueue);
+	if (workqueue) {
+		cancel_work_sync(baseband_xmm_power2_work);
+		destroy_workqueue(workqueue);
+	}
 	kfree(baseband_xmm_power2_work);
 	baseband_xmm_power2_work = (struct baseband_xmm_power_work_t *) 0;
 

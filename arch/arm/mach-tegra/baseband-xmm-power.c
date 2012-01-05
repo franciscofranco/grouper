@@ -130,6 +130,8 @@ static int baseband_xmm_power_on(struct platform_device *device)
 		pr_err("%s: !data\n", __func__);
 		return -EINVAL;
 	}
+	if (baseband_xmm_powerstate != BBXMM_PS_UNINIT)
+		return -EINVAL;
 
 	/* reset the state machine */
 	baseband_xmm_powerstate = BBXMM_PS_INIT;
@@ -177,6 +179,8 @@ static int baseband_xmm_power_off(struct platform_device *device)
 
 	pr_debug("%s {\n", __func__);
 
+	if (baseband_xmm_powerstate == BBXMM_PS_UNINIT)
+		return -EINVAL;
 	/* check for device / platform data */
 	if (!device) {
 		pr_err("%s: !device\n", __func__);
@@ -188,6 +192,8 @@ static int baseband_xmm_power_off(struct platform_device *device)
 		pr_err("%s: !data\n", __func__);
 		return -EINVAL;
 	}
+
+	ipc_ap_wake_state = IPC_AP_WAKE_UNINIT;
 
 	/* unregister usb host controller */
 	pr_info("%s: hsic device: %x\n", __func__, data->modem.xmm.hsic_device);
@@ -207,6 +213,7 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	gpio_set_value(data->modem.xmm.bb_rst, 0);
 	mdelay(1);
 
+	baseband_xmm_powerstate = BBXMM_PS_UNINIT;
 	pr_debug("%s }\n", __func__);
 
 	return 0;
@@ -838,7 +845,6 @@ static int baseband_xmm_power_driver_resume(struct platform_device *device)
 	/* check if modem is on */
 	if (power_onoff == 0) {
 		pr_debug("%s - flight mode - nop\n", __func__);
-		baseband_xmm_set_power_status(BBXMM_PS_L3TOL0);
 		return 0;
 	}
 

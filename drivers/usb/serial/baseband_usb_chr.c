@@ -475,6 +475,7 @@ static void baseband_ipc_close(struct baseband_ipc *ipc)
 	/* destroy work queue */
 	if (ipc->workqueue) {
 		pr_debug("destroy workqueue {\n");
+		cancel_work_sync(&ipc->work);
 		destroy_workqueue(ipc->workqueue);
 		ipc->workqueue = (struct workqueue_struct *) 0;
 		pr_debug("destroy workqueue }\n");
