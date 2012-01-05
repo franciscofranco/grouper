@@ -60,11 +60,11 @@ static const struct tegra_emc_table whistler_emc_tables_elpida_300Mhz[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000068,   /* TREFBW */
-			0x00000003,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000003,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x0001f000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -111,11 +111,11 @@ static const struct tegra_emc_table whistler_emc_tables_elpida_300Mhz[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x000000d0,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x0001f000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -162,11 +162,11 @@ static const struct tegra_emc_table whistler_emc_tables_elpida_300Mhz[] = {
 			0x00000006,   /* TCLKSTABLE */
 			0x00000002,   /* TCLKSTOP */
 			0x00000138,   /* TREFBW */
-			0x00000004,   /* QUSE_EXTRA */
+			0x00000000,   /* QUSE_EXTRA */
 			0x00000000,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xa06a04ae,   /* CFG_DIG_DLL */
 			0x0001f000,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
@@ -217,7 +217,7 @@ static const struct tegra_emc_table whistler_emc_tables_elpida_300Mhz[] = {
 			0x00000001,   /* FBIO_CFG6 */
 			0x00000000,   /* ODT_WRITE */
 			0x00000000,   /* ODT_READ */
-			0x00000082,   /* FBIO_CFG5 */
+			0x00000282,   /* FBIO_CFG5 */
 			0xA04C04AE,   /* CFG_DIG_DLL */
 			0x007FC010,   /* DLL_XFORM_DQS */
 			0x00000000,   /* DLL_XFORM_QUSE */
