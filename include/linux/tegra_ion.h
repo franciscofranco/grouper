@@ -88,11 +88,4 @@ enum {
 	TEGRA_ION_HEAP_IOMMU
 };
 
-/* additional heap types used only on tegra */
-enum {
-	TEGRA_ION_HEAP_TYPE_IOMMU = ION_HEAP_TYPE_CUSTOM + 1,
-};
-
-#define TEGRA_ION_HEAP_IOMMU_MASK (1 << TEGRA_ION_HEAP_TYPE_IOMMU)
-
 #endif /* _LINUX_TEGRA_ION_H */
