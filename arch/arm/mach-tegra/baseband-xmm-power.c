@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
 #include <linux/usb.h>
+#include <linux/pm_runtime.h>
 #include <mach/usb_phy.h>
 #include "board.h"
 #include "devices.h"
@@ -96,6 +97,8 @@ static struct usb_device *usbdev;
 static bool CP_initiated_L2toL0;
 static bool modem_power_on;
 static int power_onoff;
+static int reenable_autosuspend;
+static struct work_struct autopm_resume_work;
 static void baseband_xmm_power_L2_resume(void);
 
 static int baseband_modem_power_on(struct baseband_power_platform_data *data)
@@ -196,7 +199,6 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	ipc_ap_wake_state = IPC_AP_WAKE_UNINIT;
 
 	/* unregister usb host controller */
-	pr_info("%s: hsic device: %x\n", __func__, data->modem.xmm.hsic_device);
 	if (data->hsic_unregister)
 		data->hsic_unregister(data->modem.xmm.hsic_device);
 	else
@@ -391,6 +393,10 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 						(baseband_power_driver_data->
 						modem.xmm.ipc_bb_wake, 0);
 					pr_debug("gpio slave wakeup done ->\n");
+					if ((reenable_autosuspend) && (usbdev)) {
+					        reenable_autosuspend = false;
+						queue_work(workqueue, &autopm_resume_work);
+					}
 				}
 				baseband_xmm_set_power_status(BBXMM_PS_L0);
 			}
@@ -457,6 +463,22 @@ static void baseband_xmm_power_init2_work(struct work_struct *work)
 	}
 
 }
+
+static void baseband_xmm_power_autopm_resume(struct work_struct *work)
+{
+	struct usb_interface *intf;
+
+	pr_debug("%s\n", __func__);
+	if (usbdev) {
+
+		usb_lock_device(usbdev);
+		intf = usb_ifnum_to_if(usbdev, 0);
+		usb_autopm_get_interface(intf);
+		usb_autopm_put_interface(intf);
+		usb_unlock_device(usbdev);
+	}
+}
+
 
 /* Do the work for AP/CP initiated L2->L0 */
 static void baseband_xmm_power_L2_resume(void)
@@ -674,7 +696,7 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 	int err;
 
 	pr_debug("%s\n", __func__);
-	pr_debug("[XMM] enum_delay_ms=%d\n", enum_delay_ms);
+	pr_debug("[XMM] enum_delay_ms=%ld\n", enum_delay_ms);
 
 	/* check for platform data */
 	if (!data)
@@ -764,6 +786,7 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 	INIT_WORK(&init1_work, baseband_xmm_power_init1_work);
 	INIT_WORK(&init2_work, baseband_xmm_power_init2_work);
 	INIT_WORK(&L2_resume_work, baseband_xmm_power_L2_resume_work);
+	INIT_WORK(&autopm_resume_work, baseband_xmm_power_autopm_resume);
 
 	/* init state variables */
 	register_hsic_device = true;
@@ -867,6 +890,7 @@ static int baseband_xmm_power_driver_resume(struct platform_device *device)
 	} else {
 		pr_info("CP L3 -> L0\n");
 	}
+	reenable_autosuspend = true;
 
 	return 0;
 }
