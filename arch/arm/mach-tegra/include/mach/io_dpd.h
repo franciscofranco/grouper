@@ -18,8 +18,23 @@
 #define __MACH_TEGRA_IO_DPD_H
 
 /* Tegra io dpd APIs */
+#ifdef CONFIG_PM_SLEEP
 struct tegra_io_dpd *tegra_io_dpd_get(struct device *dev); /* get handle */
 void tegra_io_dpd_enable(struct tegra_io_dpd *hnd); /* enable dpd */
 void tegra_io_dpd_disable(struct tegra_io_dpd *hnd); /* disable dpd */
+#else
+static inline struct tegra_io_dpd *tegra_io_dpd_get(struct device *dev)
+{
+	return NULL;
+}
+static inline void tegra_io_dpd_enable(struct tegra_io_dpd *hnd)
+{
+	/* Do nothing */
+}
+static inline void tegra_io_dpd_disable(struct tegra_io_dpd *hnd)
+{
+	/* Do nothing */
+}
+#endif
 
 #endif /* end __MACH_TEGRA_IO_DPD_H */
