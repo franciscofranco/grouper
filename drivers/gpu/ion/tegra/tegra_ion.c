@@ -297,7 +297,6 @@ static long tegra_ion_ioctl(struct ion_client *client,
 int tegra_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata = pdev->dev.platform_data;
-	int err;
 	int i;
 
 	num_heaps = pdata->nr;
@@ -316,8 +315,10 @@ int tegra_ion_probe(struct platform_device *pdev)
 
 		heaps[i] = ion_heap_create(heap_data);
 		if (IS_ERR_OR_NULL(heaps[i])) {
-			err = PTR_ERR(heaps[i]);
-			goto err;
+			pr_warn("%s(type:%d id:%d) isn't supported\n",
+				heap_data->name,
+				heap_data->type, heap_data->id);
+			continue;
 		}
 		ion_device_add_heap(idev, heaps[i]);
 	}
@@ -326,13 +327,6 @@ int tegra_ion_probe(struct platform_device *pdev)
 	nvmap_dev = (struct nvmap_device *)idev;
 #endif
 	return 0;
-err:
-	for (i = 0; i < num_heaps; i++) {
-		if (heaps[i])
-			ion_heap_destroy(heaps[i]);
-	}
-	kfree(heaps);
-	return err;
 }
 
 int tegra_ion_remove(struct platform_device *pdev)
