@@ -390,7 +390,7 @@ static ssize_t store_##file_name					\
 		return -EINVAL;						\
 									\
 	ret = __cpufreq_set_policy(policy, &new_policy);		\
-	policy->user_policy.object = policy->object;			\
+	policy->user_policy.object = new_policy.object;			\
 									\
 	return ret ? ret : count;					\
 }
