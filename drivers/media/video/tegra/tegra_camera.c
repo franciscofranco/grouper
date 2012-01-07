@@ -43,6 +43,7 @@ struct tegra_camera_dev {
 	struct clk *vi_sensor_clk;
 	struct clk *csus_clk;
 	struct clk *csi_clk;
+	struct clk *emc_clk;
 	struct regulator *reg;
 	struct tegra_camera_clk_info info;
 	struct mutex tegra_camera_lock;
@@ -92,6 +93,26 @@ static int tegra_camera_enable_csi(struct tegra_camera_dev *dev)
 static int tegra_camera_disable_csi(struct tegra_camera_dev *dev)
 {
 	clk_disable(dev->csi_clk);
+	return 0;
+}
+
+static int tegra_camera_enable_emc(struct tegra_camera_dev *dev)
+{
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	/* tegra_camera wasn't added as a user of emc_clk until 3x.
+	   set to 150 MHz, will likely need to be increased as we support
+	   sensors with higher framerates and resolutions. */
+	clk_enable(dev->emc_clk);
+	clk_set_rate(dev->emc_clk, 150000000);
+#endif
+	return 0;
+}
+
+static int tegra_camera_disable_emc(struct tegra_camera_dev *dev)
+{
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	clk_disable(dev->emc_clk);
+#endif
 	return 0;
 }
 
@@ -356,6 +377,8 @@ static int tegra_camera_open(struct inode *inode, struct file *file)
 	dev_info(dev->dev, "%s\n", __func__);
 	file->private_data = dev;
 
+	tegra_camera_enable_emc(dev);
+
 	return 0;
 }
 
@@ -382,6 +405,8 @@ static int tegra_camera_release(struct inode *inode, struct file *file)
 		dev->power_refcnt = 0;
 		mutex_unlock(&dev->tegra_camera_lock);
 	}
+
+	tegra_camera_disable_emc(dev);
 
 	return 0;
 }
@@ -473,12 +498,19 @@ static int tegra_camera_probe(struct platform_device *pdev)
 	err = tegra_camera_clk_get(pdev, "csi", &dev->csi_clk);
 	if (err)
 		goto csi_clk_get_err;
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	err = tegra_camera_clk_get(pdev, "emc", &dev->emc_clk);
+	if (err)
+		goto emc_clk_get_err;
+#endif
 
 	/* dev is set in order to restore in _remove */
 	platform_set_drvdata(pdev, dev);
 
 	return 0;
 
+emc_clk_get_err:
+	clk_put(dev->emc_clk);
 csi_clk_get_err:
 	clk_put(dev->csus_clk);
 csus_clk_get_err:
