@@ -1242,6 +1242,36 @@ static int time_on_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(time_on_fops, time_on_get, NULL, "%llu\n");
 
+static int possible_rates_show(struct seq_file *s, void *data)
+{
+	struct clk *c = s->private;
+	long rate = 0;
+
+	/* shared bus clock must round up, unless top of range reached */
+	while (rate <= c->max_rate) {
+		long rounded_rate = c->ops->round_rate(c, rate);
+		if (IS_ERR_VALUE(rounded_rate) || (rounded_rate <= rate))
+			break;
+
+		rate = rounded_rate + 2000;	/* 2kHz resolution */
+		seq_printf(s, "%ld ", rounded_rate / 1000);
+	}
+	seq_printf(s, "(kHz)\n");
+	return 0;
+}
+
+static int possible_rates_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, possible_rates_show, inode->i_private);
+}
+
+static const struct file_operations possible_rates_fops = {
+	.open		= possible_rates_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int clk_debugfs_register_one(struct clk *c)
 {
 	struct dentry *d;
@@ -1286,6 +1316,13 @@ static int clk_debugfs_register_one(struct clk *c)
 	if (c->inputs) {
 		d = debugfs_create_file("possible_parents", S_IRUGO, c->dent,
 			c, &possible_parents_fops);
+		if (!d)
+			goto err_out;
+	}
+
+	if (c->ops && c->ops->round_rate && c->ops->shared_bus_update) {
+		d = debugfs_create_file("possible_rates", S_IRUGO, c->dent,
+			c, &possible_rates_fops);
 		if (!d)
 			goto err_out;
 	}
