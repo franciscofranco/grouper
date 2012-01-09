@@ -2,7 +2,7 @@
  * arch/arm/mach-tegra/common.c
  *
  * Copyright (C) 2010 Google, Inc.
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (c) 2010-2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
  *	Colin Cross <ccross@android.com>
@@ -37,6 +37,7 @@
 #include <mach/pinmux.h>
 #include <mach/powergate.h>
 #include <mach/system.h>
+#include <mach/tegra_smmu.h>
 
 #include "apbio.h"
 #include "board.h"
@@ -44,7 +45,6 @@
 #include "fuse.h"
 #include "pm.h"
 #include "reset.h"
-#include "tegra_smmu.h"
 
 #define MC_SECURITY_CFG2	0x7c
 

@@ -4,7 +4,7 @@
  * Tegra I/O VMM implementation for SMMU devices for Tegra 3 series
  * systems-on-a-chip.
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,8 +38,7 @@
 
 #include <mach/iovmm.h>
 #include <mach/iomap.h>
-
-#include "tegra_smmu.h"
+#include <mach/tegra_smmu.h>
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 /*
