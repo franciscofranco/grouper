@@ -752,7 +752,7 @@ int __init enterprise_panel_init(void)
 	enterprise_dsi.chip_id = tegra_get_chipid();
 	enterprise_dsi.chip_rev = tegra_get_revision();
 
-#if defined(CONFIG_TEGRA_NVAVP)
+#if defined(CONFIG_TEGRA_NVMAP)
 	enterprise_carveouts[1].base = tegra_carveout_start;
 	enterprise_carveouts[1].size = tegra_carveout_size;
 #endif
