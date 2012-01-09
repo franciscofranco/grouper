@@ -468,13 +468,13 @@ static int tegra2_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 		goto out;
 	}
 
+out:
 	/* We can't parent the twd to directly to the CPU complex because
 	   the TWD frequency update notifier is called in an atomic context
 	   and the CPU frequency update requires a mutex. Update the twd
 	   clock rate with the new CPU complex rate. */
 	clk_set_rate(&tegra2_clk_twd, clk_get_rate_locked(c));
 
-out:
 	clk_disable(c->u.cpu.main);
 	return ret;
 }
