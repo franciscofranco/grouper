@@ -5633,8 +5633,6 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		struct netdev_hw_addr *ha;
 
 		rx_mode = AcceptBroadcast | AcceptMyPhys;
-		/* FIX ME: Allow all phy on Cardhu dock Ethernet */
-		rx_mode |= AcceptAllPhys;
 		mc_filter[1] = mc_filter[0] = 0;
 		netdev_for_each_mc_addr(ha, dev) {
 			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
