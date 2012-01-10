@@ -171,6 +171,7 @@ static void tegra3_sdhci_post_reset_init(struct sdhci_host *sdhci)
 	vendor_ctrl &= ~(0xFF << SDHCI_VENDOR_CLOCK_CNTRL_BASE_CLK_FREQ_SHIFT);
 	vendor_ctrl |= (tegra3_sdhost_max_clk[tegra_host->instance] / 1000000) <<
 		SDHCI_VENDOR_CLOCK_CNTRL_BASE_CLK_FREQ_SHIFT;
+	vendor_ctrl |= SDHCI_VENDOR_CLOCK_CNTRL_PADPIPE_CLKEN_OVERRIDE;
 	/* Set tap delay */
 	if (plat->tap_delay) {
 		vendor_ctrl &= ~(0xFF <<
@@ -367,17 +368,11 @@ static void tegra_3x_sdhci_set_card_clock(struct sdhci_host *sdhci, unsigned int
 	/*
 	 * Tegra3 sdmmc controller internal clock will not be stabilized when
 	 * we use a clock divider value greater than 4. The WAR is as follows.
-	 * - Enable PADPIPE_CLK_OVERRIDE in the vendr clk cntrl register.
 	 * - Enable internal clock.
 	 * - Wait for 5 usec and do a dummy write.
-	 * - Poll for clk stable and disable PADPIPE_CLK_OVERRIDE.
+	 * - Poll for clk stable.
 	 */
 set_clk:
-	/* Enable PADPIPE clk override */
-	ctrl = sdhci_readb(sdhci, SDHCI_VENDOR_CLOCK_CNTRL);
-	ctrl |= SDHCI_VENDOR_CLOCK_CNTRL_PADPIPE_CLKEN_OVERRIDE;
-	sdhci_writeb(sdhci, ctrl, SDHCI_VENDOR_CLOCK_CNTRL);
-
 	clk = (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
 	clk |= ((div & SDHCI_DIV_HI_MASK) >> SDHCI_DIV_MASK_LEN)
 		<< SDHCI_DIVIDER_HI_SHIFT;
@@ -403,11 +398,6 @@ set_clk:
 		timeout--;
 		mdelay(1);
 	}
-
-	/* Disable PADPIPE clk override */
-	ctrl = sdhci_readb(sdhci, SDHCI_VENDOR_CLOCK_CNTRL);
-	ctrl &= ~SDHCI_VENDOR_CLOCK_CNTRL_PADPIPE_CLKEN_OVERRIDE;
-	sdhci_writeb(sdhci, ctrl, SDHCI_VENDOR_CLOCK_CNTRL);
 
 	clk |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
