@@ -103,6 +103,7 @@ obj-$(CONFIG_MFD_PM8XXX_IRQ) 	+= pm8xxx-irq.o
 obj-$(CONFIG_TPS65911_COMPARATOR)	+= tps65911-comparator.o
 obj-$(CONFIG_MFD_AAT2870_CORE)	+= aat2870-core.o
 obj-$(CONFIG_MFD_TPS6591X)	+= tps6591x.o
+obj-$(CONFIG_MFD_TPS65090)	+= tps65090.o
 obj-$(CONFIG_MFD_TPS80031)	+= tps80031.o
 obj-$(CONFIG_GPADC_TPS80031)	+= tps8003x-gpadc.o
 obj-$(CONFIG_MFD_MAX8907C)	+= max8907c.o
