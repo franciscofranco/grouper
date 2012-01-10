@@ -340,6 +340,12 @@ config REGULATOR_TPS6591X
 	help
 	  This driver supports TPS6591X voltage regulator chips.
 
+config REGULATOR_TPS65090
+	tristate "TI TPS65090 Power regulators"
+	depends on MFD_TPS65090
+	help
+	  This driver supports TPS65090 voltage regulator chips.
+
 config REGULATOR_TPS6236X
 	tristate "TI TPS6236X DC-DC core power suply regulators"
 	default n
