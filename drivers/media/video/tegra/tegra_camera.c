@@ -2,6 +2,7 @@
  * drivers/media/video/tegra/tegra_camera.c
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2012 Nvidia Corp
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -481,8 +482,15 @@ static int tegra_camera_probe(struct platform_device *pdev)
 	dev->reg = regulator_get(&pdev->dev, "avdd_dsi_csi");
 #endif
 	if (IS_ERR_OR_NULL(dev->reg)) {
-		dev_err(&pdev->dev, "%s: couldn't get regulator\n", __func__);
-		return PTR_ERR(dev->reg);
+		if (dev->reg == ERR_PTR(-ENODEV)) {
+			dev->reg = NULL;
+			dev_info(&pdev->dev, "%s: no regulator device, overriding\n",
+							__func__);
+		} else {
+			dev_err(&pdev->dev, "%s: couldn't get regulator\n",
+							__func__);
+			return PTR_ERR(dev->reg);
+		}
 	}
 
 	dev->misc_dev.minor = MISC_DYNAMIC_MINOR;
