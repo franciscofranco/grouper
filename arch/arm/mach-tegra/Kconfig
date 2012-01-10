@@ -151,6 +151,13 @@ config MACH_TEGRA_ENTERPRISE
        help
          Support for NVIDIA Enterprise development platform
 
+config MACH_KAI
+       bool "Kai board"
+       depends on ARCH_TEGRA_3x_SOC
+       select MACH_HAS_SND_SOC_TEGRA_RT5640 if SND_SOC
+       help
+         Support for NVIDIA KAI development platform
+
 choice
        prompt "Tegra platform type"
        default TEGRA_SILICON_PLATFORM
