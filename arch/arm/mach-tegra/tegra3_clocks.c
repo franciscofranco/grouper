@@ -2762,9 +2762,18 @@ static long tegra3_clk_cbus_round_rate(struct clk *c, unsigned long rate)
 	if (!c->dvfs)
 		return rate;
 
-	/* update min now, since no dvfs table was available during init */
-	if (!c->min_rate)
-		c->min_rate = c->dvfs->freqs[0];
+	/* update min now, since no dvfs table was available during init
+	   (skip placeholder entries set to 1 kHz) */
+	if (!c->min_rate) {
+		for (i = 0; i < (c->dvfs->num_freqs - 1); i++) {
+			if (c->dvfs->freqs[i] > 1 * c->dvfs->freqs_mult) {
+				c->min_rate = c->dvfs->freqs[i];
+				break;
+			}
+		}
+		BUG_ON(!c->min_rate);
+	}
+	rate = max(rate, c->min_rate);
 
 	for (i = 0; i < (c->dvfs->num_freqs - 1); i++) {
 		unsigned long f = c->dvfs->freqs[i];
@@ -4168,9 +4177,9 @@ struct clk tegra_list_clks[] = {
 	PERIPH_CLK("i2s2",	"tegra30-i2s.2",	"i2s",	18,	0x104,	26000000,  mux_pllaout0_audio2_2x_pllp_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("i2s3",	"tegra30-i2s.3",	"i2s",	101,	0x3bc,	26000000,  mux_pllaout0_audio3_2x_pllp_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("i2s4",	"tegra30-i2s.4",	"i2s",	102,	0x3c0,	26000000,  mux_pllaout0_audio4_2x_pllp_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("spdif_out",	"tegra30-spdif",	"spdif_out",	10,	0x108,	100000000, mux_pllaout0_audio_2x_pllp_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("spdif_out",	"tegra30-spdif",	"spdif_out",	10,	0x108,	26000000, mux_pllaout0_audio_2x_pllp_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("spdif_in",	"tegra30-spdif",	"spdif_in",	10,	0x10c,	100000000, mux_pllp_pllc_pllm,		MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("pwm",	"pwm",			NULL,	17,	0x110,	432000000, mux_pllp_pllc_clk32_clkm,	MUX | MUX_PWM | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("pwm",	"pwm",			NULL,	17,	0x110,	408000000, mux_pllp_pllc_clk32_clkm,	MUX | MUX_PWM | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("d_audio",	"tegra30-ahub",		"d_audio", 106,	0x3d0,	48000000,  mux_plla_pllc_pllp_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("dam0",	"tegra30-dam.0",	NULL,   108,	0x3d8,	48000000,  mux_plla_pllc_pllp_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("dam1",	"tegra30-dam.1",	NULL,   109,	0x3dc,	48000000,  mux_plla_pllc_pllp_clkm,	MUX | DIV_U71),
