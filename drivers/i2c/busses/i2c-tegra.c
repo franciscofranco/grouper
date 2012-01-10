@@ -593,11 +593,10 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	unsigned long flags;
 	int arb_stat;
 
-	tegra_i2c_flush_fifos(i2c_dev);
-
-
 	if (msg->len == 0)
 		return -EINVAL;
+
+	tegra_i2c_flush_fifos(i2c_dev);
 
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;
