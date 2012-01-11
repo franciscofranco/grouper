@@ -59,7 +59,6 @@ struct tegra_dma_channel;
 #define TEGRA_DMA_REQ_SEL_I2C3			23
 #define TEGRA_DMA_REQ_SEL_DVC_I2C		24
 #define TEGRA_DMA_REQ_SEL_OWR			25
-#define TEGRA_DMA_REQ_SEL_OWR			25
 #define TEGRA_DMA_REQ_SEL_I2C4			26
 #define TEGRA_DMA_REQ_SEL_SL2B5			27
 #define TEGRA_DMA_REQ_SEL_SL2B6			28

@@ -290,7 +290,7 @@ int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	}
 	if (!found) {
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
-		return 0;
+		return -ENOENT;
 	}
 
 	if (!stop)
