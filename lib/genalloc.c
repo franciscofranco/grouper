@@ -250,26 +250,32 @@ void gen_pool_destroy(struct gen_pool *pool)
 EXPORT_SYMBOL(gen_pool_destroy);
 
 /**
- * gen_pool_alloc - allocate special memory from the pool
+ * gen_pool_alloc_addr - allocate special memory from the pool
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
+ * @alloc_addr: if non-zero, allocate starting at alloc_addr.
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses a first-fit algorithm. Can not be used in NMI handler on
  * architectures without NMI-safe cmpxchg implementation.
  */
-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
+unsigned long gen_pool_alloc_addr(struct gen_pool *pool, size_t size,
+				    unsigned long alloc_addr)
 {
 	struct gen_pool_chunk *chunk;
 	unsigned long addr = 0;
 	int order = pool->min_alloc_order;
 	int nbits, start_bit = 0, end_bit, remain;
+	int alloc_bit_needed = 0;
 
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
 #endif
 
 	if (size == 0)
+		return 0;
+
+	if (alloc_addr & (1 << order) - 1)
 		return 0;
 
 	nbits = (size + (1UL << order) - 1) >> order;
@@ -279,9 +285,20 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 			continue;
 
 		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
+		if (alloc_addr) {
+			if (alloc_addr < chunk->start_addr ||
+				alloc_addr >= chunk->end_addr)
+				continue;
+			if (alloc_addr + size > chunk->end_addr)
+				return 0;
+			alloc_bit_needed = start_bit =
+				(alloc_addr - chunk->start_addr) >> order;
+		}
 retry:
 		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit,
 						       start_bit, nbits, 0);
+		if (alloc_addr && alloc_bit_needed != start_bit)
+			return 0;
 		if (start_bit >= end_bit)
 			continue;
 		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
@@ -300,7 +317,7 @@ retry:
 	rcu_read_unlock();
 	return addr;
 }
-EXPORT_SYMBOL(gen_pool_alloc);
+EXPORT_SYMBOL(gen_pool_alloc_addr);
 
 /**
  * gen_pool_free - free allocated special memory back to the pool

@@ -72,7 +72,17 @@ static inline int gen_pool_add(struct gen_pool *pool, unsigned long addr,
 	return gen_pool_add_virt(pool, addr, -1, size, nid);
 }
 extern void gen_pool_destroy(struct gen_pool *);
-extern unsigned long gen_pool_alloc(struct gen_pool *, size_t);
+extern unsigned long gen_pool_alloc_addr(struct gen_pool *,
+	size_t, unsigned long);
+/**
+ * gen_pool_alloc - allocate special memory from the pool
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ */
+static inline unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
+{
+	return gen_pool_alloc_addr(pool, size);
+}
 extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
 extern void gen_pool_for_each_chunk(struct gen_pool *,
 	void (*)(struct gen_pool *, struct gen_pool_chunk *, void *), void *);
