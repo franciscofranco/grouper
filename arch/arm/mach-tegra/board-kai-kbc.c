@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/mfd/max77663-core.h>
 #include <linux/interrupt_keys.h>
 #include <linux/gpio_scrollwheel.h>
 
@@ -82,6 +83,8 @@ static struct platform_device kai_keys_device = {
 		.debounce_interval = _deb_int,	\
 	}
 static struct interrupt_keys_button kai_int_keys[] = {
+	[0] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 0, 100),
+	[1] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 0, 3000),
 };
 
 static struct interrupt_keys_platform_data kai_int_keys_pdata = {
