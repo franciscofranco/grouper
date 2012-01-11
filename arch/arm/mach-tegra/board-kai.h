@@ -58,6 +58,7 @@ int kai_power_off_init(void);
 int kai_edp_init(void);
 void __init kai_tsensor_init(void);
 int __init touch_init_raydium(void);
+int __init touch_init_synaptics_kai(void);
 
 #define TDIODE_OFFSET	(10000) /* in millicelsius */
 
