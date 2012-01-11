@@ -758,4 +758,16 @@ config TOUCHSCREEN_RM31080A
 	  To compile this driver as a module, choose M here: the
 	  module will be called RAYDIUM_31080A.
 
+config TOUCHSCREEN_SYN_RMI4_SPI
+	tristate "RMI4 SPI Support"
+	depends on SPI_MASTER
+	help
+	  Say Y here if you want to support RMI4 devices connect
+	  to an SPI bus.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rmi-spi.
+
 endif
