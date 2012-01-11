@@ -64,6 +64,7 @@ struct tegra_ehci_hcd {
 	int bus_suspended;
 	int port_resuming;
 	int power_down_on_bus_suspend;
+	int default_enable;
 	struct delayed_work work;
 	enum tegra_usb_phy_port_speed port_speed;
 	struct work_struct clk_timer_work;
@@ -79,9 +80,8 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd, bool is_dpd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
-#ifndef CONFIG_USB_HOTPLUG
-	clk_enable(tegra->clk);
-#endif
+	if (!tegra->default_enable)
+		clk_enable(tegra->clk);
 	tegra_usb_phy_power_on(tegra->phy, is_dpd);
 	tegra->host_resumed = 1;
 }
@@ -92,9 +92,8 @@ static void tegra_ehci_power_down(struct usb_hcd *hcd, bool is_dpd)
 
 	tegra->host_resumed = 0;
 	tegra_usb_phy_power_off(tegra->phy, is_dpd);
-#ifndef CONFIG_USB_HOTPLUG
-	clk_disable(tegra->clk);
-#endif
+	if (!tegra->default_enable)
+		clk_disable(tegra->clk);
 }
 
 static int tegra_ehci_internal_port_reset(
@@ -1023,6 +1022,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, tegra);
+	tegra->default_enable = pdata->default_enable;
 
 	tegra->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tegra->clk)) {
@@ -1169,15 +1169,13 @@ static int tegra_ehci_resume(struct platform_device *pdev)
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {
-#ifdef CONFIG_USB_HOTPLUG
-		clk_enable(tegra->clk);
-#endif
+		if (tegra->default_enable)
+			clk_enable(tegra->clk);
 		return 0;
 	}
 
-#ifdef CONFIG_USB_HOTPLUG
-	clk_enable(tegra->clk);
-#endif
+	if (tegra->default_enable)
+		clk_enable(tegra->clk);
 	return tegra_usb_resume(hcd, true);
 }
 
@@ -1196,9 +1194,8 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {
-#ifdef CONFIG_USB_HOTPLUG
-		clk_disable(tegra->clk);
-#endif
+		if (tegra->default_enable)
+			clk_disable(tegra->clk);
 		return 0;
 	}
 
@@ -1206,9 +1203,8 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 		msleep(10);
 
 	ret = tegra_usb_suspend(hcd, true);
-#ifdef CONFIG_USB_HOTPLUG
-	clk_disable(tegra->clk);
-#endif
+	if (tegra->default_enable)
+		clk_disable(tegra->clk);
 	return ret;
 }
 #endif
