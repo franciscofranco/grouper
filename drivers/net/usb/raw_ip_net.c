@@ -134,7 +134,24 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 
 static void baseband_usb_driver_disconnect(struct usb_interface *intf)
 {
+	int i;
+
 	pr_debug("%s intf %p\n", __func__, intf);
+
+	for (i = 0; i < max_intfs; i++) {
+		pr_debug("[%d]\n", i);
+		if (!baseband_usb_net[i])
+			continue;
+		if (baseband_usb_net[i]->usb.interface != intf) {
+			pr_debug("%p != %p\n",
+				baseband_usb_net[i]->usb.interface, intf);
+			continue;
+		}
+		/* mark interface as disconnected */
+		baseband_usb_net[i]->usb.interface
+			= (struct usb_interface *) 0;
+	}
+
 }
 
 #ifdef CONFIG_PM
@@ -493,6 +510,10 @@ static int usb_net_raw_ip_rx_urb_submit(struct baseband_usb *usb)
 		pr_err("previous urb still active\n");
 		return -1;
 	}
+	if (!usb->usb.interface) {
+		pr_err("usb interface disconnected - not submitting rx urb\n");
+		return -1;
+	}
 
 	/* allocate rx urb */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -556,6 +577,10 @@ static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 	}
 	if (urb->status == -ENOENT) {
 		pr_info("rx urb killed\n");
+		return;
+	}
+	if (urb->status == -EPROTO) {
+		pr_info("rx urb %p -EPROTO \n", urb);
 		return;
 	}
 	if (urb->status) {
