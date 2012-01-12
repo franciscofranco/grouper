@@ -22,6 +22,7 @@
 
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <linux/mfd/max77663-core.h>
 
 /* Processor Board  ID */
 #define BOARD_E1565	0xF41
@@ -33,6 +34,17 @@
 #define BOARD_FAB_A03			0x3
 #define BOARD_FAB_A04			0x4
 #define BOARD_FAB_A05			0x5
+
+/* External peripheral act as gpio */
+/* MAX77663 GPIO */
+#define MAX77663_GPIO_BASE	TEGRA_NR_GPIOS
+#define MAX77663_GPIO_END	(MAX77663_GPIO_BASE + MAX77663_GPIO_NR)
+
+/*****************Interrupt tables ******************/
+/* External peripheral act as interrupt controller */
+/* MAX77663 IRQs */
+#define MAX77663_IRQ_BASE	TEGRA_NR_IRQS
+#define MAX77663_IRQ_END	(MAX77663_IRQ_BASE + MAX77663_IRQ_NR)
 
 int kai_charge_init(void);
 int kai_regulator_init(void);
