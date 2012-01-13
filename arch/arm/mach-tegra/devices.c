@@ -27,6 +27,7 @@
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/tegra_avp.h>
 #include <linux/nvhost.h>
+#include <linux/clk.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -1733,3 +1734,20 @@ struct platform_device tegra_nvmap_device = {
 	.name	= "tegra-nvmap",
 	.id	= -1,
 };
+
+void tegra_init_debug_uart_rate(void)
+{
+	unsigned int uartclk;
+	struct clk *debug_uart_parent = clk_get_sys(NULL, "pll_p");
+
+	BUG_ON(IS_ERR(debug_uart_parent));
+	uartclk = clk_get_rate(debug_uart_parent);
+
+	debug_uarta_platform_data[0].uartclk = uartclk;
+	debug_uartb_platform_data[0].uartclk = uartclk;
+	debug_uartc_platform_data[0].uartclk = uartclk;
+	debug_uartd_platform_data[0].uartclk = uartclk;
+#if !defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	debug_uarte_platform_data[0].uartclk = uartclk;
+#endif
+}

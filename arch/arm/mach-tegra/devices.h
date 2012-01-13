@@ -5,7 +5,7 @@
  *	Colin Cross <ccross@android.com>
  *	Erik Gilling <ccross@android.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation.
+ * Copyright (C) 2010-2012 NVIDIA Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -126,4 +126,7 @@ extern struct platform_device debug_uarte_device;
 
 extern struct nvhost_device tegra_disp1_device;
 extern struct platform_device tegra_nvmap_device;
+
+void tegra_init_debug_uart_rate(void);
+
 #endif

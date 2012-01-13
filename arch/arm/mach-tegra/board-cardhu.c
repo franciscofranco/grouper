@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-cardhu.c
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -346,6 +346,8 @@ static void __init uart_debug_init(void)
 			(board_info.board_id == BOARD_E1257))
 				debug_port_id = 1;
 	}
+
+	tegra_init_debug_uart_rate();
 	switch (debug_port_id) {
 	case 0:
 		/* UARTA is the debug port. */

@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-enterprise.c
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -394,6 +394,8 @@ static void __init uart_debug_init(void)
 {
 	unsigned long rate;
 	struct clk *c;
+
+	tegra_init_debug_uart_rate();
 
 	/* UARTD is the debug port. */
 	pr_info("Selecting UARTD as the debug console\n");
