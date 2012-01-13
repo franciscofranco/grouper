@@ -595,7 +595,7 @@ static void __init tegra_ventana_init(void)
 	tegra_ehci2_device.dev.platform_data
 		= &ventana_ehci2_ulpi_platform_data;
 	platform_add_devices(ventana_devices, ARRAY_SIZE(ventana_devices));
-
+	tegra_ram_console_debug_init();
 	ventana_sdhci_init();
 	ventana_charge_init();
 	ventana_regulator_init();
@@ -644,6 +644,7 @@ void __init tegra_ventana_reserve(void)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
 	tegra_reserve(SZ_256M, SZ_8M + SZ_1M, SZ_16M);
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(VENTANA, "ventana")

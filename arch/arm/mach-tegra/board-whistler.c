@@ -573,7 +573,7 @@ static void __init tegra_whistler_init(void)
 	whistler_i2c_init();
 	whistler_uart_init();
 	platform_add_devices(whistler_devices, ARRAY_SIZE(whistler_devices));
-
+	tegra_ram_console_debug_init();
 	whistler_sdhci_init();
 	whistler_regulator_init();
 	whistler_panel_init();
@@ -603,6 +603,7 @@ void __init tegra_whistler_reserve(void)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
 	tegra_reserve(SZ_160M, SZ_8M, SZ_16M);
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(WHISTLER, "whistler")
