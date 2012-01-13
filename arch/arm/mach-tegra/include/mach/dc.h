@@ -324,6 +324,7 @@ struct tegra_dc_out {
 	int				dcc_bus;
 	int				hotplug_gpio;
 	const char			*parent_clk;
+	const char			*parent_clk_backup;
 
 	unsigned			max_pixclock;
 	unsigned			order;
