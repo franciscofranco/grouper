@@ -135,6 +135,8 @@ struct tegra_dma_req {
 	unsigned long req_sel;
 	unsigned int size;
 
+	int fixed_burst_size; /* only for dtv */
+
 	/* Updated by the DMA driver on the conpletion of the request. */
 	int bytes_transferred;
 	int status;

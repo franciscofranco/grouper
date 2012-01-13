@@ -761,6 +761,7 @@ static void setup_dma_rx_request(struct tegra_dma_req *req,
 	req->source_addr = dtv_ctx->phys + DTV_RX_FIFO;
 	req->source_wrap = 4;
 	req->source_bus_width = 32;
+	req->fixed_burst_size = 1;
 
 	req->dest_wrap = 0;
 	req->dest_bus_width = 32;
