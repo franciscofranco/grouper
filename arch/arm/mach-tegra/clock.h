@@ -6,7 +6,7 @@
  * Author:
  *	Colin Cross <ccross@google.com>
  *
- * Copyright (C) 2010-2011, NVIDIA Corporation.
+ * Copyright (C) 2010-2012, NVIDIA Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -169,6 +169,9 @@ struct clk {
 			int				lock_delay;
 			unsigned long			fixed_rate;
 		} pll;
+		struct {
+			unsigned long			default_rate;
+		} pll_div;
 		struct {
 			u32				sel;
 			u32				reg_mask;

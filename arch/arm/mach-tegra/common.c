@@ -2,7 +2,7 @@
  * arch/arm/mach-tegra/common.c
  *
  * Copyright (C) 2010 Google, Inc.
- * Copyright (c) 2010-2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * Author:
  *	Colin Cross <ccross@android.com>
@@ -148,10 +148,10 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "2d",		"pll_c",	0,		false },
 	{ "3d",		"pll_c",	0,		false },
 #else
-	{ "pll_p",	NULL,		408000000,	true },
-	{ "pll_p_out1",	"pll_p",	9600000,	false },
+	{ "pll_p",	NULL,		0,		true },
+	{ "pll_p_out1",	"pll_p",	0,		false },
 	{ "pll_p_out2",	"pll_p",	48000000,	false },
-	{ "pll_p_out3",	"pll_p",	102000000,	true },
+	{ "pll_p_out3",	"pll_p",	0,		true },
 	{ "pll_m_out1",	"pll_m",	275000000,	false },
 	{ "pll_p_out4",	"pll_p",	102000000,	false },
 	{ "sclk",	"pll_p_out4",	102000000,	true },
