@@ -1074,7 +1074,7 @@ static struct ion_platform_data tegra_ion_data = {
 			.name = "iommu",
 			.base = TEGRA_SMMU_BASE,
 			.size = TEGRA_SMMU_SIZE,
-			.dev = &tegra_iommu_device.dev,
+			.priv = &tegra_iommu_device.dev,
 		},
 	},
 };
