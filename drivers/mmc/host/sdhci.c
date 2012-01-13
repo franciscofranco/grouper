@@ -1632,6 +1632,14 @@ static int sdhci_execute_tuning(struct mmc_host *mmc)
 	disable_irq(host->irq);
 	spin_lock(&host->lock);
 
+	if ((host->quirks & SDHCI_QUIRK_NON_STANDARD_TUNING) &&
+		host->ops->execute_freq_tuning) {
+		err = host->ops->execute_freq_tuning(host);
+		spin_unlock(&host->lock);
+		enable_irq(host->irq);
+		return err;
+	}
+
 	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 
 	/*
