@@ -238,9 +238,11 @@ static int tegra_ehci_hub_control(
 	bool		hsic = false;
 	bool do_post_resume = false;
 
+	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	if (!tegra->host_resumed) {
 		if (buf)
 			memset (buf, 0, wLength);
+		mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 		return retval;
 	}
 
@@ -458,9 +460,12 @@ static int tegra_ehci_hub_control(
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	/* Handle the hub control events here */
-	return ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	retval = ehci_hub_control(hcd, typeReq, wValue, wIndex, buf, wLength);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
+	return retval;
 done:
 	spin_unlock_irqrestore(&ehci->lock, flags);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 	return retval;
 }
 
@@ -700,11 +705,35 @@ restart:
 }
 #endif
 
+/*
+ * Disable PHY clock valid interrupts and wait for the interrupt handler to
+ * finish.
+ *
+ * Requires a lock on tegra_ehci_hcd_mutex
+ * Must not be called with a lock on ehci->lock
+ */
+static void tegra_ehci_disable_phy_interrupt(struct usb_hcd *hcd) {
+	struct tegra_ehci_hcd *tegra;
+	u32 val;
+	if (hcd->irq >= 0) {
+		tegra = dev_get_drvdata(hcd->self.controller);
+		if (tegra->phy->hotplug) {
+			/* Disable PHY clock valid interrupts */
+			val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
+			val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB;
+			writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
+		}
+		/* Wait for the interrupt handler to finish */
+		synchronize_irq(hcd->irq);
+	}
+}
+
 static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
 	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
+	tegra_ehci_disable_phy_interrupt(hcd);
 	/* ehci_shutdown touches the USB controller registers, make sure
 	 * controller has clocks to it */
 	if (!tegra->host_resumed)
@@ -780,6 +809,7 @@ static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 	int error_status = 0;
 
 	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
+	tegra_ehci_disable_phy_interrupt(hcd);
 	/* ehci_shutdown touches the USB controller registers, make sure
 	 * controller has clocks to it */
 	if (!tegra->host_resumed)
