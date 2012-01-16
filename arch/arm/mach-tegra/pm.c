@@ -519,7 +519,7 @@ bool tegra_set_cpu_in_lp2(int cpu)
 	if ((cpu == 0) && cpumask_equal(&tegra_in_lp2, cpu_online_mask))
 		last_cpu = true;
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	else
+	else if (cpu == 1)
 		tegra2_cpu_set_resettable_soon();
 #endif
 
