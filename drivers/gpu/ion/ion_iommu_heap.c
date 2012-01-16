@@ -60,7 +60,7 @@ static struct scatterlist *iommu_heap_map_dma(struct ion_heap *heap,
 		phys_addr_t pa;
 
 		pa = sg_phys(sg);
-		BUG_ON(!ALIGN(sg->length, PAGE_SIZE));
+		BUG_ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
 		err = iommu_map(h->domain, da, pa, 0, 0);
 		if (err)
 			goto err_out;
