@@ -20,20 +20,17 @@
 #define pr_fmt(fmt)	"%s(): " fmt, __func__
 
 #include <linux/spinlock.h>
-#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/ion.h>
 #include <linux/mm.h>
-#include <linux/platform_device.h>
-#include <linux/tegra_ion.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/iommu.h>
 #include <linux/highmem.h>
 
-#include <asm/page.h>
 #include <asm/cacheflush.h>
 
 #include "ion_priv.h"
