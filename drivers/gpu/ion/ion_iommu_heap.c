@@ -97,7 +97,6 @@ static void iommu_heap_unmap_dma(struct ion_heap *heap, struct ion_buffer *buf)
 	pr_debug("da:%p\n", buf->priv_virt);
 }
 
-
 static int ion_buffer_allocate(struct ion_buffer *buf)
 {
 	int i, npages = NUM_PAGES(buf);
