@@ -268,6 +268,7 @@ ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
 				      unsigned long align);
 void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 		       unsigned long size);
+
 #ifdef CONFIG_ION_IOMMU
 struct ion_heap *ion_iommu_heap_create(struct ion_platform_heap *);
 void ion_iommu_heap_destroy(struct ion_heap *);
