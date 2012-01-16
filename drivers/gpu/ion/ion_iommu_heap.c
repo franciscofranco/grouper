@@ -105,11 +105,10 @@ static int ion_buffer_allocate(struct ion_buffer *buf)
 	if (!buf->pages)
 		goto err_pages;
 
-	buf->sglist = vmalloc(npages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(npages * sizeof(*buf->sglist));
 	if (!buf->sglist)
 		goto err_sgl;
 
-	memset(buf->sglist, 0, npages * sizeof(*buf->sglist));
 	sg_init_table(buf->sglist, npages);
 
 	for (i = 0; i < npages; i++) {
