@@ -164,10 +164,9 @@ static int iommu_heap_allocate(struct ion_heap *heap, struct ion_buffer *buf,
 	len = round_up(len, PAGE_SIZE);
 
 	da = gen_pool_alloc(h->pool, len);
-	if (!da) {
-		buf->priv_virt = (void *)ION_CARVEOUT_ALLOCATE_FAIL;
+	if (!da)
 		return -ENOMEM;
-	}
+
 	buf->priv_virt = (void *)da;
 	buf->size = len;
 
@@ -199,16 +198,6 @@ static void iommu_heap_free(struct ion_buffer *buf)
 	struct ion_iommu_heap *h =
 		container_of(heap, struct ion_iommu_heap, heap);
 	void *da = buf->priv_virt;
-
-	/*
-	 * FIXME:
-	 * Buf should not be in use.
-	 * Forcibly remove iommu mappings, if any exists.
-	 * Free physical pages here.
-	 */
-
-	if (da == (void *)ION_CARVEOUT_ALLOCATE_FAIL)
-		return;
 
 	iommu_heap_unmap_dma(heap, buf);
 	ion_buffer_free(buf);
