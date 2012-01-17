@@ -53,32 +53,6 @@
 #include "board-ventana.h"
 #include "cpu-tegra.h"
 
-static int ventana_camera_init(void)
-{
-	int err;
-
-	tegra_gpio_enable(CAMERA_POWER_GPIO);
-	gpio_request(CAMERA_POWER_GPIO, "camera_power_en");
-	gpio_direction_output(CAMERA_POWER_GPIO, 1);
-	gpio_export(CAMERA_POWER_GPIO, false);
-
-	tegra_gpio_enable(CAMERA_CSI_MUX_SEL_GPIO);
-	gpio_request(CAMERA_CSI_MUX_SEL_GPIO, "camera_csi_sel");
-	gpio_direction_output(CAMERA_CSI_MUX_SEL_GPIO, 0);
-	gpio_export(CAMERA_CSI_MUX_SEL_GPIO, false);
-
-	err = gpio_request(CAMERA_FLASH_ACT_GPIO, "torch_gpio_act");
-	if (err < 0) {
-		pr_err("gpio_request failed for gpio %d\n",
-					CAMERA_FLASH_ACT_GPIO);
-	} else {
-		tegra_gpio_enable(CAMERA_FLASH_ACT_GPIO);
-		gpio_direction_output(CAMERA_FLASH_ACT_GPIO, 0);
-		gpio_export(CAMERA_FLASH_ACT_GPIO, false);
-	}
-	return 0;
-}
-
 /* left ov5650 is CAM2 which is on csi_a */
 static int ventana_left_ov5650_power_on(void)
 {
@@ -431,7 +405,6 @@ int __init ventana_sensors_init(void)
 #ifdef CONFIG_MPU_SENSORS_MPU3050
 	mpuirq_init();
 #endif
-	ventana_camera_init();
 	ventana_nct1008_init();
 
 	i2c_register_board_info(0, ventana_i2c0_board_info,
@@ -471,34 +444,40 @@ int __init ventana_sensors_init(void)
 struct tegra_camera_gpios {
 	const char *name;
 	int gpio;
+	bool tegra_internal_gpio;
 	int enabled;
 };
 
-#define TEGRA_CAMERA_GPIO(_name, _gpio, _enabled)		\
-	{						\
-		.name = _name,				\
-		.gpio = _gpio,				\
-		.enabled = _enabled,			\
+#define TEGRA_CAMERA_GPIO(_name, _gpio, _tegra_internal_gpio, _enabled)	\
+	{								\
+		.name = _name,						\
+		.gpio = _gpio,						\
+		.tegra_internal_gpio = _tegra_internal_gpio,		\
+		.enabled = _enabled,					\
 	}
 
 static struct tegra_camera_gpios ventana_camera_gpio_keys[] = {
-	[0] = TEGRA_CAMERA_GPIO("en_avdd_csi", AVDD_DSI_CSI_ENB_GPIO, 1),
-	[1] = TEGRA_CAMERA_GPIO("cam_i2c_mux_rst_lo", CAM_I2C_MUX_RST_GPIO, 1),
+	[0] = TEGRA_CAMERA_GPIO("camera_power_en", CAMERA_POWER_GPIO, true, 1),
+	[1] = TEGRA_CAMERA_GPIO("camera_csi_sel", CAMERA_CSI_MUX_SEL_GPIO, true, 0),
+	[2] = TEGRA_CAMERA_GPIO("torch_gpio_act", CAMERA_FLASH_ACT_GPIO, true, 0),
 
-	[2] = TEGRA_CAMERA_GPIO("cam2_ldo_shdn_lo", CAM2_LDO_SHUTDN_L_GPIO, 0),
-	[3] = TEGRA_CAMERA_GPIO("cam2_af_pwdn_lo", CAM2_AF_PWR_DN_L_GPIO, 0),
-	[4] = TEGRA_CAMERA_GPIO("cam2_pwdn", CAM2_PWR_DN_GPIO, 0),
-	[5] = TEGRA_CAMERA_GPIO("cam2_rst_lo", CAM2_RST_L_GPIO, 1),
+	[3] = TEGRA_CAMERA_GPIO("en_avdd_csi", AVDD_DSI_CSI_ENB_GPIO, false, 1),
+	[4] = TEGRA_CAMERA_GPIO("cam_i2c_mux_rst_lo", CAM_I2C_MUX_RST_GPIO, false, 1),
 
-	[6] = TEGRA_CAMERA_GPIO("cam3_ldo_shdn_lo", CAM3_LDO_SHUTDN_L_GPIO, 0),
-	[7] = TEGRA_CAMERA_GPIO("cam3_af_pwdn_lo", CAM3_AF_PWR_DN_L_GPIO, 0),
-	[8] = TEGRA_CAMERA_GPIO("cam3_pwdn", CAM3_PWR_DN_GPIO, 0),
-	[9] = TEGRA_CAMERA_GPIO("cam3_rst_lo", CAM3_RST_L_GPIO, 1),
+	[5] = TEGRA_CAMERA_GPIO("cam2_ldo_shdn_lo", CAM2_LDO_SHUTDN_L_GPIO, false, 0),
+	[6] = TEGRA_CAMERA_GPIO("cam2_af_pwdn_lo", CAM2_AF_PWR_DN_L_GPIO, false, 0),
+	[7] = TEGRA_CAMERA_GPIO("cam2_pwdn", CAM2_PWR_DN_GPIO, false, 0),
+	[8] = TEGRA_CAMERA_GPIO("cam2_rst_lo", CAM2_RST_L_GPIO, false, 1),
 
-	[10] = TEGRA_CAMERA_GPIO("cam1_ldo_shdn_lo", CAM1_LDO_SHUTDN_L_GPIO, 0),
-	[11] = TEGRA_CAMERA_GPIO("cam1_af_pwdn_lo", CAM1_AF_PWR_DN_L_GPIO, 0),
-	[12] = TEGRA_CAMERA_GPIO("cam1_pwdn", CAM1_PWR_DN_GPIO, 0),
-	[13] = TEGRA_CAMERA_GPIO("cam1_rst_lo", CAM1_RST_L_GPIO, 1),
+	[9] = TEGRA_CAMERA_GPIO("cam3_ldo_shdn_lo", CAM3_LDO_SHUTDN_L_GPIO, false, 0),
+	[10] = TEGRA_CAMERA_GPIO("cam3_af_pwdn_lo", CAM3_AF_PWR_DN_L_GPIO, false, 0),
+	[11] = TEGRA_CAMERA_GPIO("cam3_pwdn", CAM3_PWR_DN_GPIO, false, 0),
+	[12] = TEGRA_CAMERA_GPIO("cam3_rst_lo", CAM3_RST_L_GPIO, false, 1),
+
+	[13] = TEGRA_CAMERA_GPIO("cam1_ldo_shdn_lo", CAM1_LDO_SHUTDN_L_GPIO, false, 0),
+	[14] = TEGRA_CAMERA_GPIO("cam1_af_pwdn_lo", CAM1_AF_PWR_DN_L_GPIO, false, 0),
+	[15] = TEGRA_CAMERA_GPIO("cam1_pwdn", CAM1_PWR_DN_GPIO, false, 0),
+	[16] = TEGRA_CAMERA_GPIO("cam1_rst_lo", CAM1_RST_L_GPIO, false, 1),
 };
 
 int __init ventana_camera_late_init(void)
@@ -525,6 +504,10 @@ int __init ventana_camera_late_init(void)
 	i2c_new_device(i2c_get_adapter(3), ventana_i2c3_board_info_tca6416);
 
 	for (i = 0; i < ARRAY_SIZE(ventana_camera_gpio_keys); i++) {
+
+		if (ventana_camera_gpio_keys[i].tegra_internal_gpio)
+			tegra_gpio_enable(ventana_camera_gpio_keys[i].gpio);
+
 		ret = gpio_request(ventana_camera_gpio_keys[i].gpio,
 			ventana_camera_gpio_keys[i].name);
 		if (ret < 0) {
@@ -532,8 +515,10 @@ int __init ventana_camera_late_init(void)
 				__func__, i);
 			goto fail_free_gpio;
 		}
+
 		gpio_direction_output(ventana_camera_gpio_keys[i].gpio,
 			ventana_camera_gpio_keys[i].enabled);
+
 		gpio_export(ventana_camera_gpio_keys[i].gpio, false);
 	}
 
