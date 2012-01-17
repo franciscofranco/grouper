@@ -101,6 +101,9 @@ enum max77663_regulator_fps_src {
 /* SD Failling Slew Rate Active-Discharge Mode */
 #define SD_FSRADE_DISABLE	0x40
 
+/* Group Low-Power Mode */
+#define GLPM_ENABLE		0x80
+
 struct max77663_regulator_fps_cfg {
 	enum max77663_regulator_fps_src src;
 	enum max77663_regulator_fps_en_src en_src;
