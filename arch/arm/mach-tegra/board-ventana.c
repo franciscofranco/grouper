@@ -232,7 +232,7 @@ static struct wm8903_platform_data ventana_wm8903_pdata = {
 	.irq_active_low = 0,
 	.micdet_cfg = 0,
 	.micdet_delay = 100,
-	.gpio_base = VENTANA_GPIO_WM8903(0),
+	.gpio_base = WM8903_GPIO_BASE,
 	.gpio_cfg = {
 		(WM8903_GPn_FN_DMIC_LR_CLK_OUTPUT << WM8903_GP1_FN_SHIFT),
 		(WM8903_GPn_FN_DMIC_LR_CLK_OUTPUT << WM8903_GP2_FN_SHIFT) |

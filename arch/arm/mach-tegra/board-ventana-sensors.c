@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-ventana-sensors.c
  *
- * Copyright (c) 2011, NVIDIA CORPORATION, All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION, All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -52,13 +52,6 @@
 #include "board.h"
 #include "board-ventana.h"
 #include "cpu-tegra.h"
-
-#define ISL29018_IRQ_GPIO	TEGRA_GPIO_PZ2
-#define AKM8975_IRQ_GPIO	TEGRA_GPIO_PN5
-#define CAMERA_POWER_GPIO	TEGRA_GPIO_PV4
-#define CAMERA_CSI_MUX_SEL_GPIO	TEGRA_GPIO_PBB4
-#define CAMERA_FLASH_ACT_GPIO	TEGRA_GPIO_PD2
-#define NCT1008_THERM2_GPIO	TEGRA_GPIO_PN6
 
 static int ventana_camera_init(void)
 {
@@ -254,18 +247,18 @@ static const struct i2c_board_info ventana_i2c2_board_info[] = {
 };
 
 static struct pca953x_platform_data ventana_tca6416_data = {
-	.gpio_base      = TEGRA_NR_GPIOS + 4, /* 4 gpios are already requested by tps6586x */
+	.gpio_base = TCA6416_GPIO_BASE,
 };
 
 static struct pca954x_platform_mode ventana_pca9546_modes[] = {
-	{ .adap_id = 6, .deselect_on_exit = 1 }, /* REAR CAM1 */
-	{ .adap_id = 7, .deselect_on_exit = 1 }, /* REAR CAM2 */
-	{ .adap_id = 8, .deselect_on_exit = 1 }, /* FRONT CAM3 */
+	{ .adap_id = PCA954x_I2C_BUS0, .deselect_on_exit = 1 }, /* REAR CAM1 */
+	{ .adap_id = PCA954x_I2C_BUS1, .deselect_on_exit = 1 }, /* REAR CAM2 */
+	{ .adap_id = PCA954x_I2C_BUS2, .deselect_on_exit = 1 }, /* FRONT CAM3 */
 };
 
 static struct pca954x_platform_data ventana_pca9546_data = {
-	.modes	  = ventana_pca9546_modes,
-	.num_modes      = ARRAY_SIZE(ventana_pca9546_modes),
+	.modes = ventana_pca9546_modes,
+	.num_modes = ARRAY_SIZE(ventana_pca9546_modes),
 };
 
 static const struct i2c_board_info ventana_i2c3_board_info_tca6416[] = {
