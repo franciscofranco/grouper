@@ -1493,7 +1493,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	clock1 |= sample_rates[dsp_config].value;
 
 	aif1 &= ~WM8903_AIF_WL_MASK;
-	bclk = 2 * fs;
+	bclk = 4 * fs;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		bclk *= 16;
