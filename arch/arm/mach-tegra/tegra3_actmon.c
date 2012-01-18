@@ -666,9 +666,6 @@ static int down_threshold_set(void *data, u64 val)
 	struct actmon_dev *dev = data;
 	unsigned int down_threshold = (unsigned int)val;
 
-	if (down_threshold < 0)
-		down_threshold = 0;
-
 	spin_lock_irqsave(&dev->lock, flags);
 
 	if (down_threshold >= dev->boost_up_threshold)
