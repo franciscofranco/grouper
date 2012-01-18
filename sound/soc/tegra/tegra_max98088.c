@@ -30,6 +30,7 @@
 
 #include <asm/mach-types.h>
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -223,8 +224,10 @@ static int tegra_max98088_hw_params(struct snd_pcm_substream *substream,
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(cpu_dai);
 #endif
-	int srate, mclk, sample_size;
+	int srate, mclk, sample_size, i2s_daifmt;
 	int err;
+	struct clk *clk;
+	int rate;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -256,6 +259,32 @@ static int tegra_max98088_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
+
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	clk = clk_get_sys(NULL, "cdev1");
+#else
+	clk = clk_get_sys("extern1", NULL);
+#endif
+	if (IS_ERR(clk)) {
+		dev_err(card->dev, "Can't retrieve clk cdev1\n");
+		err = PTR_ERR(clk);
+		return err;
+	}
+
+	rate = clk_get_rate(clk);
+	printk("extern1 rate=%d\n",rate);
+
+#if TEGRA30_I2S_MASTER_PLAYBACK
+	i2s_daifmt = SND_SOC_DAIFMT_I2S |
+				SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBS_CFS;
+#else
+	i2s_daifmt = SND_SOC_DAIFMT_I2S |
+				SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBM_CFM;
+	mclk = rate;
+#endif
+
 	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
 	if (err < 0) {
 		if (!(machine->util_data.set_mclk % mclk))
@@ -268,19 +297,13 @@ static int tegra_max98088_hw_params(struct snd_pcm_substream *substream,
 
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
 
-	err = snd_soc_dai_set_fmt(codec_dai,
-					SND_SOC_DAIFMT_I2S |
-					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
+	err = snd_soc_dai_set_fmt(codec_dai,i2s_daifmt);
 	if (err < 0) {
 		dev_err(card->dev, "codec_dai fmt not set\n");
 		return err;
 	}
 
-	err = snd_soc_dai_set_fmt(cpu_dai,
-					SND_SOC_DAIFMT_I2S |
-					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
+	err = snd_soc_dai_set_fmt(cpu_dai, i2s_daifmt);
 	if (err < 0) {
 		dev_err(card->dev, "cpu_dai fmt not set\n");
 		return err;

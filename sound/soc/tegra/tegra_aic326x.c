@@ -237,6 +237,32 @@ static int tegra_aic326x_hw_params(struct snd_pcm_substream *substream,
 	if (mclk < 0)
 		return mclk;
 
+
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	clk = clk_get_sys(NULL, "cdev1");
+#else
+	clk = clk_get_sys("extern1", NULL);
+#endif
+	if (IS_ERR(clk)) {
+		dev_err(card->dev, "Can't retrieve clk cdev1\n");
+		err = PTR_ERR(clk);
+		return err;
+	}
+
+	rate = clk_get_rate(clk);
+	printk("extern1 rate=%d\n",rate);
+
+#if TEGRA30_I2S_MASTER_PLAYBACK
+	daifmt = SND_SOC_DAIFMT_I2S |
+				SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBS_CFS;
+#else
+	daifmt = SND_SOC_DAIFMT_I2S |
+				SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBM_CFM;
+	mclk = rate;
+#endif
+
 	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
 	if (err < 0) {
 		if (!(machine->util_data.set_mclk % mclk))
@@ -248,9 +274,6 @@ static int tegra_aic326x_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
-
-	daifmt = SND_SOC_DAIFMT_I2S |	SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS;
 
 	err = snd_soc_dai_set_fmt(codec_dai, daifmt);
 	if (err < 0) {
