@@ -1402,7 +1402,6 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 			schedule_delayed_work(&udc->work,
 				USB_CHARGER_DETECTION_WAIT_TIME_MS);
 		}
-		return 0;
 	}
 
 	spin_lock_irqsave(&udc->lock, flags);
