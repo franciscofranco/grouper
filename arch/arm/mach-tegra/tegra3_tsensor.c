@@ -118,12 +118,9 @@ static void tegra3_tsensor_probe_callback(struct tegra_tsensor_data *data)
 	if (tegra_thermal_set_device(thermal_device)) /* This should not fail */
 		BUG();
 }
-#endif
 
 static struct tegra_tsensor_platform_data tsensor_data = {
-#ifdef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 	.probe_callback = tegra3_tsensor_probe_callback,
-#endif
 };
 
 void __init tegra3_tsensor_init(struct tegra_tsensor_pmu_data *data)
@@ -189,4 +186,8 @@ labelSkipPowerOff:
 labelEnd:
 	return;
 }
-
+#else
+void __init tegra3_tsensor_init(struct tegra_tsensor_pmu_data *data)
+{
+}
+#endif
