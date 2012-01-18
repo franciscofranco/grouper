@@ -655,7 +655,7 @@ static struct i2c_board_info cardhu_i2c4_nct1008_board_info[] = {
 static int cardhu_nct1008_init(void)
 {
 	int nct1008_port = -1;
-	int ret;
+	int ret = 0;
 
 	if ((board_info.board_id == BOARD_E1198) ||
 		(board_info.board_id == BOARD_E1291) ||
