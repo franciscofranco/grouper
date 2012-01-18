@@ -1460,7 +1460,7 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 			}
 		}
 
-		rate = dc->mode.pclk * 2;
+		rate = dc->mode.pclk * dc->shift_clk_div * 2;
 		if (rate != clk_get_rate(base_clk))
 			clk_set_rate(base_clk, rate);
 
@@ -2737,6 +2737,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	dc->clk = clk;
 	dc->emc_clk = emc_clk;
+	dc->shift_clk_div = 1;
 
 	dc->base_res = base_res;
 	dc->base = base;
