@@ -201,7 +201,6 @@ static struct tegra_aes_ctx rng_ctx;
 /* keep registered devices data here */
 static LIST_HEAD(slot_list);
 static DEFINE_SPINLOCK(list_lock);
-static DEFINE_MUTEX(aes_lock);
 
 /* Engine specific work queues */
 static void bsev_workqueue_handler(struct work_struct *work);
@@ -879,14 +878,10 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	int ret, i;
 	u8 *dest = rdata, *dt = rng_ctx.dt;
 
-	/* take mutex to access the aes hw */
-	mutex_lock(&aes_lock);
-
 	/* take the hardware semaphore */
 	if (tegra_arb_mutex_lock_timeout(eng->res_id, ARB_SEMA_TIMEOUT) < 0) {
 		dev_err(dd->dev, "aes hardware (%d) not available\n",
 		eng->res_id);
-		mutex_unlock(&aes_lock);
 		return -EBUSY;
 	}
 
@@ -926,7 +921,6 @@ out:
 fail:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(eng->res_id);
-	mutex_unlock(&aes_lock);
 	dev_dbg(dd->dev, "%s: done\n", __func__);
 	return dlen;
 }
@@ -964,14 +958,10 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	ctx->eng = eng;
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
 
-	/* take mutex to access the aes hw */
-	mutex_lock(&aes_lock);
-
 	if (!ctx->slot) {
 		key_slot = aes_find_key_slot(dd);
 		if (!key_slot) {
 			dev_err(dd->dev, "no empty slot\n");
-			mutex_unlock(&aes_lock);
 			return -ENOMEM;
 		}
 		ctx->slot = key_slot;
@@ -981,7 +971,6 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	if (tegra_arb_mutex_lock_timeout(eng->res_id, ARB_SEMA_TIMEOUT) < 0) {
 		dev_err(dd->dev, "aes hardware (%d) not available\n",
 		eng->res_id);
-		mutex_unlock(&aes_lock);
 		return -EBUSY;
 	}
 
@@ -1027,7 +1016,6 @@ out:
 fail:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(eng->res_id);
-	mutex_unlock(&aes_lock);
 
 	dev_dbg(dd->dev, "%s: done\n", __func__);
 	return ret;
@@ -1429,7 +1417,6 @@ static struct platform_driver tegra_aes_driver = {
 
 static int __init tegra_aes_mod_init(void)
 {
-	mutex_init(&aes_lock);
 	INIT_LIST_HEAD(&slot_list);
 	return  platform_driver_register(&tegra_aes_driver);
 }
