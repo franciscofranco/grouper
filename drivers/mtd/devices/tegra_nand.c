@@ -70,9 +70,7 @@
 /* TODO: pull in the register defs (fields, masks, etc) from Nvidia files
  * so we don't have to redefine them */
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probes[] = { "cmdlinepart", NULL, };
-#endif
 
 struct tegra_nand_chip {
 	spinlock_t lock;
@@ -1645,14 +1643,12 @@ static int __devinit tegra_nand_probe(struct platform_device *pdev)
 	dump_nand_regs();
 #endif
 
-#ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(mtd, part_probes, &info->parts, 0);
 	if (err > 0) {
 		err = mtd_device_register(mtd, info->parts, err);
 	} else if (err <= 0 && plat->parts) {
 		err = mtd_device_register(mtd, plat->parts, plat->nr_parts);
 	} else
-#endif
 		err = mtd_device_register(mtd, NULL, 0);
 	if (err != 0)
 		goto out_free_bbbmap;
