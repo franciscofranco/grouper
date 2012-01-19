@@ -987,3 +987,4 @@ static void __exit tps61050_exit(void)
 
 module_init(tps61050_init);
 module_exit(tps61050_exit);
+MODULE_LICENSE("GPL");
