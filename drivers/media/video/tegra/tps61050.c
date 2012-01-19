@@ -762,6 +762,7 @@ static long tps61050_ioctl(struct file *file,
 					__func__, __LINE__);
 			return -EFAULT;
 		}
+		return 0;
 
 	default:
 		dev_err(&info->i2c_client->dev, "%s unsupported ioctl: %x\n",
