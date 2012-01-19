@@ -709,6 +709,18 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		return -EINVAL;
 	}
 
+	/* take the hardware semaphore */
+	if (tegra_arb_mutex_lock_timeout(dd->bsev.res_id, ARB_SEMA_TIMEOUT) < 0) {
+		dev_err(dd->dev, "aes hardware (%d) not available\n", dd->bsev.res_id);
+		return -EBUSY;
+	}
+
+	if (tegra_arb_mutex_lock_timeout(dd->bsea.res_id, ARB_SEMA_TIMEOUT) < 0) {
+		dev_err(dd->dev, "aes hardware (%d) not available\n", dd->bsea.res_id);
+		tegra_arb_mutex_unlock(dd->bsev.res_id);
+		return -EBUSY;
+	}
+
 	dev_dbg(dd->dev, "keylen: %d\n", keylen);
 
 	ctx->dd = dd;
@@ -718,7 +730,7 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			key_slot = aes_find_key_slot(dd);
 			if (!key_slot) {
 				dev_err(dd->dev, "no empty slot\n");
-				return -ENOMEM;
+				goto out;
 			}
 			ctx->slot = key_slot;
 		}
@@ -735,6 +747,10 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	dd->bsev.new_key = true;
 	dd->bsea.new_key = true;
+
+out:
+	tegra_arb_mutex_unlock(dd->bsev.res_id);
+	tegra_arb_mutex_unlock(dd->bsea.res_id);
 	dev_dbg(dd->dev, "done\n");
 	return 0;
 }
