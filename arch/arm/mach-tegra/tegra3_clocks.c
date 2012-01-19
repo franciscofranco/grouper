@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/tegra3_clocks.c
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -391,8 +391,10 @@ static void __iomem *misc_gp_hidrev_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
 
 /*
  * Some peripheral clocks share an enable bit, so refcount the enable bits
- * in registers CLK_ENABLE_L, ... CLK_ENABLE_W
+ * in registers CLK_ENABLE_L, ... CLK_ENABLE_W, and protect refcount updates
+ * with lock
  */
+static DEFINE_SPINLOCK(periph_refcount_lock);
 static int tegra_periph_clk_enable_refcount[CLK_OUT_ENB_NUM * 32];
 
 #define clk_writel(value, reg) \
@@ -1906,7 +1908,9 @@ static struct clk_ops tegra_plle_ops = {
 	.disable		= tegra3_plle_clk_disable,
 };
 
-/* Clock divider ops */
+/* Clock divider ops (non-atomic shared register access) */
+static DEFINE_SPINLOCK(pll_div_lock);
+
 static void tegra3_pll_div_clk_init(struct clk *c)
 {
 	if (c->flags & DIV_U71) {
@@ -1939,9 +1943,11 @@ static int tegra3_pll_div_clk_enable(struct clk *c)
 {
 	u32 val;
 	u32 new_val;
+	unsigned long flags;
 
 	pr_debug("%s: %s\n", __func__, c->name);
 	if (c->flags & DIV_U71) {
+		spin_lock_irqsave(&pll_div_lock, flags);
 		val = clk_readl(c->reg);
 		new_val = val >> c->reg_shift;
 		new_val &= 0xFFFF;
@@ -1951,6 +1957,7 @@ static int tegra3_pll_div_clk_enable(struct clk *c)
 		val &= ~(0xFFFF << c->reg_shift);
 		val |= new_val << c->reg_shift;
 		clk_writel_delay(val, c->reg);
+		spin_unlock_irqrestore(&pll_div_lock, flags);
 		return 0;
 	} else if (c->flags & DIV_2) {
 		return 0;
@@ -1962,9 +1969,11 @@ static void tegra3_pll_div_clk_disable(struct clk *c)
 {
 	u32 val;
 	u32 new_val;
+	unsigned long flags;
 
 	pr_debug("%s: %s\n", __func__, c->name);
 	if (c->flags & DIV_U71) {
+		spin_lock_irqsave(&pll_div_lock, flags);
 		val = clk_readl(c->reg);
 		new_val = val >> c->reg_shift;
 		new_val &= 0xFFFF;
@@ -1974,6 +1983,7 @@ static void tegra3_pll_div_clk_disable(struct clk *c)
 		val &= ~(0xFFFF << c->reg_shift);
 		val |= new_val << c->reg_shift;
 		clk_writel_delay(val, c->reg);
+		spin_unlock_irqrestore(&pll_div_lock, flags);
 	}
 }
 
@@ -1983,12 +1993,14 @@ static int tegra3_pll_div_clk_set_rate(struct clk *c, unsigned long rate)
 	u32 new_val;
 	int divider_u71;
 	unsigned long parent_rate = clk_get_rate(c->parent);
+	unsigned long flags;
 
 	pr_debug("%s: %s %lu\n", __func__, c->name, rate);
 	if (c->flags & DIV_U71) {
 		divider_u71 = clk_div71_get_divider(
 			parent_rate, rate, c->flags, ROUND_DIVIDER_UP);
 		if (divider_u71 >= 0) {
+			spin_lock_irqsave(&pll_div_lock, flags);
 			val = clk_readl(c->reg);
 			new_val = val >> c->reg_shift;
 			new_val &= 0xFFFF;
@@ -2002,6 +2014,7 @@ static int tegra3_pll_div_clk_set_rate(struct clk *c, unsigned long rate)
 			clk_writel_delay(val, c->reg);
 			c->div = divider_u71 + 2;
 			c->mul = 2;
+			spin_unlock_irqrestore(&pll_div_lock, flags);
 			return 0;
 		}
 	} else if (c->flags & DIV_2)
@@ -2122,11 +2135,16 @@ static void tegra3_periph_clk_init(struct clk *c)
 
 static int tegra3_periph_clk_enable(struct clk *c)
 {
+	unsigned long flags;
 	pr_debug("%s on clock %s\n", __func__, c->name);
 
+	spin_lock_irqsave(&periph_refcount_lock, flags);
+
 	tegra_periph_clk_enable_refcount[c->u.periph.clk_num]++;
-	if (tegra_periph_clk_enable_refcount[c->u.periph.clk_num] > 1)
+	if (tegra_periph_clk_enable_refcount[c->u.periph.clk_num] > 1) {
+		spin_unlock_irqrestore(&periph_refcount_lock, flags);
 		return 0;
+	}
 
 	clk_writel_delay(PERIPH_CLK_TO_BIT(c), PERIPH_CLK_TO_ENB_SET_REG(c));
 	if (!(c->flags & PERIPH_NO_RESET) && !(c->flags & PERIPH_MANUAL_RESET)) {
@@ -2135,13 +2153,16 @@ static int tegra3_periph_clk_enable(struct clk *c)
 			clk_writel(PERIPH_CLK_TO_BIT(c), PERIPH_CLK_TO_RST_CLR_REG(c));
 		}
 	}
+	spin_unlock_irqrestore(&periph_refcount_lock, flags);
 	return 0;
 }
 
 static void tegra3_periph_clk_disable(struct clk *c)
 {
-	unsigned long val;
+	unsigned long val, flags;
 	pr_debug("%s on clock %s\n", __func__, c->name);
+
+	spin_lock_irqsave(&periph_refcount_lock, flags);
 
 	if (c->refcnt)
 		tegra_periph_clk_enable_refcount[c->u.periph.clk_num]--;
@@ -2156,6 +2177,7 @@ static void tegra3_periph_clk_disable(struct clk *c)
 		clk_writel_delay(
 			PERIPH_CLK_TO_BIT(c), PERIPH_CLK_TO_ENB_CLR_REG(c));
 	}
+	spin_unlock_irqrestore(&periph_refcount_lock, flags);
 }
 
 static void tegra3_periph_clk_reset(struct clk *c, bool assert)
@@ -2434,7 +2456,7 @@ static struct clk_ops tegra_pciex_clk_ops = {
 	.reset    = tegra3_periph_clk_reset,
 };
 
-/* Output clock ops */
+/* Output clock ops (non-atomic shared register access) */
 
 static DEFINE_SPINLOCK(clk_out_lock);
 
@@ -2597,7 +2619,9 @@ static struct clk_ops tegra_emc_clk_ops = {
 	.shared_bus_update	= &tegra3_clk_shared_bus_update,
 };
 
-/* Clock doubler ops */
+/* Clock doubler ops (non-atomic shared register access) */
+static DEFINE_SPINLOCK(doubler_lock);
+
 static void tegra3_clk_double_init(struct clk *c)
 {
 	u32 val = clk_readl(c->reg);
@@ -2612,17 +2636,23 @@ static int tegra3_clk_double_set_rate(struct clk *c, unsigned long rate)
 {
 	u32 val;
 	unsigned long parent_rate = clk_get_rate(c->parent);
+	unsigned long flags;
+
 	if (rate == parent_rate) {
+		spin_lock_irqsave(&doubler_lock, flags);
 		val = clk_readl(c->reg) | (0x1 << c->reg_shift);
 		clk_writel(val, c->reg);
 		c->mul = 1;
 		c->div = 1;
+		spin_unlock_irqrestore(&doubler_lock, flags);
 		return 0;
 	} else if (rate == 2 * parent_rate) {
+		spin_lock_irqsave(&doubler_lock, flags);
 		val = clk_readl(c->reg) & (~(0x1 << c->reg_shift));
 		clk_writel(val, c->reg);
 		c->mul = 2;
 		c->div = 1;
+		spin_unlock_irqrestore(&doubler_lock, flags);
 		return 0;
 	}
 	return -EINVAL;
@@ -2706,7 +2736,9 @@ static struct clk_ops tegra_audio_sync_clk_ops = {
 	.set_parent = tegra3_audio_sync_clk_set_parent,
 };
 
-/* cml0 (pcie), and cml1 (sata) clock ops */
+/* cml0 (pcie), and cml1 (sata) clock ops (non-atomic shared register access) */
+static DEFINE_SPINLOCK(cml_lock);
+
 static void tegra3_cml_clk_init(struct clk *c)
 {
 	u32 val = clk_readl(c->reg);
@@ -2715,17 +2747,27 @@ static void tegra3_cml_clk_init(struct clk *c)
 
 static int tegra3_cml_clk_enable(struct clk *c)
 {
-	u32 val = clk_readl(c->reg);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cml_lock, flags);
+	val = clk_readl(c->reg);
 	val |= (0x1 << c->u.periph.clk_num);
 	clk_writel(val, c->reg);
+	spin_unlock_irqrestore(&cml_lock, flags);
 	return 0;
 }
 
 static void tegra3_cml_clk_disable(struct clk *c)
 {
-	u32 val = clk_readl(c->reg);
+	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cml_lock, flags);
+	val = clk_readl(c->reg);
 	val &= ~(0x1 << c->u.periph.clk_num);
 	clk_writel(val, c->reg);
+	spin_unlock_irqrestore(&cml_lock, flags);
 }
 
 static struct clk_ops tegra_cml_clk_ops = {
