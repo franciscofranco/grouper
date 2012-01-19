@@ -440,10 +440,7 @@ void tegra_lp0_cpu_mode(bool enter)
 #define PMC_DPD_SAMPLE			0x20
 
 struct tegra_io_dpd tegra_list_io_dpd[] = {
-	/* sd dpd bits in dpd2 register */
-	IO_DPD_INFO("sdhci-tegra.0",	1,	1), /* SDMMC1 */
-	IO_DPD_INFO("sdhci-tegra.2",	1,	2), /* SDMMC3 */
-	IO_DPD_INFO("sdhci-tegra.3",	1,	3), /* SDMMC4 */
+/* Empty DPD list - sd dpd entries removed */
 };
 
 struct tegra_io_dpd *tegra_io_dpd_get(struct device *dev)
@@ -474,7 +471,7 @@ void tegra_io_dpd_enable(struct tegra_io_dpd *hnd)
 	unsigned int dpd_status;
 	unsigned int dpd_enable_lsb;
 
-	if (WARN_ON(!hnd))
+	if ((!hnd))
 		return;
 	spin_lock(&tegra_io_dpd_lock);
 	dpd_enable_lsb = (hnd->io_dpd_reg_index) ? APBDEV_DPD2_ENABLE_LSB :
@@ -503,7 +500,7 @@ void tegra_io_dpd_disable(struct tegra_io_dpd *hnd)
 	unsigned int dpd_status;
 	unsigned int dpd_enable_lsb;
 
-	if (WARN_ON(!hnd))
+	if ((!hnd))
 		return;
 	spin_lock(&tegra_io_dpd_lock);
 	dpd_enable_lsb = (hnd->io_dpd_reg_index) ? APBDEV_DPD2_ENABLE_LSB :
