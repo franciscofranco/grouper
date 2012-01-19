@@ -172,7 +172,11 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "hclk",	"sclk",		108000000,	true },
 	{ "pclk",	"hclk",		54000000,	true },
 #endif
-	{ "csite",	NULL,		0,		true },
+#ifdef CONFIG_TEGRA_SLOW_CSITE
+	{ "csite",	"clk_m",	1000000, 	true },
+#else
+	{ "csite",      NULL,           0,              true },
+#endif
 	{ "emc",	NULL,		0,		true },
 	{ "cpu",	NULL,		0,		true },
 	{ "kfuse",	NULL,		0,		true },

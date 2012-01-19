@@ -155,6 +155,7 @@ config MACH_TEGRA_ENTERPRISE
        bool "Enterprise board"
        depends on ARCH_TEGRA_3x_SOC
        select MACH_HAS_SND_SOC_TEGRA_MAX98088 if SND_SOC
+       select TEGRA_SLOW_CSITE
        help
          Support for NVIDIA Enterprise development platform
 
@@ -471,3 +472,9 @@ config TEGRA_WDT_RECOVERY
 	  suspend/resume hangs.
 endif
 
+config TEGRA_SLOW_CSITE
+	bool "lower csite clock to 1 Mhz to reduce its power consumption"
+	default n
+	help
+	  When enabled, csite will be running at 1 Mhz and the performance of
+	  jtag, lauterbach and other debugger will be extremely slow.
