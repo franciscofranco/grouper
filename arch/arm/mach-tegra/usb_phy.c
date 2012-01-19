@@ -1414,27 +1414,45 @@ static void utmip_phy_disable_pmc_bus_ctrl(struct tegra_usb_phy *phy)
 #endif
 }
 
-static int utmi_phy_preresume(struct tegra_usb_phy *phy, bool is_dpd)
+static void utmi_phy_enable_obs_bus(struct tegra_usb_phy *phy,
+				enum tegra_usb_phy_port_speed port_speed)
 {
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	unsigned long val;
 	void __iomem *base = phy->regs;
-	val = readl(base + UTMIP_TX_CFG0);
-	val |= UTMIP_HS_DISCON_DISABLE;
-	writel(val, base + UTMIP_TX_CFG0);
-#else
-	utmip_phy_disable_pmc_bus_ctrl(phy);
-#endif
 
-	return 0;
+	/* (2LS WAR)is not required for LS and FS devices and is only for HS */
+	if (port_speed != TEGRA_USB_PHY_PORT_SPEED_HIGH) {
+		/* do not enable the OBS bus */
+		val = readl(base + UTMIP_MISC_CFG0);
+		val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
+		writel(val, base + UTMIP_MISC_CFG0);
+		return;
+	}
+	/* Force DP/DM pulldown active for Host mode */
+	val = readl(base + UTMIP_MISC_CFG0);
+	val |= FORCE_PULLDN_DM | FORCE_PULLDN_DP |
+			COMB_TERMS | ALWAYS_FREE_RUNNING_TERMS;
+	writel(val, base + UTMIP_MISC_CFG0);
+	val = readl(base + UTMIP_MISC_CFG0);
+	val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
+	if (port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
+		val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
+	else
+		val |= UTMIP_DPDM_OBSERVE_SEL_FS_K;
+	writel(val, base + UTMIP_MISC_CFG0);
+	udelay(1);
+
+	val = readl(base + UTMIP_MISC_CFG0);
+	val |= UTMIP_DPDM_OBSERVE;
+	writel(val, base + UTMIP_MISC_CFG0);
+	udelay(10);
 }
 
-static int utmi_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
+static void utmi_phy_disable_obs_bus(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	/* check if OBS bus is already enabled */
 	val = readl(base + UTMIP_MISC_CFG0);
 	if (val & UTMIP_DPDM_OBSERVE) {
@@ -1458,11 +1476,65 @@ static int utmi_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
 				COMB_TERMS | ALWAYS_FREE_RUNNING_TERMS);
 		writel(val, base + UTMIP_MISC_CFG0);
 	}
+}
+
+
+static int utmi_phy_preresume(struct tegra_usb_phy *phy, bool remote_wakeup)
+{
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	unsigned long val;
+	void __iomem *base = phy->regs;
+	enum tegra_usb_phy_port_speed port_speed;
+
+	val = readl(base + UTMIP_TX_CFG0);
+	val |= UTMIP_HS_DISCON_DISABLE;
+	writel(val, base + UTMIP_TX_CFG0);
+
+	port_speed = (readl(base + USB_PORTSC1) >> 26) & 0x3;
+	utmi_phy_enable_obs_bus(phy, port_speed);
+
+#else
+	unsigned long val;
+	void __iomem *pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
+	unsigned  int inst = phy->instance;
+	void __iomem *base = phy->regs;
+	enum tegra_usb_phy_port_speed port_speed;
+
+	val = readl(pmc_base + PMC_SLEEP_CFG);
+	if (val & UTMIP_MASTER_ENABLE(inst)) {
+		if (!remote_wakeup)
+			utmip_phy_disable_pmc_bus_ctrl(phy);
+	} else {
+		port_speed = (readl(base + HOSTPC1_DEVLC) >> 25) &
+			HOSTPC1_DEVLC_PSPD_MASK;
+		utmi_phy_enable_obs_bus(phy, port_speed);
+	}
+#endif
+
+	return 0;
+}
+
+static int utmi_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+	void __iomem *pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
+	unsigned  int inst = phy->instance;
+
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	val = readl(pmc_base + PMC_SLEEP_CFG);
+	/* if PMC is not disabled by now then disable it */
+	if (val & UTMIP_MASTER_ENABLE(inst)) {
+		utmip_phy_disable_pmc_bus_ctrl(phy);
+	}
 #else
 	val = readl(base + UTMIP_TX_CFG0);
 	val &= ~UTMIP_HS_DISCON_DISABLE;
 	writel(val, base + UTMIP_TX_CFG0);
 #endif
+
+	utmi_phy_disable_obs_bus(phy);
+
 	return 0;
 }
 
@@ -1476,7 +1548,7 @@ static int uhsic_phy_postsuspend(struct tegra_usb_phy *phy, bool is_dpd)
 	return 0;
 }
 
-static int uhsic_phy_preresume(struct tegra_usb_phy *phy, bool is_dpd)
+static int uhsic_phy_preresume(struct tegra_usb_phy *phy, bool remote_wakeup)
 {
 	struct tegra_uhsic_config *uhsic_config = phy->config;
 
@@ -1524,7 +1596,6 @@ static void utmi_phy_restore_start(struct tegra_usb_phy *phy,
 	udelay(10);
 #else
 	unsigned long val;
-	void __iomem *base = phy->regs;
 	void __iomem *pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
 	int inst = phy->instance;
 
@@ -1538,34 +1609,7 @@ static void utmi_phy_restore_start(struct tegra_usb_phy *phy,
 				utmip_phy_disable_pmc_bus_ctrl(phy);
 		}
 	}
-
-	/* (2LS WAR)is not required for LS and FS devices and is only for HS */
-	if ((port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW) ||
-		(port_speed == TEGRA_USB_PHY_PORT_SPEED_FULL)) {
-		/* do not enable the OBS bus */
-		val = readl(base + UTMIP_MISC_CFG0);
-		val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
-		writel(val, base + UTMIP_MISC_CFG0);
-		return;
-	}
-	/* Force DP/DM pulldown active for Host mode */
-	val = readl(base + UTMIP_MISC_CFG0);
-	val |= FORCE_PULLDN_DM | FORCE_PULLDN_DP |
-			COMB_TERMS | ALWAYS_FREE_RUNNING_TERMS;
-	writel(val, base + UTMIP_MISC_CFG0);
-	val = readl(base + UTMIP_MISC_CFG0);
-	val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
-	if (port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
-		val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
-	else
-		val |= UTMIP_DPDM_OBSERVE_SEL_FS_K;
-	writel(val, base + UTMIP_MISC_CFG0);
-	udelay(1);
-
-	val = readl(base + UTMIP_MISC_CFG0);
-	val |= UTMIP_DPDM_OBSERVE;
-	writel(val, base + UTMIP_MISC_CFG0);
-	udelay(10);
+	utmi_phy_enable_obs_bus(phy, port_speed);
 #endif
 }
 
@@ -1597,10 +1641,10 @@ static void utmi_phy_restore_end(struct tegra_usb_phy *phy)
 			}
 			wait_time_us--;
 		} while (!(val & USB_PORTSC1_RESUME));
-		/* disable PMC master control */
-		utmip_phy_disable_pmc_bus_ctrl(phy);
 		/* wait for 25 ms to port resume complete */
 		msleep(25);
+		/* disable PMC master control */
+		utmip_phy_disable_pmc_bus_ctrl(phy);
 
 		/* Clear PCI and SRI bits to avoid an interrupt upon resume */
 		val = readl(base + USB_USBSTS);
@@ -2481,7 +2525,7 @@ void tegra_usb_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 	phy->power_on = false;
 }
 
-void tegra_usb_phy_preresume(struct tegra_usb_phy *phy, bool is_dpd)
+void tegra_usb_phy_preresume(struct tegra_usb_phy *phy, bool remote_wakeup)
 {
 	const tegra_phy_fp preresume[] = {
 		utmi_phy_preresume,
@@ -2491,7 +2535,7 @@ void tegra_usb_phy_preresume(struct tegra_usb_phy *phy, bool is_dpd)
 	};
 
 	if (preresume[phy->usb_phy_type])
-		preresume[phy->usb_phy_type](phy, is_dpd);
+		preresume[phy->usb_phy_type](phy, remote_wakeup);
 }
 
 void tegra_usb_phy_postsuspend(struct tegra_usb_phy *phy, bool is_dpd)

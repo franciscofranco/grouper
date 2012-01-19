@@ -142,6 +142,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 #ifdef CONFIG_USB_EHCI_TEGRA
 	unsigned		controller_resets_phy:1;
+	unsigned		controller_remote_wakeup:1;
 #endif
 
 	/* required for usb32 quirk */
