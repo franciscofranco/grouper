@@ -185,6 +185,7 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	{ "cbus",	"pll_c",	416000000,	false },
 	{ "pll_c_out1",	"pll_c",	208000000,	false },
+	{ "mselect",	"pll_p",	102000000,	true },
 #endif
 	{ NULL,		NULL,		0,		0},
 };
