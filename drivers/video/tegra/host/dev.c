@@ -905,6 +905,7 @@ static int __devinit nvhost_init_chip_support(struct nvhost_master *host)
 
 struct nvhost_device hostdev = {
 	.name = "host1x",
+	.id = -1,
 	.finalize_poweron = power_on_host,
 	.prepare_poweroff = power_off_host,
 	.clocks = {{"host1x", UINT_MAX}, {} },
