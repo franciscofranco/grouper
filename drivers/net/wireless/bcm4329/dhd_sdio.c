@@ -4771,7 +4771,8 @@ dhdsdio_chipmatch(uint16 chipid)
 
 static void *
 dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
-	uint16 func, uint bustype, void *regsva, osl_t * osh, void *sdh)
+	uint16 func, uint bustype, void *regsva, osl_t * osh, void *sdh,
+	void *dev)
 {
 	int ret;
 	dhd_bus_t *bus;
@@ -4879,7 +4880,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	}
 
 	/* Attach to the dhd/OS/network interface */
-	if (!(bus->dhd = dhd_attach(osh, bus, SDPCM_RESERVE))) {
+	if (!(bus->dhd = dhd_attach(osh, bus, SDPCM_RESERVE, dev))) {
 		DHD_ERROR(("%s: dhd_attach failed\n", __FUNCTION__));
 		goto fail;
 	}
