@@ -958,14 +958,6 @@ static void __init tegra_enterprise_init(void)
 	enterprise_nfc_init();
 }
 
-static void __init tegra_enterprise_ramconsole_reserve(unsigned long size)
-{
-	struct resource *res;
-	long ret;
-
-	tegra_ram_console_debug_reserve(SZ_1M);
-}
-
 static void __init tegra_enterprise_reserve(void)
 {
 #if defined(CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM)
@@ -973,7 +965,7 @@ static void __init tegra_enterprise_reserve(void)
 #else
 	tegra_reserve(SZ_128M, SZ_4M, SZ_8M);
 #endif
-	tegra_enterprise_ramconsole_reserve(SZ_1M);
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(TEGRA_ENTERPRISE, "tegra_enterprise")
