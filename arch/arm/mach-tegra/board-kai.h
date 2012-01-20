@@ -23,6 +23,7 @@
 #include <mach/gpio.h>
 #include <mach/irqs.h>
 #include <linux/mfd/max77663-core.h>
+#include "gpio-names.h"
 
 /* Processor Board  ID */
 #define BOARD_E1565	0xF41
@@ -59,6 +60,17 @@ int kai_edp_init(void);
 void __init kai_tsensor_init(void);
 int __init touch_init_raydium(void);
 int __init touch_init_synaptics_kai(void);
+
+#define TOUCH_GPIO_IRQ_RAYDIUM_SPI      TEGRA_GPIO_PZ3
+#define TOUCH_GPIO_RST_RAYDIUM_SPI      TEGRA_GPIO_PN5
+
+#define SYNAPTICS_ATTN_GPIO             TEGRA_GPIO_PZ3
+#define SYNAPTICS_RESET_GPIO            TEGRA_GPIO_PN5
+
+#define KAI_TS_ID1      TEGRA_GPIO_PI7
+#define KAI_TS_ID2      TEGRA_GPIO_PC7
+#define KAI_TS_ID1_PG   TEGRA_PINGROUP_GMI_WAIT
+#define KAI_TS_ID2_PG   TEGRA_PINGROUP_GMI_WP_N
 
 #define TDIODE_OFFSET	(10000) /* in millicelsius */
 

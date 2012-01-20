@@ -436,6 +436,69 @@ static struct platform_device *kai_devices[] __initdata = {
 #endif
 };
 
+static __initdata struct tegra_clk_init_table spi_clk_init_table[] = {
+	/* name         parent          rate            enabled */
+	{ "sbc1",       "pll_p",        72000000,       true},
+	{ NULL,         NULL,           0,              0},
+};
+
+static __initdata struct tegra_clk_init_table touch_clk_init_table[] = {
+	/* name         parent          rate            enabled */
+	{ "extern3",    "pll_p",        41000000,       true},
+	{ "clk_out_3",  "extern3",      40800000,       true},
+	{ NULL,         NULL,           0,              0},
+};
+
+static int __init kai_touch_init(void)
+{
+	int touch_id;
+
+	tegra_gpio_enable(KAI_TS_ID1);
+	tegra_gpio_enable(KAI_TS_ID2);
+
+	gpio_request(KAI_TS_ID1, "touch-id1");
+	gpio_direction_input(KAI_TS_ID1);
+
+	gpio_request(KAI_TS_ID2, "touch-id2");
+	gpio_direction_input(KAI_TS_ID2);
+
+	touch_id = gpio_get_value(KAI_TS_ID1) << 1;
+	touch_id |= gpio_get_value(KAI_TS_ID2);
+
+	pr_info("touch-id %d\n", touch_id);
+
+	/* Disable TS_ID GPIO to save power */
+	gpio_direction_output(KAI_TS_ID1, 0);
+	tegra_pinmux_set_pullupdown(KAI_TS_ID1_PG, TEGRA_PUPD_NORMAL);
+	tegra_pinmux_set_tristate(KAI_TS_ID1_PG, TEGRA_TRI_TRISTATE);
+	gpio_direction_output(KAI_TS_ID2, 0);
+	tegra_pinmux_set_pullupdown(KAI_TS_ID2_PG, TEGRA_PUPD_NORMAL);
+	tegra_pinmux_set_tristate(KAI_TS_ID2_PG, TEGRA_TRI_TRISTATE);
+
+	switch (touch_id) {
+	case 0:
+		pr_info("Raydium PCB based touch init\n");
+		tegra_clk_init_from_table(spi_clk_init_table);
+		touch_init_raydium();
+		break;
+	case 1:
+		pr_info("Raydium On-Board touch init\n");
+		tegra_clk_init_from_table(spi_clk_init_table);
+		tegra_clk_init_from_table(touch_clk_init_table);
+		clk_enable(tegra_get_clock_by_name("clk_out_3"));
+
+		touch_init_raydium();
+		break;
+	case 3:
+		pr_info("Synaptics PCB based touch init\n");
+		touch_init_synaptics_kai();
+		break;
+	default:
+		pr_err("touch_id error, no touch %d\n", touch_id);
+	}
+	return 0;
+}
+
 static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 	[0] = {
 			.phy_config = &utmi_phy_config[0],
@@ -500,6 +563,7 @@ static void __init tegra_kai_init(void)
 	kai_regulator_init();
 	kai_suspend_init();
 	kai_power_off_init();
+	kai_touch_init();
 	kai_keys_init();
 	kai_panel_init();
 	kai_pins_state_init();
