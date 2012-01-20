@@ -38,6 +38,9 @@
 #include <mach/smmu.h>
 #include <mach/tegra_smmu.h>
 
+/* bitmap of the page sizes currently supported */
+#define SMMU_IOMMU_PGSIZES	(SZ_4K)
+
 #define SMMU_CONFIG				0x10
 #define SMMU_CONFIG_DISABLE			0
 #define SMMU_CONFIG_ENABLE			1
@@ -180,8 +183,7 @@
 #define __smmu_client_enable_hwgrp(c, m) __smmu_client_set_hwgrp(c, m, 1)
 #define __smmu_client_disable_hwgrp(c)	__smmu_client_set_hwgrp(c, 0, 0)
 
-#define HWGRP_INIT(client)			\
-	[HWGRP_##client] = SMMU_##client##_ASID
+#define HWGRP_INIT(client) [HWGRP_##client] = SMMU_##client##_ASID
 
 static const u32 smmu_hwgrp_asid_reg[] = {
 	HWGRP_INIT(AFI),
@@ -626,54 +628,35 @@ static void __smmu_iommu_map_pfn(struct smmu_as *as, dma_addr_t iova,
 }
 
 static int smmu_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			  phys_addr_t pa, int order, int prot)
+			  phys_addr_t pa, size_t bytes, int prot)
 {
-	unsigned long count = (PAGE_SIZE << order) >> SMMU_PAGE_SHIFT;
 	struct smmu_as *as = domain->priv;
 	unsigned long pfn = __phys_to_pfn(pa);
-	int i;
 	unsigned long flags;
 
-	dev_dbg(as->smmu->dev,
-		"[%d] %08lx:%08x(%ld)\n", as->asid, iova, pa, count);
+	dev_dbg(as->smmu->dev, "[%d] %08lx:%08x\n", as->asid, iova, pa);
+
+	if (!pfn_valid(pfn))
+		return -ENOMEM;
 
 	spin_lock_irqsave(&as->lock, flags);
-	for (i = 0; i < count; i++, pfn++) {
-		if (!pfn_valid(pfn))
-			goto fail;
-
-		__smmu_iommu_map_pfn(as, iova, pfn);
-		iova += SMMU_PAGE_SIZE;
-	}
+	__smmu_iommu_map_pfn(as, iova, pfn);
 	spin_unlock_irqrestore(&as->lock, flags);
 	return 0;
-
-fail:
-	while (i-- > 0) {
-		iova -= SMMU_PAGE_SIZE;
-		__smmu_iommu_unmap(as, iova);
-	}
-	spin_unlock_irqrestore(&as->lock, flags);
-	return -ENOMEM;
 }
 
-static int smmu_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			    int gfp_order)
+static size_t smmu_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+			       size_t bytes)
 {
 	struct smmu_as *as = domain->priv;
-	unsigned long count = (PAGE_SIZE << gfp_order) >> SMMU_PAGE_SHIFT;
-	int i;
 	unsigned long flags;
 
-	dev_dbg(as->smmu->dev, "[%d] %08lx(%ld)\n", as->asid, iova, count);
+	dev_dbg(as->smmu->dev, "[%d] %08lx\n", as->asid, iova);
 
 	spin_lock_irqsave(&as->lock, flags);
-	for (i = 0; i < count; i++) {
-		__smmu_iommu_unmap(as, iova);
-		iova += SMMU_PAGE_SIZE;
-	}
+	__smmu_iommu_unmap(as, iova);
 	spin_unlock_irqrestore(&as->lock, flags);
-	return 0;
+	return SMMU_PAGE_SIZE;
 }
 
 static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -702,83 +685,6 @@ static int smmu_iommu_domain_has_cap(struct iommu_domain *domain,
 				     unsigned long cap)
 {
 	return 0;
-}
-
-static int smmu_iommu_domain_init(struct iommu_domain *domain)
-{
-	int i;
-	unsigned long flags;
-	struct smmu_as *as;
-	struct smmu_device *smmu = smmu_handle;
-
-	/* Look for a free AS with lock held */
-	for  (i = 0; i < smmu->num_as; i++) {
-		struct smmu_as *tmp = &smmu->as[i];
-
-		spin_lock_irqsave(&tmp->lock, flags);
-		if (!tmp->pdir_page) {
-			as = tmp;
-			goto found;
-		}
-		spin_unlock_irqrestore(&tmp->lock, flags);
-	}
-	dev_err(smmu->dev, "no free AS\n");
-	return -ENODEV;
-
-found:
-	if (alloc_pdir(as) < 0)
-		goto err_alloc_pdir;
-
-	spin_lock(&smmu->lock);
-
-	/* Update PDIR register */
-	smmu_write(smmu, SMMU_PTB_ASID_CUR(as->asid), SMMU_PTB_ASID);
-	smmu_write(smmu,
-		   SMMU_MK_PDIR(as->pdir_page, as->pdir_attr), SMMU_PTB_DATA);
-	FLUSH_SMMU_REGS(smmu);
-
-	spin_unlock(&smmu->lock);
-
-	spin_unlock_irqrestore(&as->lock, flags);
-	domain->priv = as;
-	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
-	return 0;
-
-err_alloc_pdir:
-	spin_unlock_irqrestore(&as->lock, flags);
-	return -ENODEV;
-}
-
-static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
-{
-	struct smmu_as *as = domain->priv;
-	struct smmu_device *smmu = as->smmu;
-	unsigned long flags;
-
-	spin_lock_irqsave(&as->lock, flags);
-
-	if (as->pdir_page) {
-		spin_lock(&smmu->lock);
-		smmu_write(smmu, SMMU_PTB_ASID_CUR(as->asid), SMMU_PTB_ASID);
-		smmu_write(smmu, SMMU_PTB_DATA_RESET_VAL, SMMU_PTB_DATA);
-		FLUSH_SMMU_REGS(smmu);
-		spin_unlock(&smmu->lock);
-
-		free_pdir(as);
-	}
-
-	if (!list_empty(&as->client)) {
-		struct smmu_client *c;
-
-		list_for_each_entry(c, &as->client, list)
-			dev_err(smmu->dev,
-				"%s is still attached\n", dev_name(c->dev));
-	}
-
-	spin_unlock_irqrestore(&as->lock, flags);
-
-	domain->priv = NULL;
-	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
 }
 
 static int smmu_iommu_attach_dev(struct iommu_domain *domain,
@@ -864,6 +770,83 @@ out:
 	spin_unlock(&as->client_lock);
 }
 
+static int smmu_iommu_domain_init(struct iommu_domain *domain)
+{
+	int i;
+	unsigned long flags;
+	struct smmu_as *as;
+	struct smmu_device *smmu = smmu_handle;
+
+	/* Look for a free AS with lock held */
+	for  (i = 0; i < smmu->num_as; i++) {
+		struct smmu_as *tmp = &smmu->as[i];
+
+		spin_lock_irqsave(&tmp->lock, flags);
+		if (!tmp->pdir_page) {
+			as = tmp;
+			goto found;
+		}
+		spin_unlock_irqrestore(&tmp->lock, flags);
+	}
+	dev_err(smmu->dev, "no free AS\n");
+	return -ENODEV;
+
+found:
+	if (alloc_pdir(as) < 0)
+		goto err_alloc_pdir;
+
+	spin_lock(&smmu->lock);
+
+	/* Update PDIR register */
+	smmu_write(smmu, SMMU_PTB_ASID_CUR(as->asid), SMMU_PTB_ASID);
+	smmu_write(smmu,
+		   SMMU_MK_PDIR(as->pdir_page, as->pdir_attr), SMMU_PTB_DATA);
+	FLUSH_SMMU_REGS(smmu);
+
+	spin_unlock(&smmu->lock);
+
+	spin_unlock_irqrestore(&as->lock, flags);
+	domain->priv = as;
+
+	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
+	return 0;
+
+err_alloc_pdir:
+	spin_unlock_irqrestore(&as->lock, flags);
+	return -ENODEV;
+}
+
+static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
+{
+	struct smmu_as *as = domain->priv;
+	struct smmu_device *smmu = as->smmu;
+	unsigned long flags;
+
+	spin_lock_irqsave(&as->lock, flags);
+
+	if (as->pdir_page) {
+		spin_lock(&smmu->lock);
+		smmu_write(smmu, SMMU_PTB_ASID_CUR(as->asid), SMMU_PTB_ASID);
+		smmu_write(smmu, SMMU_PTB_DATA_RESET_VAL, SMMU_PTB_DATA);
+		FLUSH_SMMU_REGS(smmu);
+		spin_unlock(&smmu->lock);
+
+		free_pdir(as);
+	}
+
+	if (!list_empty(&as->client)) {
+		struct smmu_client *c;
+
+		list_for_each_entry(c, &as->client, list)
+			smmu_iommu_detach_dev(domain, c->dev);
+	}
+
+	spin_unlock_irqrestore(&as->lock, flags);
+
+	domain->priv = NULL;
+	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
+}
+
 static struct iommu_ops smmu_iommu_ops = {
 	.domain_init	= smmu_iommu_domain_init,
 	.domain_destroy	= smmu_iommu_domain_destroy,
@@ -873,6 +856,7 @@ static struct iommu_ops smmu_iommu_ops = {
 	.unmap		= smmu_iommu_unmap,
 	.iova_to_phys	= smmu_iommu_iova_to_phys,
 	.domain_has_cap	= smmu_iommu_domain_has_cap,
+	.pgsize_bitmap	= SMMU_IOMMU_PGSIZES,
 };
 
 static int tegra_smmu_suspend(struct device *dev)
@@ -904,6 +888,9 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 	struct tegra_smmu_window *window;
 	struct device *dev = &pdev->dev;
 	int i, err = 0;
+
+	if (smmu_handle)
+		return -EIO;
 
 	BUILD_BUG_ON(PAGE_SHIFT != SMMU_PAGE_SHIFT);
 
@@ -962,11 +949,12 @@ static int tegra_smmu_probe(struct platform_device *pdev)
 	spin_lock_init(&smmu->lock);
 	smmu_setup_regs(smmu);
 	platform_set_drvdata(pdev, smmu);
-	smmu_handle = smmu;
 
 	smmu->avp_vector_page = alloc_page(GFP_KERNEL);
 	if (!smmu->avp_vector_page)
 		goto fail;
+
+	smmu_handle = smmu;
 	return 0;
 
 fail:
@@ -1031,7 +1019,7 @@ static struct platform_driver tegra_smmu_driver = {
 
 static int __devinit tegra_smmu_init(void)
 {
-	register_iommu(&smmu_iommu_ops);
+	bus_set_iommu(&platform_bus_type, &smmu_iommu_ops);
 	return platform_driver_register(&tegra_smmu_driver);
 }
 
