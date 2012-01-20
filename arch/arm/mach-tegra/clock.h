@@ -298,6 +298,12 @@ struct tegra_cpufreq_table_data {
 };
 struct tegra_cpufreq_table_data *tegra_cpufreq_table_get(void);
 unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+static inline int tegra_update_mselect_rate(unsigned long cpu_rate)
+{ return 0; }
+#else
+int tegra_update_mselect_rate(unsigned long cpu_rate);
+#endif
 #endif
 
 #endif

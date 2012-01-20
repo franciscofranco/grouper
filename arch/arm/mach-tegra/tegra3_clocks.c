@@ -4728,6 +4728,30 @@ unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate)
 	else
 		return 0;		/* emc min */
 }
+
+int tegra_update_mselect_rate(unsigned long cpu_rate)
+{
+	static struct clk *mselect = NULL;
+
+	unsigned long mselect_rate;
+
+	if (!mselect) {
+		mselect = tegra_get_clock_by_name("mselect");
+		if (!mselect)
+			return -ENODEV;
+	}
+
+	/* Vote on mselect frequency based on cpu frequency:
+	   keep mselect at half of cpu rate up to 102 MHz;
+	   cpu rate is in kHz, mselect rate is in Hz */
+	mselect_rate = DIV_ROUND_UP(cpu_rate, 2) * 1000;
+	mselect_rate = min(mselect_rate, 102000000UL);
+
+	if (mselect_rate != clk_get_rate(mselect))
+		return clk_set_rate(mselect, mselect_rate);
+
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PM_SLEEP
