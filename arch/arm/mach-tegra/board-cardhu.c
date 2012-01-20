@@ -1013,14 +1013,6 @@ static void __init tegra_cardhu_init(void)
 #endif
 }
 
-static void __init cardhu_ramconsole_reserve(unsigned long size)
-{
-	struct resource *res;
-	long ret;
-
-	tegra_ram_console_debug_reserve(SZ_1M);
-}
-
 static void __init tegra_cardhu_reserve(void)
 {
 #if defined(CONFIG_NVMAP_CONVERT_CARVEOUT_TO_IOVMM)
@@ -1029,7 +1021,7 @@ static void __init tegra_cardhu_reserve(void)
 #else
 	tegra_reserve(SZ_128M, SZ_8M, SZ_8M);
 #endif
-	cardhu_ramconsole_reserve(SZ_1M);
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(CARDHU, "cardhu")
