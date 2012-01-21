@@ -5,8 +5,8 @@ DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
 	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS      \
 	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW2 -DMMC_SDIO_ABORT     \
 	-DDHD_DEBUG_TRAP -DSOFTAP -DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT   \
-	-DPKT_FILTER_SUPPORT -DSET_RANDOM_MAC_SOFTAP -DCSCAN                  \
-	-DKEEP_ALIVE -DPNO_SUPPORT                                            \
+	-DPKT_FILTER_SUPPORT -DSET_RANDOM_MAC_SOFTAP                          \
+	-DKEEP_ALIVE                                                          \
 	-Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
 
 ifeq ($(CONFIG_BCM4329_WIFI_CONTROL_FUNC),y)
@@ -30,6 +30,10 @@ ifeq ($(CONFIG_BCM4329_HW_OOB),y)
 DHDCFLAGS += -DHW_OOB
 else
 DHDCFLAGS += -DSDIO_ISR_THREAD
+endif
+ifeq ($(CONFIG_BCM4329_CSCAN_ENABLE),y)
+# implementation of PNO_SUPPORT currently requires CSCAN
+DHDCFLAGS += -DCSCAN -DPNO_SUPPORT
 endif
 
 ifeq ($(TARGET_USE_NEW_TOOLCHAIN),1)

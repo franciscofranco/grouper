@@ -72,4 +72,11 @@ config BCM4329_GET_CUSTOM_MAC_ENABLE
 	default n
 	---help---
 	   Use mac address provided by bcm4329_wlan platform device.
+
+config BCM4329_CSCAN_ENABLE
+	bool "Enable Combo Scan"
+	depends on BCM4329
+	default n
+	---help---
+	   Enable Combo Scan
 endif
