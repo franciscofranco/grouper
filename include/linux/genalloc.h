@@ -81,7 +81,7 @@ extern unsigned long gen_pool_alloc_addr(struct gen_pool *,
  */
 static inline unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 {
-	return gen_pool_alloc_addr(pool, size);
+	return gen_pool_alloc_addr(pool, size, 0);
 }
 extern void gen_pool_free(struct gen_pool *, unsigned long, size_t);
 extern void gen_pool_for_each_chunk(struct gen_pool *,
