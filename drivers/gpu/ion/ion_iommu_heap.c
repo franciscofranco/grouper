@@ -97,6 +97,53 @@ static void iommu_heap_unmap_dma(struct ion_heap *heap, struct ion_buffer *buf)
 	pr_debug("da:%p\n", buf->priv_virt);
 }
 
+struct scatterlist *iommu_heap_remap_dma(struct ion_heap *heap,
+					      struct ion_buffer *buf,
+					      unsigned long addr)
+{
+	struct ion_iommu_heap *h =
+		container_of(heap, struct ion_iommu_heap, heap);
+	int err;
+	unsigned int i;
+	unsigned long da, da_to_free = (unsigned long)buf->priv_virt;
+	int npages = NUM_PAGES(buf);
+
+	BUG_ON(!buf->priv_virt);
+
+	da = gen_pool_alloc_addr(h->pool, buf->size, addr);
+	if (da == 0) {
+		pr_err("dma address alloc failed, addr=0x%lx", addr);
+		return ERR_PTR(-ENOMEM);
+	} else {
+		pr_err("iommu_heap_remap_dma passed, addr=0x%lx",
+			addr);
+		iommu_heap_unmap_dma(heap, buf);
+		gen_pool_free(h->pool, da_to_free, buf->size);
+		buf->priv_virt = (void *)da;
+	}
+	for (i = 0; i < npages; i++) {
+		phys_addr_t pa;
+
+		pa = page_to_phys(buf->pages[i]);
+		err = iommu_map(h->domain, da, pa, 0, 0);
+		if (err)
+			goto err_out;
+		da += PAGE_SIZE;
+	}
+
+	pr_debug("da:%p pa:%08x va:%p\n",
+		 buf->priv_virt, page_to_phys(buf->pages[0]), buf->vaddr);
+
+	return (struct scatterlist *)buf->pages;
+
+err_out:
+	if (i-- > 0) {
+		da = (unsigned long)buf->priv_virt;
+		iommu_unmap(h->domain, da + (i << PAGE_SHIFT), 0);
+	}
+	return ERR_PTR(err);
+}
+
 static int ion_buffer_allocate(struct ion_buffer *buf)
 {
 	int i, npages = NUM_PAGES(buf);
