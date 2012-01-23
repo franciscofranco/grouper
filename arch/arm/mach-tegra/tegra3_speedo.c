@@ -376,8 +376,8 @@ int tegra_package_id(void)
  * latter is resolved by the dvfs code)
  */
 static const int cpu_speedo_nominal_millivolts[] =
-/* speedo_id 0,    1,    2,    3,    4,    5,    6,    7,    8,   9,  10,  11 */
-	{ 1125, 1150, 1150, 1150, 1237, 1237, 1237, 1150, 1150, 912, 850, 850};
+/* speedo_id 0,    1,    2,    3,    4,    5,    6,    7,    8,   9,  10,  11,   12,   13 */
+	{ 1125, 1150, 1150, 1150, 1237, 1237, 1237, 1150, 1150, 912, 850, 850, 1237, 1237};
 
 int tegra_cpu_speedo_mv(void)
 {

@@ -297,7 +297,8 @@ void tegra_init_cache(bool init)
 	} else {
 		/* relax l2-cache latency for speedos 4,5,6 (T33's chips) */
 		speedo = tegra_cpu_speedo_id();
-		if (speedo == 4 || speedo == 5 || speedo == 6) {
+		if (speedo == 4 || speedo == 5 || speedo == 6 ||
+		    speedo == 12 || speedo == 13) {
 			writel(0x442, p + L2X0_TAG_LATENCY_CTRL);
 			writel(0x552, p + L2X0_DATA_LATENCY_CTRL);
 		} else {

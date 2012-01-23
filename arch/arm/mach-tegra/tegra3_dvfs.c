@@ -183,6 +183,12 @@ static struct dvfs cpu_dvfs_table[] = {
 	CPU_DVFS("cpu_g", 10, -1, MHZ,  1,   1, 900, 900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900),
 	CPU_DVFS("cpu_g", 11, -1, MHZ,  1,   1, 600, 600,  600,  600,  600,  600,  600,  600,  600,  600,  600,  600),
 
+	CPU_DVFS("cpu_g", 12, 3, MHZ,   1,   1, 770, 770,  910,  910, 1150, 1230, 1280, 1330, 1370, 1400, 1470, 1500, 1500, 1540, 1540, 1700),
+	CPU_DVFS("cpu_g", 12, 4, MHZ,   1,   1, 770, 770,  940,  940, 1160, 1240, 1280, 1360, 1390, 1470, 1500, 1520, 1520, 1590, 1700),
+
+	CPU_DVFS("cpu_g", 13, 3, MHZ,   1,   1, 770, 770,  910,  910, 1150, 1230, 1280, 1330, 1370, 1400, 1470, 1500, 1500, 1540, 1540, 1700),
+	CPU_DVFS("cpu_g", 13, 4, MHZ,   1,   1, 770, 770,  940,  940, 1160, 1240, 1280, 1360, 1390, 1470, 1500, 1520, 1520, 1590, 1700),
+
 	/*
 	 * "Safe entry" to be used when no match for chip speedo, process
 	 *  corner is found (just to boot at low rate); must be the last one
@@ -396,9 +402,10 @@ module_param_cb(disable_cpu, &tegra_dvfs_disable_cpu_ops,
 static bool __init is_pllm_dvfs(struct clk *c, struct dvfs *d)
 {
 #ifdef CONFIG_TEGRA_PLLM_RESTRICTED
-	/* Do not apply common PLLM dvfs table on T30 and T33, rev A02+ and
+	/* Do not apply common PLLM dvfs table on T30, T33, T37 rev A02+ and
 	   do not apply restricted PLLM dvfs table for other SKUs/revs */
-	if (((tegra_cpu_speedo_id() == 2) || (tegra_cpu_speedo_id() == 5)) ==
+	int cpu = tegra_cpu_speedo_id();
+	if (((cpu == 2) || (cpu == 5) || (cpu == 13)) ==
 	    (d->speedo_id == -1))
 		return false;
 #endif
