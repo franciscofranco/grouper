@@ -459,11 +459,14 @@ static struct platform_device *fixed_regs_devices[] = {
 	ADD_FIXED_REG(cam_ldo_1v8_en),
 };
 
+#define ADD_GPIO_REG(_name) (&gpio_reg_##_name##_dev)
+static struct platform_device *gpio_regs_devices[] = {
+	ADD_GPIO_REG(sdmmc3_vdd_sel),
+};
+
 static int __init enterprise_fixed_regulator_init(void)
 {
 	int i;
-	if (!is_enterprise_machine)
-		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(fixed_regs_devices); ++i) {
 		struct fixed_voltage_config *fixed_reg_pdata =
@@ -474,7 +477,38 @@ static int __init enterprise_fixed_regulator_init(void)
 	return platform_add_devices(fixed_regs_devices,
 				ARRAY_SIZE(fixed_regs_devices));
 }
-subsys_initcall_sync(enterprise_fixed_regulator_init);
+
+static int __init enterprise_gpio_regulator_init(void)
+{
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(gpio_regs_devices); ++i) {
+		struct gpio_regulator_config *gpio_reg_pdata =
+			gpio_regs_devices[i]->dev.platform_data;
+		for (j = 0; j < gpio_reg_pdata->nr_gpios; ++j) {
+			if (gpio_reg_pdata->gpios[j].gpio < TEGRA_NR_GPIOS)
+				tegra_gpio_enable(gpio_reg_pdata->gpios[j].gpio);
+		}
+	}
+	return platform_add_devices(gpio_regs_devices,
+				    ARRAY_SIZE(gpio_regs_devices));
+}
+
+static int __init enterprise_regulators_fixed_gpio_init(void)
+{
+	int ret;
+
+	if (!is_enterprise_machine)
+		return 0;
+
+	ret = enterprise_fixed_regulator_init();
+	if (ret)
+		return ret;
+
+	ret = enterprise_gpio_regulator_init();
+	return ret;
+}
+subsys_initcall_sync(enterprise_regulators_fixed_gpio_init);
 
 static void enterprise_power_off(void)
 {
