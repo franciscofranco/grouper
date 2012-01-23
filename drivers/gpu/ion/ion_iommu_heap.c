@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/iommu.h>
 #include <linux/highmem.h>
+#include <linux/platform_device.h>
 
 #include <asm/cacheflush.h>
 
@@ -61,7 +62,7 @@ static struct scatterlist *iommu_heap_map_dma(struct ion_heap *heap,
 
 		pa = sg_phys(sg);
 		BUG_ON(!IS_ALIGNED(sg->length, PAGE_SIZE));
-		err = iommu_map(h->domain, da, pa, 0, 0);
+		err = iommu_map(h->domain, da, pa, PAGE_SIZE, 0);
 		if (err)
 			goto err_out;
 
@@ -346,7 +347,7 @@ struct ion_heap *ion_iommu_heap_create(struct ion_platform_heap *data)
 	gen_pool_add(h->pool, data->base, data->size, -1);
 
 	h->heap.ops = &iommu_heap_ops;
-	h->domain = iommu_domain_alloc();
+	h->domain = iommu_domain_alloc(&platform_bus_type);
 	h->dev = data->priv;
 	if (!h->domain) {
 		err = -ENOMEM;
