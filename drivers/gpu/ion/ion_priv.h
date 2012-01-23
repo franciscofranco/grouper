@@ -128,6 +128,9 @@ struct ion_handle *ion_handle_create(struct ion_client *client,
 
 void ion_handle_add(struct ion_client *client, struct ion_handle *handle);
 
+int ion_remap_dma(struct ion_client *client,
+		    struct ion_handle *handle,
+		    unsigned long addr);
 /**
  * struct ion_buffer - metadata for a particular buffer
  * @ref:		refernce count

@@ -405,6 +405,32 @@ struct scatterlist *ion_map_dma(struct ion_client *client,
 	return sglist;
 }
 
+struct scatterlist *iommu_heap_remap_dma(struct ion_heap *heap,
+					      struct ion_buffer *buf,
+					      unsigned long addr);
+int ion_remap_dma(struct ion_client *client,
+			struct ion_handle *handle,
+			unsigned long addr)
+{
+	struct ion_buffer *buffer;
+	int ret;
+
+	mutex_lock(&client->lock);
+	if (!ion_handle_validate(client, handle)) {
+		pr_err("invalid handle passed to map_dma.\n");
+		mutex_unlock(&client->lock);
+		return -EINVAL;
+	}
+	buffer = handle->buffer;
+	mutex_lock(&buffer->lock);
+
+	ret = iommu_heap_remap_dma(buffer->heap, buffer, addr);
+
+	mutex_unlock(&buffer->lock);
+	mutex_unlock(&client->lock);
+	return ret;
+}
+
 void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 {
 	struct ion_buffer *buffer;
