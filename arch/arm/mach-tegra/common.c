@@ -133,9 +133,9 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	{ "pll_p",	NULL,		216000000,	true },
 	{ "pll_p_out1",	"pll_p",	28800000,	true },
-	{ "pll_p_out2",	"pll_p",	48000000,	true },
+	{ "pll_p_out2",	"pll_p",	48000000,	false },
 	{ "pll_p_out3",	"pll_p",	72000000,	true },
-	{ "pll_p_out4",	"pll_p",	108000000,	true },
+	{ "pll_p_out4",	"pll_p",	108000000,	false },
 	{ "pll_m",	"clk_m",	0,		true },
 	{ "pll_m_out1",	"pll_m",	120000000,	true },
 	{ "sclk",	"pll_c_out1",	40000000,	true },
