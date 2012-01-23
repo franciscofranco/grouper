@@ -53,13 +53,15 @@ struct gart_client {
 struct gart_device {
 	void __iomem		*regs;
 	u32			*savedata;
-	u32			page_count; /* total remappable size */
-	dma_addr_t		iovmm_base; /* offset to apply to vmm_area */
-	spinlock_t		pte_lock; /* for pagetable */
+	u32			page_count;	/* total remappable size */
+	dma_addr_t		iovmm_base;	/* offset to vmm_area */
+	spinlock_t		pte_lock;	/* for pagetable */
 	struct list_head	client;
-	spinlock_t		client_lock; /* for client list */
+	spinlock_t		client_lock;	/* for client list */
 	struct device		*dev;
 };
+
+static struct gart_device *gart_handle; /* unique for a system */
 
 #define GART_PTE(_pfn)						\
 	(GART_ENTRY_PHYS_ADDR_VALID | ((_pfn) << PAGE_SHIFT))
@@ -149,27 +151,6 @@ static inline bool gart_iova_range_valid(struct gart_device *gart,
 	return true;
 }
 
-static int gart_iommu_domain_init(struct iommu_domain *domain)
-{
-	return 0;
-}
-
-static void gart_iommu_domain_destroy(struct iommu_domain *domain)
-{
-	struct gart_device *gart = domain->priv;
-
-	spin_lock(&gart->client_lock);
-	if (!list_empty(&gart->client)) {
-		struct gart_client *c;
-
-		list_for_each_entry(c, &gart->client, list)
-			dev_err(gart->dev,
-				"%s is still attached\n", dev_name(c->dev));
-	}
-	spin_unlock(&gart->client_lock);
-	domain->priv = NULL;
-}
-
 static int gart_iommu_attach_dev(struct iommu_domain *domain,
 				 struct device *dev)
 {
@@ -181,7 +162,8 @@ static int gart_iommu_attach_dev(struct iommu_domain *domain,
 	if (!gart)
 		return -EINVAL;
 	domain->priv = gart;
-	client = devm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
+
+	client = devm_kzalloc(gart->dev, sizeof(*c), GFP_KERNEL);
 	if (!client)
 		return -ENOMEM;
 	client->dev = dev;
@@ -201,7 +183,7 @@ static int gart_iommu_attach_dev(struct iommu_domain *domain,
 	return 0;
 
 fail:
-	devm_kfree(dev, client);
+	devm_kfree(gart->dev, client);
 	spin_unlock(&gart->client_lock);
 	return err;
 }
@@ -217,7 +199,7 @@ static void gart_iommu_detach_dev(struct iommu_domain *domain,
 	list_for_each_entry(c, &gart->client, list) {
 		if (c->dev == dev) {
 			list_del(&c->list);
-			devm_kfree(dev, c);
+			devm_kfree(gart->dev, c);
 			dev_dbg(gart->dev, "Detached %s\n", dev_name(dev));
 			goto out;
 		}
@@ -227,61 +209,63 @@ out:
 	spin_unlock(&gart->client_lock);
 }
 
+static int gart_iommu_domain_init(struct iommu_domain *domain)
+{
+	return 0;
+}
+
+static void gart_iommu_domain_destroy(struct iommu_domain *domain)
+{
+	struct gart_device *gart = domain->priv;
+
+	if (!gart)
+		return;
+
+	spin_lock(&gart->client_lock);
+	if (!list_empty(&gart->client)) {
+		struct gart_client *c;
+
+		list_for_each_entry(c, &gart->client, list)
+			gart_iommu_detach_dev(domain, c->dev);
+	}
+	spin_unlock(&gart->client_lock);
+	domain->priv = NULL;
+}
+
 static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			  phys_addr_t pa, int gfp_order, int prot)
+			  phys_addr_t pa, size_t bytes, int prot)
 {
 	struct gart_device *gart = domain->priv;
 	unsigned long flags;
-	unsigned long count = (PAGE_SIZE << gfp_order) >> GART_PAGE_SHIFT;
-	int i;
+	unsigned long pfn;
 
-	if (!gart_iova_range_valid(gart, iova, count * GART_PAGE_SIZE))
+	if (!gart_iova_range_valid(gart, iova, bytes))
 		return -EINVAL;
 
 	spin_lock_irqsave(&gart->pte_lock, flags);
-
-	for (i = 0; i < count; i++) {
-		unsigned long pfn;
-
-		pfn = __phys_to_pfn(pa);
-		if (!pfn_valid(pfn)) {
-			dev_err(gart->dev, "Invalid page: %08x\n", pa);
-			goto fail;
-		}
-
-		gart_set_pte(gart, iova, GART_PTE(pfn));
-		iova += GART_PAGE_SIZE;
+	pfn = __phys_to_pfn(pa);
+	if (!pfn_valid(pfn)) {
+		dev_err(gart->dev, "Invalid page: %08x\n", pa);
+		spin_lock_irqsave(&gart->pte_lock, flags);
+		return -EINVAL;
 	}
+	gart_set_pte(gart, iova, GART_PTE(pfn));
 	FLUSH_GART_REGS(gart);
 	spin_unlock_irqrestore(&gart->pte_lock, flags);
 	return 0;
-
-fail:
-	while (--i >= 0) {
-		iova -= GART_PAGE_SIZE;
-		gart_set_pte(gart, iova, 0);
-	}
-	FLUSH_GART_REGS(gart);
-	spin_unlock_irqrestore(&gart->pte_lock, flags);
-	return -EINVAL;
 }
 
-static int gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			    int gfp_order)
+static size_t gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+			       size_t bytes)
 {
-	int i;
 	struct gart_device *gart = domain->priv;
 	unsigned long flags;
-	unsigned long count = (PAGE_SIZE << gfp_order) >> GART_PAGE_SHIFT;
 
-	if (!gart_iova_range_valid(gart, iova, count * GART_PAGE_SIZE))
-		return -EINVAL;
+	if (!gart_iova_range_valid(gart, iova, bytes))
+		return 0;
 
 	spin_lock_irqsave(&gart->pte_lock, flags);
-	for (i = 0; i < count; i++) {
-		gart_set_pte(gart, iova, 0);
-		iova += GART_PAGE_SIZE;
-	}
+	gart_set_pte(gart, iova, 0);
 	FLUSH_GART_REGS(gart);
 	spin_unlock_irqrestore(&gart->pte_lock, flags);
 	return 0;
@@ -326,6 +310,7 @@ static struct iommu_ops gart_iommu_ops = {
 	.unmap		= gart_iommu_unmap,
 	.iova_to_phys	= gart_iommu_iova_to_phys,
 	.domain_has_cap	= gart_iommu_domain_has_cap,
+	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
 };
 
 static int tegra_gart_suspend(struct device *dev)
@@ -360,6 +345,9 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	void __iomem *gart_regs;
 	int err;
 	struct device *dev = &pdev->dev;
+
+	if (gart_handle)
+		return -EIO;
 
 	BUILD_BUG_ON(PAGE_SHIFT != GART_PAGE_SHIFT);
 
@@ -401,6 +389,8 @@ static int tegra_gart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gart);
 	do_gart_setup(gart, NULL);
+
+	gart_handle = gart;
 	return 0;
 
 fail:
@@ -423,6 +413,7 @@ static int tegra_gart_remove(struct platform_device *pdev)
 	if (gart->regs)
 		devm_iounmap(dev, gart->regs);
 	devm_kfree(dev, gart);
+	gart_handle = NULL;
 	return 0;
 }
 
@@ -443,7 +434,7 @@ static struct platform_driver tegra_gart_driver = {
 
 static int __devinit tegra_gart_init(void)
 {
-	register_iommu(&gart_iommu_ops);
+	bus_set_iommu(&platform_bus_type, &gart_iommu_ops);
 	return platform_driver_register(&tegra_gart_driver);
 }
 
