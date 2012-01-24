@@ -26,6 +26,7 @@ int ventana_sensors_init(void);
 int ventana_kbc_init(void);
 int ventana_emc_init(void);
 int ventana_charger_init(void);
+int ventana_gpio_fixed_voltage_regulator_init(void);
 
 /* PCA954x I2C bus expander bus addresses */
 #define PCA954x_I2C_BUS_BASE	6

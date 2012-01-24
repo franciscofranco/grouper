@@ -24,6 +24,7 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/power/gpio-charger.h>
+#include <linux/regulator/fixed.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -315,6 +316,62 @@ fail:
 	pr_err("%s: gpio_request failed #%d\n", __func__, TPS6586X_GPIO_BASE);
 	gpio_free(TPS6586X_GPIO_BASE);
 	return ret;
+}
+
+#define ADD_FIXED_VOLTAGE_REG(_name)	(&_name##_fixed_voltage_device)
+
+/* Macro for defining fixed voltage regulator */
+#define FIXED_VOLTAGE_REG_INIT(_id, _name, _microvolts, _gpio,		\
+		_startup_delay, _enable_high, _enabled_at_boot,		\
+		_valid_ops_mask, _always_on)				\
+	static struct regulator_init_data _name##_initdata = {		\
+		.consumer_supplies = _name##_consumer_supply,		\
+		.num_consumer_supplies =				\
+				ARRAY_SIZE(_name##_consumer_supply),	\
+		.constraints = {					\
+			.valid_ops_mask = _valid_ops_mask ,		\
+			.always_on = _always_on,			\
+		},							\
+	};								\
+	static struct fixed_voltage_config _name##_config = {		\
+		.supply_name		= #_name,			\
+		.microvolts		= _microvolts,			\
+		.gpio			= _gpio,			\
+		.startup_delay		= _startup_delay,		\
+		.enable_high		= _enable_high,			\
+		.enabled_at_boot	= _enabled_at_boot,		\
+		.init_data		= &_name##_initdata,		\
+	};								\
+	static struct platform_device _name##_fixed_voltage_device = {	\
+		.name			= "reg-fixed-voltage",		\
+		.id			= _id,				\
+		.dev			= {				\
+			.platform_data	= &_name##_config,		\
+		},							\
+	}
+
+static struct regulator_consumer_supply cam1_2v8_consumer_supply[] = {
+	REGULATOR_SUPPLY("cam1_2v8", NULL),
+};
+
+static struct regulator_consumer_supply cam2_2v8_consumer_supply[] = {
+	REGULATOR_SUPPLY("cam2_2v8", NULL),
+};
+
+FIXED_VOLTAGE_REG_INIT(0, cam1_2v8, 2800000, CAM1_LDO_SHUTDN_L_GPIO,
+				0, 1, 0, REGULATOR_CHANGE_STATUS, 0);
+FIXED_VOLTAGE_REG_INIT(1, cam2_2v8, 2800000, CAM2_LDO_SHUTDN_L_GPIO,
+				0, 1, 0, REGULATOR_CHANGE_STATUS, 0);
+
+static struct platform_device *fixed_voltage_regulators[] __initdata = {
+	ADD_FIXED_VOLTAGE_REG(cam1_2v8),
+	ADD_FIXED_VOLTAGE_REG(cam2_2v8),
+};
+
+int __init ventana_gpio_fixed_voltage_regulator_init(void)
+{
+	return platform_add_devices(fixed_voltage_regulators,
+				ARRAY_SIZE(fixed_voltage_regulators));
 }
 
 late_initcall(ventana_pcie_init);
