@@ -395,7 +395,10 @@ int tegra_core_speedo_mv(void)
 			return 1200;
 		/* fall thru for T30L or T30SL */
 	case 2:
-		return 1300;
+		if (cpu_speedo_id != 13)
+			return 1300;
+		/* T37 */
+		return 1350;
 	case 3:
 		return 1250;
 	default:
