@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <mach/iomap.h>
+#include <mach/pinmux.h>
 #include <sound/soc.h>
 #include "tegra20_das.h"
 
@@ -65,6 +66,37 @@ int tegra20_das_resume()
 	return 0;
 }
 #endif
+
+int tegra20_das_set_tristate(int dap_id, int is_tristate)
+{
+	enum tegra_pingroup pin;
+	enum tegra_tristate tristate;
+
+	switch (dap_id) {
+	case TEGRA20_DAS_DAP_ID_1:
+		pin = TEGRA_PINGROUP_DAP1;
+		break;
+	case TEGRA20_DAS_DAP_ID_2:
+		pin = TEGRA_PINGROUP_DAP2;
+		break;
+	case TEGRA20_DAS_DAP_ID_3:
+		pin = TEGRA_PINGROUP_DAP3;
+		break;
+	case TEGRA20_DAS_DAP_ID_4:
+		pin = TEGRA_PINGROUP_DAP4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (is_tristate)
+		tristate = TEGRA_TRI_TRISTATE;
+	else
+		tristate = TEGRA_TRI_NORMAL;
+
+	tegra_pinmux_set_tristate(pin, tristate);
+}
+EXPORT_SYMBOL_GPL(tegra20_das_set_tristate);
 
 int tegra20_das_connect_dap_to_dac(int dap, int dac)
 {
