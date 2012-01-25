@@ -386,7 +386,12 @@ void st_ll_disable(struct st_data_s *);
  * various funcs used by ST core to set/get the various PM states
  * of the chip.
  */
+
+#ifdef CONFIG_TI_ST
 unsigned long st_ll_getstate(struct st_data_s *);
+#else
+static inline unsigned long st_ll_getstate(struct st_data_s *ll){ return 0; }
+#endif
 unsigned long st_ll_sleep_state(struct st_data_s *, unsigned char);
 void st_ll_wakeup(struct st_data_s *);
 
