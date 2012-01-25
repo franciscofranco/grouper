@@ -81,6 +81,8 @@ const char *tegra_max98088_i2s_dai_name[TEGRA30_NR_I2S_IFC] = {
 };
 #endif
 
+static int g_is_call_mode;
+
 struct tegra_max98088 {
 	struct tegra_asoc_utils_data util_data;
 	struct tegra_max98088_platform_data *pdata;
@@ -94,6 +96,15 @@ struct tegra_max98088 {
 	enum snd_soc_bias_level bias_level;
 	struct snd_soc_card *pcard;
 };
+
+bool tegra_is_voice_call_active()
+{
+	if (g_is_call_mode)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL_GPL(tegra_is_voice_call_active);
 
 static int tegra_call_mode_info(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
@@ -156,6 +167,7 @@ static int tegra_call_mode_put(struct snd_kcontrol *kcontrol,
 	}
 
 	machine->is_call_mode = is_call_mode_new;
+	g_is_call_mode = machine->is_call_mode;
 
 	return 1;
 }
