@@ -210,7 +210,6 @@ int regcache_read(struct regmap *map,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(regcache_read);
 
 /**
  * regcache_write: Set the value of a given register in the cache.
@@ -237,7 +236,6 @@ int regcache_write(struct regmap *map,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(regcache_write);
 
 /**
  * regcache_sync: Sync the register cache with the hardware.
