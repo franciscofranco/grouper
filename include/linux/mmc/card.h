@@ -77,6 +77,12 @@ struct mmc_ext_csd {
 	u8			raw_sec_feature_support;/* 231 */
 	u8			raw_trim_mult;		/* 232 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
+	bool			hpi_en;			/* HPI enablebit */
+	bool			hpi;			/* HPI support bit */
+	unsigned int		hpi_cmd;		/* cmd used as HPI */
+	u8			out_of_int_time;	/* out of int time */
+	bool			bk_ops;			/* BK ops support bit */
+	bool			bk_ops_en;		/* BK ops enable bit */
 };
 
 struct sd_scr {
@@ -359,6 +365,11 @@ static inline void __maybe_unused remove_quirk_sd(struct mmc_card *card,
 	if (mmc_card_sd(card))
 		card->quirks &= ~data;
 }
+#define mmc_card_set_doing_bkops(c) ((c)->state |= MMC_STATE_DOING_BKOPS)
+#define mmc_card_set_need_bkops(c) ((c)->state |= MMC_STATE_NEED_BKOPS)
+
+#define mmc_card_clr_doing_bkops(c) ((c)->state &= ~MMC_STATE_DOING_BKOPS)
+#define mmc_card_clr_need_bkops(c) ((c)->state &= ~MMC_STATE_NEED_BKOPS)
 
 static inline int mmc_card_lenient_fn0(const struct mmc_card *c)
 {

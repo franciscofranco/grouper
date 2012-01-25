@@ -230,6 +230,7 @@ struct mmc_host {
 #define MMC_CAP_MAX_CURRENT_600	(1 << 28)	/* Host max current limit is 600mA */
 #define MMC_CAP_MAX_CURRENT_800	(1 << 29)	/* Host max current limit is 800mA */
 #define MMC_CAP_CMD23		(1 << 30)	/* CMD23 supported. */
+#define MMC_CAP_BKOPS		(1 << 31)	/* Host supports BKOPS */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 

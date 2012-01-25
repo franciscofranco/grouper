@@ -2,6 +2,7 @@
  *  linux/drivers/mmc/core/mmc_ops.h
  *
  *  Copyright 2006-2007 Pierre Ossman
+ *  Copyright (c) 2012 NVIDIA Corporation, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +27,8 @@ int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp);
 int mmc_spi_set_crc(struct mmc_host *host, int use_crc);
 int mmc_card_sleepawake(struct mmc_host *host, int sleep);
 int mmc_bus_test(struct mmc_card *card, u8 bus_width);
+int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status);
+int mmc_send_bk_ops_cmd(struct mmc_card *card, bool is_synchronous);
 
 #endif
 

@@ -4,6 +4,7 @@
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
+ *  Copyright (c) 2012 NVIDIA Corporation, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -403,10 +404,29 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			ext_csd[EXT_CSD_TRIM_MULT];
 	}
 
-	if (card->ext_csd.rev >= 5)
-		card->ext_csd.rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
-
 	card->ext_csd.raw_erased_mem_count = ext_csd[EXT_CSD_ERASED_MEM_CONT];
+	if (card->ext_csd.rev >= 5) {
+		card->ext_csd.rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
+		/* check whether the eMMC card supports HPI */
+		if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) {
+			card->ext_csd.hpi = 1;
+			if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x2)
+				card->ext_csd.hpi_cmd = MMC_STOP_TRANSMISSION;
+			else
+				card->ext_csd.hpi_cmd = MMC_SEND_STATUS;
+			/*
+			 * Indicate the maximum timeout to close
+			 * a command interrupted by HPI
+			 */
+			card->ext_csd.out_of_int_time =
+				ext_csd[EXT_CSD_OUT_OF_INTERRUPT_TIME] * 10;
+		}
+
+		/* Check whether the eMMC card supports background ops */
+		if (ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1)
+			card->ext_csd.bk_ops = 1;
+	}
+
 	if (ext_csd[EXT_CSD_ERASED_MEM_CONT])
 		card->erased_byte = 0xFF;
 	else
@@ -724,6 +744,40 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		} else {
 			mmc_card_set_highspeed(card);
 			mmc_set_timing(card->host, MMC_TIMING_MMC_HS);
+		}
+	}
+
+	/*
+	 * Enable HPI feature (if supported)
+	 */
+	if (card->ext_csd.hpi && (card->host->caps & MMC_CAP_BKOPS)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_HPI_MGMT, 1, 0);
+		if (err && err != -EBADMSG)
+			goto free_card;
+		if (err) {
+			pr_warning("%s: Enabling HPI failed\n",
+				   mmc_hostname(card->host));
+			err = 0;
+		} else {
+			card->ext_csd.hpi_en = 1;
+		}
+	}
+
+	/*
+	 * Enable Background ops feature (if supported)
+	 */
+	if (card->ext_csd.bk_ops && (card->host->caps & MMC_CAP_BKOPS)) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			EXT_CSD_BKOPS_EN, 1, 0);
+		if (err && err != -EBADMSG)
+			goto free_card;
+		if (err) {
+			pr_warning("%s: Enabling BK ops failed\n",
+				   mmc_hostname(card->host));
+			err = 0;
+		} else {
+			card->ext_csd.bk_ops_en = 1;
 		}
 	}
 
