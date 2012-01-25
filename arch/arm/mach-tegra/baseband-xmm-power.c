@@ -724,7 +724,12 @@ static void baseband_xmm_power_work_func(struct work_struct *work)
 static void baseband_xmm_device_add_handler(struct usb_device *udev)
 {
 	struct usb_interface *intf = usb_ifnum_to_if(udev, 0);
-	const struct usb_device_id *id = usb_match_id(intf, xmm_pm_ids);
+	const struct usb_device_id *id;
+
+	if (intf == NULL)
+		return;
+
+	id = usb_match_id(intf, xmm_pm_ids);
 
 	if (id) {
 		pr_debug("persist_enabled: %u\n", udev->persist_enabled);
