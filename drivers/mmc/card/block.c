@@ -1140,6 +1140,9 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 		}
 	} while (ret);
 
+	if (brq->cmd.resp[0] & R1_URGENT_BKOPS)
+		mmc_card_set_need_bkops(card);
+
 	return 1;
 
  cmd_err:
@@ -1221,6 +1224,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			mmc_blk_issue_rw_rq(mq, NULL);
 		ret = mmc_blk_issue_flush(mq, req);
 	} else {
+		/* Abort any current bk ops of eMMC card by issuing HPI */
+		if (mmc_card_mmc(mq->card) && mmc_card_doing_bkops(mq->card))
+			mmc_interrupt_hpi(mq->card);
+
 		ret = mmc_blk_issue_rw_rq(mq, req);
 	}
 
