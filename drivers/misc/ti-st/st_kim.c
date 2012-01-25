@@ -450,8 +450,8 @@ long st_kim_start(void *kim_data)
 
 	do {
 		/* platform specific enabling code here */
-		if (pdata->chip_enable)
-			pdata->chip_enable(kim_gdata);
+		/*if (pdata->chip_enable)
+			pdata->chip_enable();*/
 
 		/* Configure BT nShutdown to HIGH state */
 		gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
@@ -546,8 +546,8 @@ long st_kim_stop(void *kim_data)
 	gpio_set_value(kim_gdata->nshutdown, GPIO_LOW);
 
 	/* platform specific disable */
-	if (pdata->chip_disable)
-		pdata->chip_disable(kim_gdata);
+	/*if (pdata->chip_disable)
+		pdata->chip_disable();*/
 	return err;
 }
 
@@ -683,6 +683,9 @@ static int kim_probe(struct platform_device *pdev)
 	struct kim_data_s	*kim_gdata;
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 
+	if (pdata->set_power)
+		pdata->set_power(1);
+
 	if ((pdev->id != -1) && (pdev->id < MAX_ST_DEVICES)) {
 		/* multiple devices could exist */
 		st_kim_devices[pdev->id] = pdev;
@@ -713,6 +716,8 @@ static int kim_probe(struct platform_device *pdev)
 		pr_err(" gpio %ld request failed ", kim_gdata->nshutdown);
 		return status;
 	}
+
+	tegra_gpio_enable(kim_gdata->nshutdown);
 
 	/* Configure nShutdown GPIO as output=0 */
 	status = gpio_direction_output(kim_gdata->nshutdown, 0);
@@ -776,15 +781,24 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
+
+	if (pdata->set_power)
+		pdata->set_power(0);
+
 	return 0;
 }
 
 int kim_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
+	int ret;
 
-	if (pdata->suspend)
-		return pdata->suspend(pdev, state);
+	if (pdata->suspend) {
+		ret = pdata->suspend(pdev, state);
+		if (pdata->set_power)
+			pdata->set_power(0);
+		return ret;
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -793,8 +807,11 @@ int kim_resume(struct platform_device *pdev)
 {
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 
-	if (pdata->resume)
+	if (pdata->resume) {
+		if (pdata->set_power)
+			pdata->set_power(1);
 		return pdata->resume(pdev);
+	}
 
 	return -EOPNOTSUPP;
 }
