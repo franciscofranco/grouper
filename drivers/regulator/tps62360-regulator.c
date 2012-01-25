@@ -378,7 +378,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 
 	/* Register the regulators */
 	rdev = regulator_register(&tps->desc, &client->dev,
-				&pdata->reg_init_data, tps, NULL);
+				&pdata->reg_init_data, tps);
 	if (IS_ERR(rdev)) {
 		dev_err(tps->dev, "%s() Err: Failed to register %s\n",
 				__func__, id->name);
