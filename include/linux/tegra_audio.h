@@ -75,4 +75,6 @@ struct dam_srate {
 #define I2S_LOOPBACK	_IOW(TEGRA_AUDIO_MAGIC, 17, unsigned int *)
 #define I2S_MODE_I2S	_IOW(TEGRA_AUDIO_MAGIC, 18, unsigned int *)
 
+extern bool tegra_is_voice_call_active();
+
 #endif/*_CPCAP_AUDIO_H*/
