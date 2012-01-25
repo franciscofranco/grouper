@@ -176,6 +176,8 @@ struct tegra_i2c_dev {
 	unsigned long last_bus_clk_rate;
 	u16 slave_addr;
 	bool is_clkon_always;
+	bool is_high_speed_enable;
+	u16 hs_master_code;
 	int (*arb_recovery)(int scl_gpio, int sda_gpio);
 	struct tegra_i2c_bus busses[1];
 };
@@ -415,6 +417,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
 	clk_set_rate(i2c_dev->clk, i2c_dev->last_bus_clk_rate * 8);
+	i2c_writel(i2c_dev, 0x3, I2C_CLK_DIVISOR);
 
 	if (!i2c_dev->is_dvc) {
 		u32 sl_cfg = i2c_readl(i2c_dev, I2C_SL_CNFG);
@@ -622,6 +625,10 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 		i2c_dev->io_header |= I2C_HEADER_CONT_ON_NAK;
 	if (msg->flags & I2C_M_RD)
 		i2c_dev->io_header |= I2C_HEADER_READ;
+	if (i2c_dev->is_high_speed_enable) {
+		i2c_dev->io_header |= I2C_HEADER_HIGHSPEED_MODE;
+		i2c_dev->io_header |= ((i2c_dev->hs_master_code & 0x7) <<  I2C_HEADER_MASTER_ADDR_SHIFT);
+	}
 	i2c_writel(i2c_dev, i2c_dev->io_header, I2C_TX_FIFO);
 
 	if (!(msg->flags & I2C_M_RD))
@@ -842,6 +849,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 			i2c_dev->last_bus_clk_rate = be32_to_cpup(prop);
 	}
 
+	i2c_dev->is_high_speed_enable = plat->is_high_speed_enable;
+	i2c_dev->last_bus_clk_rate = plat->bus_clk_rate[0] ?: 100000;
 	i2c_dev->msgs = NULL;
 	i2c_dev->msgs_num = 0;
 	i2c_dev->controller_enabled = false;
@@ -849,6 +858,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&i2c_dev->clk_lock);
 
 	i2c_dev->slave_addr = plat->slave_addr;
+	i2c_dev->hs_master_code = plat->hs_master_code;
 	i2c_dev->is_dvc = plat->is_dvc;
 	i2c_dev->arb_recovery = plat->arb_recovery;
 	init_completion(&i2c_dev->msg_complete);
