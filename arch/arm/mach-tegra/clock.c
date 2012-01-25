@@ -183,7 +183,8 @@ static void __clk_set_cansleep(struct clk *c)
 
 		if (!possible_parent && child->inputs) {
 			for (i = 0; child->inputs[i].input; i++) {
-				if (child->inputs[i].input == c) {
+				if ((child->inputs[i].input == c) &&
+				    tegra_clk_is_parent_allowed(child, c)) {
 					possible_parent = true;
 					break;
 				}
