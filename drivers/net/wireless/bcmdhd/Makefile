@@ -6,8 +6,8 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                     \
 	-DCUSTOMER_HW2    \
 	-DMMC_SDIO_ABORT -DBCMSDIO -DBCMLXSDMMC -DBCMPLATFORM_BUS -DWLP2P     \
 	-DNEW_COMPAT_WIRELESS -DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT          \
-	-DKEEP_ALIVE -DCSCAN -DPKT_FILTER_SUPPORT     \
-	-DEMBEDDED_PLATFORM -DENABLE_INSMOD_NO_FW_LOAD -DPNO_SUPPORT          \
+	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT     \
+	-DEMBEDDED_PLATFORM -DENABLE_INSMOD_NO_FW_LOAD          \
 	-Idrivers/net/wireless/bcmdhd -Idrivers/net/wireless/bcmdhd/include
 
 ifeq ($(CONFIG_BCMDHD_WIFI_CONTROL_FUNC),y)
@@ -20,6 +20,10 @@ ifeq ($(CONFIG_BCMDHD_HW_OOB),y)
 DHDCFLAGS += -DHW_OOB -DOOB_INTR_ONLY
 else
 DHDCFLAGS += -DSDIO_ISR_THREAD
+endif
+
+ifeq ($(CONFIG_BCMDHD_CSCAN_ENABLE),y)
+DHDCFLAGS += -DCSCAN -DPNO_SUPPORT
 endif
 
 DHDOFILES = aiutils.o bcmsdh_sdmmc_linux.o dhd_linux.o siutils.o bcmutils.o   \
