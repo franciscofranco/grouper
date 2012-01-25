@@ -763,6 +763,10 @@ static int tegra_suspend_enter(suspend_state_t state)
 	read_persistent_clock(&ts_entry);
 
 	ret = tegra_suspend_dram(current_suspend_mode, 0);
+	if (ret) {
+		pr_info("Aborting suspend, tegra_suspend_dram error=%d\n", ret);
+		goto abort_suspend;
+	}
 
 	read_persistent_clock(&ts_exit);
 
@@ -776,6 +780,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 			tegra_dvfs_rail_pause(tegra_core_rail, delta, true);
 	}
 
+abort_suspend:
 	if (pdata && pdata->board_resume)
 		pdata->board_resume(current_suspend_mode, TEGRA_RESUME_AFTER_PERIPHERAL);
 
@@ -810,7 +815,13 @@ static void tegra_suspend_check_pwr_stats(void)
 
 int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 {
-	BUG_ON(mode < 0 || mode >= TEGRA_MAX_SUSPEND_MODE);
+	int err = 0;
+
+	if (WARN_ON(mode <= TEGRA_SUSPEND_NONE ||
+		mode >= TEGRA_MAX_SUSPEND_MODE)) {
+		err = -ENXIO;
+		goto fail;
+	}
 
 	if ((mode == TEGRA_SUSPEND_LP0) && !tegra_pm_irq_lp0_allowed()) {
 		pr_info("LP0 not used due to unsupported wakeup events\n");
@@ -892,7 +903,8 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 
 	tegra_common_resume();
 
-	return 0;
+fail:
+	return err;
 }
 
 /*
@@ -950,6 +962,11 @@ static ssize_t suspend_mode_store(struct kobject *kobj,
 	len = name_ptr - buf;
 	if (!len)
 		goto bad_name;
+	/* TEGRA_SUSPEND_NONE not allowed as suspend state */
+	if (!(strncmp(buf, tegra_suspend_name[TEGRA_SUSPEND_NONE], len))) {
+		pr_info("Illegal tegra suspend state: %s\n", buf);
+		goto bad_name;
+	}
 
 	for (new_mode = TEGRA_SUSPEND_NONE; \
 			new_mode < TEGRA_MAX_SUSPEND_MODE; ++new_mode) {
