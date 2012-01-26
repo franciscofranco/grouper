@@ -43,8 +43,11 @@
 #define kai_lvds_stdby			TEGRA_GPIO_PG5
 #define kai_lvds_rst			TEGRA_GPIO_PG7
 #define kai_lvds_shutdown		TEGRA_GPIO_PN6
-#define kai_lvds_rs			TEGRA_GPIO_PH1
+#define kai_lvds_rs			TEGRA_GPIO_PV6
 #define kai_lvds_lr			TEGRA_GPIO_PG1
+
+/* kai A00 display board pins */
+#define kai_lvds_rs_a00		TEGRA_GPIO_PH1
 
 /* common pins( backlight ) for all display boards */
 #define kai_bl_enb			TEGRA_GPIO_PH3
@@ -630,6 +633,9 @@ int __init kai_panel_init(void)
 {
 	int err;
 	struct resource __maybe_unused *res;
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
 
 	kai_carveouts[1].base = tegra_carveout_start;
 	kai_carveouts[1].size = tegra_carveout_size;
@@ -646,9 +652,15 @@ int __init kai_panel_init(void)
 	gpio_direction_output(kai_lvds_rst, 1);
 	tegra_gpio_enable(kai_lvds_rst);
 
-	gpio_request(kai_lvds_rs, "lvds_rs");
-	gpio_direction_output(kai_lvds_rs, 0);
-	tegra_gpio_enable(kai_lvds_rs);
+	if (board_info.fab & BOARD_FAB_A00) {
+		gpio_request(kai_lvds_rs_a00, "lvds_rs");
+		gpio_direction_output(kai_lvds_rs_a00, 0);
+		tegra_gpio_enable(kai_lvds_rs_a00);
+	} else {
+		gpio_request(kai_lvds_rs, "lvds_rs");
+		gpio_direction_output(kai_lvds_rs, 0);
+		tegra_gpio_enable(kai_lvds_rs);
+	}
 
 	gpio_request(kai_lvds_lr, "lvds_lr");
 	gpio_direction_output(kai_lvds_lr, 1);
