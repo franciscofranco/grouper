@@ -1,6 +1,8 @@
 #ifndef _RM31080A_TS_H_
 #define _RM31080A_TS_H_
 
+#include <linux/platform_data/rm31080a_ts.h>
+
 #define ENABLE_RAW_DATA_QUEUE
 
 #define RM_IOCTL_REPORT_POINT    0x1001
@@ -34,9 +36,5 @@ typedef struct
     unsigned short usY[RM_TS_MAX_POINTS];
     unsigned short usZ[RM_TS_MAX_POINTS];
 }rm_touch_event;
-
-struct rm_spi_ts_platform_data{
-	int gpio_reset;
-};
 
 #endif //_RM31080A_TS_H_
