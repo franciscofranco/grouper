@@ -58,6 +58,9 @@ static const u32 core_process_speedos[][CORE_PROCESS_CORNERS_NUM] = {
 /* T30 Automotives */
 	{185}, /* [12]: soc_speedo_id = 3 - Automotives */
 	{185}, /* [13]: soc_speedo_id = 3 - Automotives */
+
+/* T37 Family*/
+	{220}, /* [14]: soc_speedo_id 2: T37 */
 };
 
 /* Maximum speedo levels for each CPU process corner */
@@ -91,6 +94,9 @@ static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
 	 */
 	{300, 311, 360, 371, 381, 415, 431},
 	{300, 311, 410, 431, UINT_MAX}, /* threshold_index 13: cpu_speedo_id = 11 */
+
+/* T37 family */
+	{368, 368, 368, 368, 392, UINT_MAX}, /* [14]: cpu_speedo_id = 13 - T37  */
 };
 
 /*
@@ -202,6 +208,26 @@ static void rev_sku_to_speedo_ids(int rev, int sku)
 			cpu_speedo_id = 8;
 			soc_speedo_id = 1;
 			threshold_index = 11;
+			break;
+
+		case 0xA0: /* T37 or A37 */
+			switch (package_id) {
+			case 1: /* MID => T37 */
+				cpu_speedo_id = 13;
+				soc_speedo_id = 2;
+				threshold_index = 14;
+				break;
+			case 2: /* DSC => AP37 */
+				cpu_speedo_id = 12;
+				soc_speedo_id = 2;
+				threshold_index = 9;
+				break;
+			default:
+				pr_err("Tegra3 Rev-A02: Reserved pkg: %d\n",
+						package_id);
+				BUG();
+				break;
+			}
 			break;
 
 /* Characterization SKUs */
