@@ -7,7 +7,7 @@
  *	Colin Cross <ccross@google.com>
  *	Based on arch/arm/plat-omap/cpu-omap.c, (C) 2005 Nokia Corporation
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -592,14 +592,16 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	mutex_lock(&tegra_cpu_lock);
 
-	cpufreq_frequency_table_target(policy, freq_table, target_freq,
+	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
 		relation, &idx);
+	if (ret)
+		goto _out;
 
 	freq = freq_table[idx].frequency;
 
 	target_cpu_speed[policy->cpu] = freq;
 	ret = tegra_cpu_set_speed_cap(&new_speed);
-
+_out:
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
