@@ -278,6 +278,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	mutex_lock(&map->lock);
 
 	regcache_exit(map);
+	regmap_debugfs_exit(map);
 
 	map->max_register = config->max_register;
 	map->writeable_reg = config->writeable_reg;
@@ -288,6 +289,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 
 	map->cache_bypass = false;
 	map->cache_only = false;
+	regmap_debugfs_init(map);
 
 	ret = regcache_init(map, config);
 
