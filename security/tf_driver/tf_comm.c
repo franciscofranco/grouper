@@ -236,7 +236,7 @@ struct tf_coarse_page_table *tf_alloc_coarse_page_table(
 				 */
 				coarse_pg_table =
 					&(array->coarse_page_tables[i]);
-				array->ref_count++;
+				array->ref_count = 1;
 			} else {
 				/*
 				 * The other elements are added to the free list
