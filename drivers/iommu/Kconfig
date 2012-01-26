@@ -120,7 +120,6 @@ config TEGRA_IOMMU_SMMU
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"
 	depends on ARCH_TEGRA_2x_SOC
-	default y
 	select IOMMU_API
 	help
 	  Enables support for remapping discontiguous physical memory
