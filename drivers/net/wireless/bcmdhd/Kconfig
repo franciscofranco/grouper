@@ -53,3 +53,10 @@ config BCMDHD_CSCAN_ENABLE
 	default n
 	---help---
 	Enable Combo Scan
+
+config BCMDHD_INSMOD_NO_FW_LOAD
+	bool "Enable delayed firmware load"
+	depends on BCMDHD
+	default n
+	---help---
+	Enable delayes firmware
