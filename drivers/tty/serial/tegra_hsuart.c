@@ -340,7 +340,7 @@ static void do_handle_rx_dma(struct tegra_uart_port *t)
 	struct uart_port *u = &t->uport;
 	if (t->rts_active)
 		set_rts(t, false);
-	tegra_dma_dequeue(t->rx_dma);
+	tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req);
 	tty_flip_buffer_push(u->state->port.tty);
 	/* enqueue the request again */
 	tegra_start_dma_rx(t);
@@ -615,7 +615,7 @@ static void tegra_stop_rx(struct uart_port *u)
 		t->rx_in_progress = 0;
 
 		if (t->use_rx_dma && t->rx_dma)
-			tegra_dma_dequeue(t->rx_dma);
+			tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req);
 		else
 			do_handle_rx_pio(t);
 
