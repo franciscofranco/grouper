@@ -30,6 +30,8 @@
 #include <linux/io.h>
 #include <linux/cpumask.h>
 #include <linux/platform_data/tegra_bpc_mgmt.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/gpio-regulator.h>
 
 #include <mach/edp.h>
 #include <mach/iomap.h>
@@ -356,7 +358,7 @@ static struct regulator_consumer_supply fixed_reg_vdd_fuse_en_supply[] = {
 };
 
 /* LCD-D17 (GPIO M1) from T30*/
-static struct regulator_consumer_supply fixed_reg_sdmmc3_vdd_sel_supply[] = {
+static struct regulator_consumer_supply gpio_reg_sdmmc3_vdd_sel_supply[] = {
 	REGULATOR_SUPPLY("vddio_sdmmc3_2v85_1v8", NULL),
 	REGULATOR_SUPPLY("sdmmc3_compu_pu", NULL),
 	REGULATOR_SUPPLY("vddio_sdmmc3", NULL),
@@ -398,6 +400,70 @@ static struct regulator_consumer_supply fixed_reg_cam_ldo_1v8_en_supply[] = {
 	REGULATOR_SUPPLY("vdd", "6-0036"),
 	REGULATOR_SUPPLY("vdd", "7-0036"),
 };
+
+static struct gpio_regulator_state gpio_reg_sdmmc3_vdd_sel_states[] = {
+	{
+		.gpios = 0,
+		.value = 2850000,
+	},
+	{
+		.gpios = 1,
+		.value = 1800000,
+	},
+};
+
+static struct gpio gpio_reg_sdmmc3_vdd_sel_gpios[] = {
+	{
+		.gpio = TEGRA_GPIO_PM1,
+		.flags = 0,
+		.label = "sdmmc3_vdd_sel",
+	},
+};
+
+/* Macro for defining gpio regulator device data */
+#define GPIO_REG(_id, _name, _input_supply, _active_high,		\
+	_boot_state, _delay_us, _minmv, _maxmv)				\
+	static struct regulator_init_data ri_data_##_name = 		\
+	{								\
+		.supply_regulator = _input_supply,			\
+		.num_consumer_supplies =				\
+			ARRAY_SIZE(gpio_reg_##_name##_supply),		\
+		.consumer_supplies = gpio_reg_##_name##_supply,		\
+		.constraints = {					\
+			.name = "gpio_reg_"#_name,			\
+			.min_uV = (_minmv)*1000,			\
+			.max_uV = (_maxmv)*1000,			\
+			.valid_modes_mask = (REGULATOR_MODE_NORMAL |	\
+					REGULATOR_MODE_STANDBY),	\
+			.valid_ops_mask = (REGULATOR_CHANGE_MODE |	\
+					REGULATOR_CHANGE_STATUS |	\
+					REGULATOR_CHANGE_VOLTAGE),	\
+		},							\
+	};								\
+	static struct gpio_regulator_config gpio_reg_##_name##_pdata =	\
+	{								\
+		.supply_name = _input_supply,				\
+		.enable_gpio = -EINVAL,					\
+		.enable_high = _active_high,				\
+		.enabled_at_boot = _boot_state,				\
+		.startup_delay = _delay_us,				\
+		.gpios = gpio_reg_##_name##_gpios,			\
+		.nr_gpios = ARRAY_SIZE(gpio_reg_##_name##_gpios),	\
+		.states = gpio_reg_##_name##_states,			\
+		.nr_states = ARRAY_SIZE(gpio_reg_##_name##_states),	\
+		.type = REGULATOR_VOLTAGE,				\
+		.init_data = &ri_data_##_name,				\
+	};								\
+	static struct platform_device gpio_reg_##_name##_dev = {	\
+		.name	= "gpio-regulator",				\
+		.id = _id,						\
+		.dev	= { 						\
+			.platform_data = &gpio_reg_##_name##_pdata,	\
+		},							\
+	}
+
+GPIO_REG(4, sdmmc3_vdd_sel,  tps80031_rails(SMPS4),
+		true, false, 0, 1000, 3300);
 
 /* Macro for defining fixed regulator sub device data */
 #define FIXED_REG(_id, _name, _input_supply, _gpio_nr, _active_high,	\
@@ -441,8 +507,6 @@ FIXED_REG(2, pmu_hdmi_5v0_en, "fixed_reg_pmu_5v15_en",
 		ENT_TPS80031_GPIO_SYSEN, true, 5000, 0);
 FIXED_REG(3, vdd_fuse_en,     "fixed_reg_pmu_3v3_en",
 		TEGRA_GPIO_PM0, true, 3300, 0);
-FIXED_REG(4, sdmmc3_vdd_sel,  tps80031_rails(SMPS4),
-		TEGRA_GPIO_PM1, true, 2850, 0);
 FIXED_REG(5, cam_ldo_2v8_en,  NULL,
 		TEGRA_GPIO_PM7, true, 2800, 0);
 FIXED_REG(6, cam_ldo_1v8_en,  NULL,
@@ -454,7 +518,6 @@ static struct platform_device *fixed_regs_devices[] = {
 	ADD_FIXED_REG(pmu_3v3_en),
 	ADD_FIXED_REG(pmu_hdmi_5v0_en),
 	ADD_FIXED_REG(vdd_fuse_en),
-	ADD_FIXED_REG(sdmmc3_vdd_sel),
 	ADD_FIXED_REG(cam_ldo_2v8_en),
 	ADD_FIXED_REG(cam_ldo_1v8_en),
 };
