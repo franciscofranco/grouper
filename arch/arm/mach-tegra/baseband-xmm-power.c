@@ -126,6 +126,8 @@ static int baseband_xmm_power_on(struct platform_device *device)
 	struct baseband_power_platform_data *data
 		= (struct baseband_power_platform_data *)
 			device->dev.platform_data;
+	int ret;
+
 	pr_debug("%s {\n", __func__);
 
 	/* check for platform data */
@@ -170,6 +172,9 @@ static int baseband_xmm_power_on(struct platform_device *device)
 			baseband_modem_power_on(data);
 		}
 	}
+	ret = enable_irq_wake(gpio_to_irq(data->modem.xmm.ipc_ap_wake));
+	if (ret < 0)
+		pr_err("%s: enable_irq_wake error\n", __func__);
 
 	pr_debug("%s }\n", __func__);
 
@@ -179,6 +184,7 @@ static int baseband_xmm_power_on(struct platform_device *device)
 static int baseband_xmm_power_off(struct platform_device *device)
 {
 	struct baseband_power_platform_data *data;
+	int ret;
 
 	pr_debug("%s {\n", __func__);
 
@@ -197,6 +203,9 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	}
 
 	ipc_ap_wake_state = IPC_AP_WAKE_UNINIT;
+	ret = disable_irq_wake(gpio_to_irq(data->modem.xmm.ipc_ap_wake));
+	if (ret < 0)
+		pr_err("%s: disable_irq_wake error\n", __func__);
 
 	/* unregister usb host controller */
 	if (data->hsic_unregister)
