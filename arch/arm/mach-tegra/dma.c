@@ -350,7 +350,7 @@ bool tegra_dma_is_req_inflight(struct tegra_dma_channel *ch,
 }
 EXPORT_SYMBOL(tegra_dma_is_req_inflight);
 int tegra_dma_get_transfer_count(struct tegra_dma_channel *ch,
-			struct tegra_dma_req *req, bool is_stop_dma)
+			struct tegra_dma_req *req)
 {
 	unsigned int status;
 	unsigned long irq_flags;
@@ -373,7 +373,7 @@ int tegra_dma_get_transfer_count(struct tegra_dma_channel *ch,
 		return req->bytes_transferred;
 	}
 
-	status = get_channel_status(ch, req, is_stop_dma);
+	status = get_channel_status(ch, req, false);
 	bytes_transferred = dma_active_count(ch, req, status);
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 	return bytes_transferred;

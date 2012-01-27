@@ -275,8 +275,7 @@ static snd_pcm_uframes_t tegra_pcm_pointer(struct snd_pcm_substream *substream)
 	int dma_transfer_count;
 
 	dma_transfer_count = tegra_dma_get_transfer_count(prtd->dma_chan,
-					&prtd->dma_req[prtd->dma_req_idx],
-					false);
+					&prtd->dma_req[prtd->dma_req_idx]);
 
 	return prtd->period_index * runtime->period_size +
 		bytes_to_frames(runtime, dma_transfer_count);
