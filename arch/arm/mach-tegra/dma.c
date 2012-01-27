@@ -149,19 +149,6 @@ void tegra_dma_flush(struct tegra_dma_channel *ch)
 }
 EXPORT_SYMBOL(tegra_dma_flush);
 
-void tegra_dma_dequeue(struct tegra_dma_channel *ch)
-{
-	struct tegra_dma_req *req;
-
-	if (tegra_dma_is_empty(ch))
-		return;
-
-	req = list_entry(ch->list.next, typeof(*req), node);
-
-	tegra_dma_dequeue_req(ch, req);
-	return;
-}
-
 void tegra_dma_stop(struct tegra_dma_channel *ch)
 {
 	u32 csr;
