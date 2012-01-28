@@ -444,9 +444,10 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 						(baseband_power_driver_data->
 						modem.xmm.ipc_bb_wake, 0);
 					pr_debug("gpio slave wakeup done ->\n");
-					if ((reenable_autosuspend) && (usbdev)) {
-					        reenable_autosuspend = false;
-						queue_work(workqueue, &autopm_resume_work);
+					if (reenable_autosuspend && usbdev) {
+						reenable_autosuspend = false;
+						queue_work(workqueue,
+							&autopm_resume_work);
 					}
 				}
 				baseband_xmm_set_power_status(BBXMM_PS_L0);
@@ -521,7 +522,6 @@ static void baseband_xmm_power_autopm_resume(struct work_struct *work)
 
 	pr_debug("%s\n", __func__);
 	if (usbdev) {
-
 		usb_lock_device(usbdev);
 		intf = usb_ifnum_to_if(usbdev, 0);
 		usb_autopm_get_interface(intf);
