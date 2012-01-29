@@ -286,8 +286,17 @@ static struct i2c_board_info __initdata rt5640_board_info = {
 	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
 };
 
+static struct i2c_board_info __initdata rt5639_board_info = {
+	I2C_BOARD_INFO("rt5639", 0x1c),
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
+};
+
 static void kai_i2c_init(void)
 {
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
 	tegra_i2c_device1.dev.platform_data = &kai_i2c1_platform_data;
 	tegra_i2c_device2.dev.platform_data = &kai_i2c2_platform_data;
 	tegra_i2c_device3.dev.platform_data = &kai_i2c3_platform_data;
@@ -303,7 +312,10 @@ static void kai_i2c_init(void)
 	i2c_register_board_info(4, kai_i2c4_smb349_board_info,
 		ARRAY_SIZE(kai_i2c4_smb349_board_info));
 
-	i2c_register_board_info(4, &rt5640_board_info, 1);
+	if (board_info.fab == BOARD_FAB_A00)
+		i2c_register_board_info(4, &rt5640_board_info, 1);
+	else
+		i2c_register_board_info(4, &rt5639_board_info, 1);
 }
 
 static struct platform_device *kai_uart_devices[] __initdata = {
@@ -669,6 +681,18 @@ static void kai_usb_init(void)
 static void kai_usb_init(void) { }
 #endif
 
+static void kai_audio_init(void)
+{
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
+	if (!(board_info.fab == BOARD_FAB_A00)) {
+		kai_audio_pdata.codec_name = "rt5639.4-001c";
+		kai_audio_pdata.codec_dai_name = "rt5639-aif1";
+	}
+}
+
 static void __init tegra_kai_init(void)
 {
 	tegra_thermal_init(&thermal_data);
@@ -682,6 +706,7 @@ static void __init tegra_kai_init(void)
 #endif
 	kai_uart_init();
 	kai_tsensor_init();
+	kai_audio_init();
 	platform_add_devices(kai_devices, ARRAY_SIZE(kai_devices));
 	tegra_ram_console_debug_init();
 	kai_sdhci_init();
