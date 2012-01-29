@@ -293,14 +293,15 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 {
 #ifdef CONFIG_SMP
 	ktime_t entery_time;
-	u32 twd_cnt;
-	u32 twd_ctrl = readl(twd_base + TWD_TIMER_CONTROL);
+	struct tegra_twd_context twd_context;
 	unsigned long twd_rate = clk_get_rate(twd_clk);
 
-	if ((twd_ctrl & TWD_TIMER_CONTROL_ENABLE) &&
-	    (twd_ctrl & TWD_TIMER_CONTROL_IT_ENABLE)) {
-		twd_cnt = readl(twd_base + TWD_TIMER_COUNTER);
-		request = div_u64((u64)twd_cnt * 1000000, twd_rate);
+	if (!tegra_twd_get_state(&twd_context)) {
+		if ((twd_context.twd_ctrl & TWD_TIMER_CONTROL_ENABLE) &&
+		    (twd_context.twd_ctrl & TWD_TIMER_CONTROL_IT_ENABLE)) {
+			request = div_u64((u64)twd_context.twd_cnt * 1000000,
+					  twd_rate);
+		}
 	}
 
 	if (request < tegra_lp2_exit_latency) {
