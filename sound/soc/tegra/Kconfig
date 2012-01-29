@@ -151,6 +151,28 @@ config SND_SOC_TEGRA_TLV320AIC326X
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the TI AIC326X codec.
 
+config MACH_HAS_SND_SOC_TEGRA_RT5639
+	bool
+	help
+	  Machines that use the SND_SOC_TEGRA_RT5639 driver should select
+	  this config option, in order to allow the user to enable
+	  SND_SOC_TEGRA_RT5639.
+
+config SND_SOC_TEGRA_RT5639
+	tristate "SoC Audio support for Tegra boards using a ALC5639 codec"
+	depends on SND_SOC_TEGRA && I2C && TEGRA_DC
+	depends on MACH_HAS_SND_SOC_TEGRA_RT5639
+	depends on SND_SOC_TEGRA_RT5640
+	select SND_SOC_TEGRA30_I2S if ARCH_TEGRA_3x_SOC
+	select SND_SOC_TEGRA30_SPDIF if ARCH_TEGRA_3x_SOC
+	select SND_SOC_RT5639
+	select SND_SOC_SPDIF
+	select SND_SOC_TEGRA30_DAM if ARCH_TEGRA_3x_SOC
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the ALC5639 codec. Currently, the supported board
+	  is Kai.
+
 config MACH_HAS_SND_SOC_TEGRA_RT5640
 	bool
 	help

@@ -450,6 +450,11 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (pdata->codec_name)
+		card->dai_link->codec_name = pdata->codec_name;
+	if (pdata->codec_dai_name)
+		card->dai_link->codec_dai_name = pdata->codec_dai_name;
+
 	machine = kzalloc(sizeof(struct tegra_rt5640), GFP_KERNEL);
 	if (!machine) {
 		dev_err(&pdev->dev, "Can't allocate tegra_rt5640 struct\n");
