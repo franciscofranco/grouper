@@ -561,8 +561,6 @@ static void whistler_usb_init(void)
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
-	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
-	platform_device_register(&tegra_ehci3_device);
 }
 
 static void __init tegra_whistler_init(void)
