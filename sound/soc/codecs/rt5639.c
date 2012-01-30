@@ -2243,6 +2243,9 @@ static int rt5639_probe(struct snd_soc_codec *codec)
 
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 
+	snd_soc_add_controls(codec, rt5639_snd_controls,
+		ARRAY_SIZE(rt5639_snd_controls));
+
 	rt5639->codec = codec;
 	ret = device_create_file(codec->dev, &dev_attr_index_reg);
 	if (ret != 0) {
@@ -2342,8 +2345,6 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5639 = {
 	.volatile_register = rt5639_volatile_register,
 	.readable_register = rt5639_readable_register,
 	.reg_cache_step = 1,
-	.controls = rt5639_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5639_snd_controls),
 	.dapm_widgets = rt5639_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rt5639_dapm_widgets),
 	.dapm_routes = rt5639_dapm_routes,
