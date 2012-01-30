@@ -311,7 +311,6 @@
 /* Threshold to engage CPU clock skipper during CPU rate change */
 #define SKIPPER_ENGAGE_RATE		 800000000
 
-static bool tegra3_clk_is_parent_allowed(struct clk *c, struct clk *p);
 static void tegra3_pllp_init_dependencies(unsigned long pllp_rate);
 static int tegra3_clk_shared_bus_update(struct clk *bus);
 
@@ -2220,9 +2219,6 @@ static int tegra3_periph_clk_set_parent(struct clk *c, struct clk *p)
 
 	if (!(c->flags & MUX))
 		return (p == c->parent) ? 0 : (-EINVAL);
-
-	if (!tegra3_clk_is_parent_allowed(c, p))
-		return -EINVAL;
 
 	for (sel = c->inputs; sel->input != NULL; sel++) {
 		if (sel->input == p) {
@@ -4493,7 +4489,7 @@ static void tegra3_pllp_init_dependencies(unsigned long pllp_rate)
 	cpu_stay_on_backup_max = min(cpu_stay_on_backup_max, backup_rate);
 }
 
-static bool tegra3_clk_is_parent_allowed(struct clk *c, struct clk *p)
+bool tegra_clk_is_parent_allowed(struct clk *c, struct clk *p)
 {
 	if (c->flags & PERIPH_ON_CBUS)
 		return p != &tegra_pll_m;

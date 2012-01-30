@@ -345,6 +345,11 @@ int clk_set_parent_locked(struct clk *c, struct clk *parent)
 		goto out;
 	}
 
+	if (!tegra_clk_is_parent_allowed(c, parent)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	new_rate = clk_predict_rate_from_parent(c, parent);
 	old_rate = clk_get_rate_locked(c);
 
