@@ -966,7 +966,7 @@ static void cpufreq_set_governor(char *governor)
 	struct file *scaling_gov = NULL;
 	mm_segment_t old_fs;
 	char    buf[128];
-	int i;
+	int i = 0;
 	loff_t offset = 0;
 
 	if (governor == NULL)
