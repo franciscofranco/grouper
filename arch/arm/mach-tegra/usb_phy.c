@@ -2502,6 +2502,10 @@ int tegra_usb_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 	if (phy->power_on)
 		return ret;
 
+	if ((phy->instance == 0) && usb_phy_data[0].vbus_irq &&
+		(phy->mode == TEGRA_USB_PHY_MODE_DEVICE))
+		is_dpd = true;
+
 	if (phy->reg_vdd && !phy->regulator_on) {
 		regulator_enable(phy->reg_vdd);
 		phy->regulator_on = 1;
@@ -2525,6 +2529,10 @@ void tegra_usb_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 
 	if (!phy->power_on)
 		return;
+
+	if ((phy->instance == 0) && usb_phy_data[0].vbus_irq &&
+		(phy->mode == TEGRA_USB_PHY_MODE_DEVICE))
+		is_dpd = true;
 
 	if (power_off[phy->usb_phy_type])
 		power_off[phy->usb_phy_type](phy, is_dpd);
