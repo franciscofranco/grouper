@@ -381,7 +381,7 @@ static __initdata struct tegra_pingroup_config enterprise_unused_pinmux[] = {
 	DEFAULT_PINMUX(GMI_CS6_N,       GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(GMI_CS7_N,       GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(GMI_CLK,         GMI,             NORMAL,       TRISTATE,  OUTPUT),
-	DEFAULT_PINMUX(GMI_DQS,         GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
+	DEFAULT_PINMUX(GMI_DQS,         RSVD3,           PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(GMI_RST_N,       GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(GMI_WAIT,        GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(GMI_WP_N,        GMI,             PULL_DOWN,    TRISTATE,  OUTPUT),
