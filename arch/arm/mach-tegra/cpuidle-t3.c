@@ -76,6 +76,8 @@ module_param(lp2_n_in_idle, bool, 0644);
 static struct clk *cpu_clk_for_dvfs;
 static struct clk *twd_clk;
 
+static int lp2_exit_latencies[5];
+
 static struct {
 	unsigned int cpu_ready_count[5];
 	unsigned int tear_down_count[5];
@@ -149,6 +151,11 @@ bool tegra3_lp2_is_allowed(struct cpuidle_device *dev,
 	}
 
 	request = ktime_to_us(tick_nohz_get_sleep_length());
+	if (state->exit_latency != lp2_exit_latencies[cpu_number(dev->cpu)]) {
+		/* possible on the 1st entry after cluster switch*/
+		state->exit_latency = lp2_exit_latencies[cpu_number(dev->cpu)];
+		tegra_lp2_update_target_residency(state);
+	}
 	if (request < state->target_residency) {
 		/* Not enough time left to enter LP2 */
 		return false;
@@ -224,7 +231,8 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 #endif
 
 	if (request > state->target_residency) {
-		s64 sleep_time = request - tegra_lp2_exit_latency;
+		s64 sleep_time = request -
+			lp2_exit_latencies[cpu_number(dev->cpu)];
 
 		bin = time_to_bin((u32)request / 1000);
 		idle_stats.tear_down_count[cpu_number(dev->cpu)]++;
@@ -274,9 +282,12 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 		 */
 		int offset = ktime_to_us(ktime_sub(exit_time, entry_time))
 			- request;
-		int latency = tegra_lp2_exit_latency + offset / 16;
+		int latency = lp2_exit_latencies[cpu_number(dev->cpu)] +
+			offset / 16;
 		latency = clamp(latency, 0, 10000);
 		tegra_lp2_exit_latency = latency;
+		lp2_exit_latencies[cpu_number(dev->cpu)] = latency;
+		state->exit_latency = latency;		/* for idle governor */
 		smp_wmb();
 
 		idle_stats.lp2_completed_count++;
@@ -326,6 +337,9 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 
 	tegra_cpu_wake_by_time[dev->cpu] = LLONG_MAX;
 
+	/* FIXME: find real cpu_n latency */
+	lp2_exit_latencies[cpu_number(dev->cpu)] = tegra_lp2_exit_latency;
+	state->exit_latency = tegra_lp2_exit_latency;	/* for idle governor */
 	idle_stats.in_lp2_time[cpu_number(dev->cpu)] +=
 		ktime_to_us(ktime_sub(ktime_get(), entery_time));
 #endif
@@ -350,8 +364,14 @@ void tegra3_idle_lp2(struct cpuidle_device *dev,
 
 int tegra3_cpudile_init_soc(void)
 {
+	int i;
+
 	cpu_clk_for_dvfs = tegra_get_clock_by_name("cpu_g");
 	twd_clk = tegra_get_clock_by_name("twd");
+
+	for (i = 0; i < ARRAY_SIZE(lp2_exit_latencies); i++)
+		lp2_exit_latencies[i] = tegra_lp2_exit_latency;
+
 	return 0;
 }
 
