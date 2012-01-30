@@ -30,12 +30,8 @@ struct tegra_bb_gpio_irqdata {
 	const char *name;
 	irq_handler_t handler;
 	int flags;
+	bool wake_capable;
 	void *cookie;
-};
-
-struct tegra_bb_power_gdata {
-	struct tegra_bb_gpio_data *gpio;
-	struct tegra_bb_gpio_irqdata *gpioirq;
 };
 
 typedef void* (*bb_get_cblist)(void);
@@ -43,6 +39,25 @@ typedef void* (*bb_init_cb)(void *pdata);
 typedef void* (*bb_deinit_cb)(void);
 typedef int (*bb_power_cb)(int code);
 typedef int (*bb_attrib_cb)(struct device *dev, int value);
+typedef int (*modem_register_cb)(struct usb_device *udev);
+
+struct tegra_bb_power_gdata {
+	struct tegra_bb_gpio_data *gpio;
+	struct tegra_bb_gpio_irqdata *gpioirq;
+};
+
+struct tegra_bb_power_mdata {
+	int vid;
+	int pid;
+	bool wake_capable;
+	bool autosuspend_ready;
+	modem_register_cb reg_cb;
+};
+
+struct tegra_bb_power_data {
+	struct tegra_bb_power_gdata *gpio_data;
+	struct tegra_bb_power_mdata *modem_data;
+};
 
 struct tegra_bb_callback {
 	bb_init_cb init;
