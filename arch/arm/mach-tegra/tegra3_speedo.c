@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <mach/iomap.h>
+#include <mach/tegra_fuse.h>
 
 #include "fuse.h"
 
@@ -30,6 +31,24 @@
 
 #define FUSE_SPEEDO_CALIB_0	0x114
 #define FUSE_PACKAGE_INFO	0X1FC
+#define FUSE_TEST_PROG_VER	0X128
+#define FUSE_SPARE_BIT_58	0x32c
+#define FUSE_SPARE_BIT_59	0x330
+#define FUSE_SPARE_BIT_60	0x334
+#define FUSE_SPARE_BIT_61	0x338
+#define FUSE_SPARE_BIT_62	0x33c
+#define FUSE_SPARE_BIT_63	0x340
+#define FUSE_SPARE_BIT_64	0x344
+#define FUSE_SPARE_BIT_65	0x348
+
+#define G_SPEEDO_BIT_MINUS1	FUSE_SPARE_BIT_58
+#define G_SPEEDO_BIT_MINUS1_R	FUSE_SPARE_BIT_59
+#define G_SPEEDO_BIT_MINUS2	FUSE_SPARE_BIT_60
+#define G_SPEEDO_BIT_MINUS2_R	FUSE_SPARE_BIT_61
+#define LP_SPEEDO_BIT_MINUS1	FUSE_SPARE_BIT_62
+#define LP_SPEEDO_BIT_MINUS1_R	FUSE_SPARE_BIT_63
+#define LP_SPEEDO_BIT_MINUS2	FUSE_SPARE_BIT_64
+#define LP_SPEEDO_BIT_MINUS2_R	FUSE_SPARE_BIT_65
 
 /* Maximum speedo levels for each core process corner */
 static const u32 core_process_speedos[][CORE_PROCESS_CORNERS_NUM] = {
@@ -114,6 +133,7 @@ static int package_id;
 static void fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 {
 	u32 reg;
+	int ate_ver, bit_minus1, bit_minus2;
 
 	BUG_ON(!speedo_g || !speedo_lp);
 	reg = tegra_fuse_readl(FUSE_SPEEDO_CALIB_0);
@@ -123,6 +143,33 @@ static void fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 
 	/* Speedo G = Upper 16-bits Multiplied by 4 */
 	*speedo_g = ((reg >> 16) & 0xFFFF) * 4;
+
+	if (tegra_fuse_get_revision(&ate_ver))
+		return;
+	pr_info("%s: ATE prog ver %d.%d\n", __func__, ate_ver/10, ate_ver%10);
+
+	pr_debug("CPU speedo base value %u (0x%3x)\n", *speedo_g, *speedo_g);
+	pr_debug("Core speedo base value %u (0x%3x)\n", *speedo_lp, *speedo_lp);
+
+	if (ate_ver >= 26) {
+		/* read lower 2 bits of LP speedo from spare fuses */
+		bit_minus1 = tegra_fuse_readl(LP_SPEEDO_BIT_MINUS1) & 0x1;
+		bit_minus1 |= tegra_fuse_readl(LP_SPEEDO_BIT_MINUS1_R) & 0x1;
+		bit_minus2 = tegra_fuse_readl(LP_SPEEDO_BIT_MINUS2) & 0x1;
+		bit_minus2 |= tegra_fuse_readl(LP_SPEEDO_BIT_MINUS2_R) & 0x1;
+		*speedo_lp |= (bit_minus1 << 1) | bit_minus2;
+
+		/* read lower 2 bits of G speedo from spare fuses */
+		bit_minus1 = tegra_fuse_readl(G_SPEEDO_BIT_MINUS1) & 0x1;
+		bit_minus1 |= tegra_fuse_readl(G_SPEEDO_BIT_MINUS1_R) & 0x1;
+		bit_minus2 = tegra_fuse_readl(G_SPEEDO_BIT_MINUS2) & 0x1;
+		bit_minus2 |= tegra_fuse_readl(G_SPEEDO_BIT_MINUS2_R) & 0x1;
+		*speedo_g |= (bit_minus1 << 1) | bit_minus2;
+	} else {
+		/* set lower 2 bits for speedo ate-ver independent comparison */
+		*speedo_lp |= 0x3;
+		*speedo_g |= 0x3;
+	}
 }
 
 static void rev_sku_to_speedo_ids(int rev, int sku)
