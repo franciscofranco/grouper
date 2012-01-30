@@ -338,6 +338,10 @@ static int tegra30_i2s_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		i2sclock = srate * params_channels(params) * sample_size;
 
+		/* Additional "* 2" is needed for FSYNC mode */
+		if (i2s->reg_ctrl & TEGRA30_I2S_CTRL_FRAME_FORMAT_FSYNC)
+			i2sclock *= 2;
+
 		ret = clk_set_rate(i2s->clk_i2s_sync, i2sclock);
 		if (ret) {
 			dev_err(dev, "Can't set I2S sync clock rate\n");
