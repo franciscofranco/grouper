@@ -1352,7 +1352,7 @@ skip_dma_alloc:
 	ret = spi_register_master(master);
 	if (!tspi->is_clkon_always) {
 		if (tspi->clk_state) {
-			clk_disable(tspi->clk);
+			pm_runtime_put_sync(&pdev->dev);
 			tspi->clk_state = 0;
 		}
 	}
