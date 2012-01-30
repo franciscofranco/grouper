@@ -69,6 +69,7 @@ struct tegra_wm8753 {
 	struct regulator *audio_reg;
 	int gpio_requested;
 	int is_call_mode;
+	int is_call_mode_bt;
 };
 
 static int tegra_wm8753_hw_params(struct snd_pcm_substream *substream,
@@ -209,7 +210,7 @@ static int tegra_bt_sco_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_fmt(cpu_dai,
 					SND_SOC_DAIFMT_DSP_A |
 					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
+					SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
 		dev_err(card->dev, "cpu_dai fmt not set\n");
 		return err;
@@ -367,8 +368,61 @@ static int tegra_wm8753_voice_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_clkdiv(codec_dai, WM8753_VXCLKDIV, vxclkdiv);
 	snd_soc_dai_set_clkdiv(codec_dai, WM8753_PCMDIV, pcmdiv);
 
+	machine->is_call_mode_bt = 0;
+
 	return 0;
 }
+
+static int tegra_bt_call_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = codec->card;
+	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
+	int srate, mclk;
+	int err;
+
+	srate = params_rate(params);
+	switch (srate) {
+	case 8000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+	case 64000:
+	case 96000:
+		mclk = 12288000;
+		break;
+	case 11025:
+	case 22050:
+	case 44100:
+	case 88200:
+		mclk = 11289600;
+		break;
+	default:
+		mclk = 12000000;
+		break;
+	}
+
+	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
+	if (err < 0) {
+		if (!(machine->util_data.set_mclk % mclk))
+			mclk = machine->util_data.set_mclk;
+		else {
+			dev_err(card->dev, "Can't configure clocks\n");
+			return err;
+		}
+	}
+
+	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
+
+	machine->is_call_mode_bt = 1;
+
+	return 0;
+}
+
 
 static int tegra_hw_free(struct snd_pcm_substream *substream)
 {
@@ -380,12 +434,24 @@ static int tegra_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int tegra_bt_call_hw_free(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(rtd->card);
+
+	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 0);
+	machine->is_call_mode_bt = 0;
+
+	return 0;
+}
+
 static int tegra_wm8753_voice_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(rtd->card);
 
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 0);
+	machine->is_call_mode_bt = 0;
 
 	return 0;
 }
@@ -415,31 +481,44 @@ static int tegra_call_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct tegra_wm8753 *machine = snd_kcontrol_chip(kcontrol);
 	int is_call_mode_new = ucontrol->value.integer.value[0];
+	int codec_dap_id, codec_dap_sel, bb_dap_id, bb_dap_sel;
 
 	if (machine->is_call_mode == is_call_mode_new)
 		return 0;
 
+	bb_dap_id = TEGRA20_DAS_DAP_ID_3;
+	bb_dap_sel = TEGRA20_DAS_DAP_SEL_DAP3;
+
+	if (machine->is_call_mode_bt) {
+		codec_dap_id = TEGRA20_DAS_DAP_ID_4;
+		codec_dap_sel = TEGRA20_DAS_DAP_SEL_DAP4;
+	}
+	else {
+		codec_dap_id = TEGRA20_DAS_DAP_ID_2;
+		codec_dap_sel = TEGRA20_DAS_DAP_SEL_DAP2;
+	}
+
 	if (is_call_mode_new) {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_2, 1);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_3, 1);
-		tegra20_das_connect_dap_to_dap(TEGRA20_DAS_DAP_ID_2,
-			TEGRA20_DAS_DAP_SEL_DAP3, 1, 0, 0);
-		tegra20_das_connect_dap_to_dap(TEGRA20_DAS_DAP_ID_3,
-			TEGRA20_DAS_DAP_SEL_DAP2, 0, 0, 0);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_2, 0);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_3, 0);
+		tegra20_das_set_tristate(codec_dap_id, 1);
+		tegra20_das_set_tristate(bb_dap_id, 1);
+		tegra20_das_connect_dap_to_dap(codec_dap_id,
+			bb_dap_sel, 1, 0, 0);
+		tegra20_das_connect_dap_to_dap(bb_dap_id,
+			codec_dap_sel, 0, 0, 0);
+		tegra20_das_set_tristate(codec_dap_id, 0);
+		tegra20_das_set_tristate(bb_dap_id, 0);
 #endif
 	} else {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_2, 1);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_3, 1);
-		tegra20_das_connect_dap_to_dap(TEGRA20_DAS_DAP_ID_3,
-			TEGRA20_DAS_DAP_SEL_DAP3, 0, 0, 0);
-		tegra20_das_connect_dap_to_dap(TEGRA20_DAS_DAP_ID_2,
-			TEGRA20_DAS_DAP_SEL_DAP2, 0, 0, 0);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_2, 0);
-		tegra20_das_set_tristate(TEGRA20_DAS_DAP_ID_3, 0);
+		tegra20_das_set_tristate(codec_dap_id, 1);
+		tegra20_das_set_tristate(bb_dap_id, 1);
+		tegra20_das_connect_dap_to_dap(bb_dap_id,
+			bb_dap_sel, 0, 0, 0);
+		tegra20_das_connect_dap_to_dap(codec_dap_id,
+			codec_dap_sel, 0, 0, 0);
+		tegra20_das_set_tristate(codec_dap_id, 0);
+		tegra20_das_set_tristate(bb_dap_id, 0);
 #endif
 	}
 
@@ -466,6 +545,11 @@ static struct snd_soc_ops tegra_wm8753_ops = {
 static struct snd_soc_ops tegra_wm8753_voice_ops = {
 	.hw_params = tegra_wm8753_voice_hw_params,
 	.hw_free = tegra_wm8753_voice_hw_free,
+};
+
+static struct snd_soc_ops tegra_bt_call_ops = {
+	.hw_params = tegra_bt_call_hw_params,
+	.hw_free = tegra_bt_call_hw_free,
 };
 
 static struct snd_soc_ops tegra_bt_sco_ops = {
@@ -745,6 +829,15 @@ static struct snd_soc_dai_link tegra_wm8753_dai[] = {
 		.cpu_dai_name = "dit-hifi",
 		.codec_dai_name = "wm8753-voice",
 		.ops = &tegra_wm8753_voice_ops,
+	},
+	{
+		.name = "BT VOICE CALL",
+		.stream_name = "BT VOICE CALL PCM",
+		.codec_name = "spdif-dit.2",
+		.platform_name = "tegra-pcm-audio",
+		.cpu_dai_name = "dit-hifi",
+		.codec_dai_name = "dit-hifi",
+		.ops = &tegra_bt_call_ops,
 	},
 };
 
