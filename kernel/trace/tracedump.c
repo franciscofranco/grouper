@@ -258,7 +258,7 @@ static ssize_t pager_next(void)
 		return 0;
 
 	if (!pager.spare)
-		pager.spare = ring_buffer_alloc_read_page(pager.tr->buffer);
+		pager.spare = ring_buffer_alloc_read_page(pager.tr->buffer, pager.cpu);
 	if (!pager.spare) {
 		printk(TAG "ring_buffer_alloc_read_page failed!");
 		return -ENOMEM;
