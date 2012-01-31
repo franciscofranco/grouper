@@ -365,12 +365,6 @@ config REGULATOR_TPS65090
 	help
 	  This driver supports TPS65090 voltage regulator chips.
 
-config REGULATOR_TPS6236X
-	tristate "TI TPS6236X DC-DC core power suply regulators"
-	default n
-	help
-	  This driver supports TPS6236X DC-DC Processor core supply.
-
 config REGULATOR_TPS80031
 	tristate "TI TPS80031 Power regulators"
 	depends on MFD_TPS80031

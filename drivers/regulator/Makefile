@@ -44,7 +44,6 @@ obj-$(CONFIG_REGULATOR_TPS65023) += tps65023-regulator.o
 obj-$(CONFIG_REGULATOR_TPS6507X) += tps6507x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS6524X) += tps6524x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS65912) += tps65912-regulator.o
-obj-$(CONFIG_REGULATOR_TPS6236X) += tps6236x-regulator.o
 obj-$(CONFIG_REGULATOR_TPS80031) += tps80031-regulator.o
 obj-$(CONFIG_REGULATOR_RICOH583) += ricoh583-regulator.o
 obj-$(CONFIG_REGULATOR_88PM8607) += 88pm8607.o
