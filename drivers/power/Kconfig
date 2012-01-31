@@ -189,6 +189,15 @@ config BATTERY_MAX17042
 	  multi-function devices that include fuel gauages that are compatible
 	  with MAX17042.
 
+config BATTERY_MAX17048
+	tristate "Maxim MAX17048/17049 Fuel Gauge"
+	depends on I2C
+	help
+	  MAX17048 is fuel-gauge systems for lithium-ion (Li+) batteries
+	  in handheld and portable equipment. The MAX17048 is configured
+	  to operate with a single lithium cell, and MAX17049 for two lithium
+	  cells.
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
