@@ -206,6 +206,10 @@
 #define   USB_USBSTS_SRI	(1 << 7)
 #define   USB_USBSTS_HCH	(1 << 12)
 
+#define USB_TXFILLTUNING        0x154
+#define USB_FIFO_TXFILL_THRES(x)   (((x) & 0x1f) << 16)
+#define USB_FIFO_TXFILL_MASK    0x1f0000
+
 #define ULPI_VIEWPORT		0x160
 
 #define USB_PORTSC1		0x174
@@ -1577,7 +1581,6 @@ static int uhsic_phy_preresume(struct tegra_usb_phy *phy, bool remote_wakeup)
 
 static int uhsic_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
 {
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
@@ -1586,7 +1589,6 @@ static int uhsic_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
 		val = USB_FIFO_TXFILL_THRES(0x10);
 		writel(val, base + USB_TXFILLTUNING);
 	}
-#endif
 
 	return 0;
 }
@@ -2237,12 +2239,25 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 	val &= ~USB_PORTSC1_PTS(~0);
 	writel(val, base + USB_PORTSC1);
 
+#endif
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+	val = readl(base + TEGRA_USB_USBMODE_REG_OFFSET);
+	val |= TEGRA_USB_USBMODE_HOST;
+	writel(val, base + TEGRA_USB_USBMODE_REG_OFFSET);
+
+	/* Change the USB controller PHY type to HSIC */
+	val = readl(base + HOSTPC1_DEVLC);
+	val &= ~HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_MASK);
+	val |= HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_HSIC);
+	val &= ~HOSTPC1_DEVLC_PSPD(HOSTPC1_DEVLC_PSPD_MASK);
+	val |= HOSTPC1_DEVLC_PSPD(HOSTPC1_DEVLC_PSPD_HIGH_SPEED);
+	writel(val, base + HOSTPC1_DEVLC);
+#endif
 	val = readl(base + USB_TXFILLTUNING);
 	if ((val & USB_FIFO_TXFILL_MASK) != USB_FIFO_TXFILL_THRES(0x10)) {
 		val = USB_FIFO_TXFILL_THRES(0x10);
 		writel(val, base + USB_TXFILLTUNING);
 	}
-#endif
 
 	val = readl(base + USB_PORTSC1);
 	val &= ~(USB_PORTSC1_WKOC | USB_PORTSC1_WKDS | USB_PORTSC1_WKCN);
@@ -2250,8 +2265,13 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 
 	val = readl(base + UHSIC_PADS_CFG0);
 	val &= ~(UHSIC_TX_RTUNEN);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	/* set Rtune impedance to 40 ohm */
 	val |= UHSIC_TX_RTUNE(0);
+#else
+	/* set Rtune impedance to 50 ohm */
+	val |= UHSIC_TX_RTUNE(8);
+#endif
 	writel(val, base + UHSIC_PADS_CFG0);
 
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
@@ -2278,10 +2298,6 @@ static int uhsic_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 	val |= UHSIC_RESET;
 	writel(val, base + USB_SUSP_CTRL);
 	udelay(30);
-
-	val = readl(base + USB_SUSP_CTRL);
-	val &= ~UHSIC_PHY_ENABLE;
-	writel(val, base + USB_SUSP_CTRL);
 
 	if (uhsic_config->enable_gpio != -1) {
 		gpio_set_value_cansleep(uhsic_config->enable_gpio, 0);
@@ -2692,6 +2708,10 @@ int tegra_usb_phy_bus_connect(struct tegra_usb_phy *phy)
 
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC) {
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
+		val = readl(base + TEGRA_USB_USBMODE_REG_OFFSET);
+		val |= TEGRA_USB_USBMODE_HOST;
+		writel(val, base + TEGRA_USB_USBMODE_REG_OFFSET);
+
 		/* Change the USB controller PHY type to HSIC */
 		val = readl(base + HOSTPC1_DEVLC);
 		val &= ~HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_MASK);
@@ -2834,7 +2854,12 @@ int tegra_usb_phy_bus_idle(struct tegra_usb_phy *phy)
 	struct tegra_uhsic_config *uhsic_config = phy->config;
 
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC) {
+
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
+		val = readl(base + TEGRA_USB_USBMODE_REG_OFFSET);
+		val |= TEGRA_USB_USBMODE_HOST;
+		writel(val, base + TEGRA_USB_USBMODE_REG_OFFSET);
+
 		/* Change the USB controller PHY type to HSIC */
 		val = readl(base + HOSTPC1_DEVLC);
 		val &= ~HOSTPC1_DEVLC_PTS(HOSTPC1_DEVLC_PTS_MASK);
@@ -2883,8 +2908,9 @@ bool tegra_usb_phy_is_device_connected(struct tegra_usb_phy *phy)
 	void __iomem *base = phy->regs;
 
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC) {
-		if (!((readl(base + UHSIC_STAT_CFG0) & UHSIC_CONNECT_DETECT) == UHSIC_CONNECT_DETECT)) {
-			pr_err("%s: hsic no device connection\n", __func__);
+		if (utmi_wait_register(base + UHSIC_STAT_CFG0,
+			UHSIC_CONNECT_DETECT, UHSIC_CONNECT_DETECT) < 0) {
+			pr_err("%s: no hsic connection\n", __func__);
 			return false;
 		}
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
