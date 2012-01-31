@@ -28,7 +28,7 @@
 #include <linux/regulator/gpio-switch-regulator.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/ricoh583-regulator.h>
-#include <linux/regulator/tps6236x-regulator.h>
+#include <linux/regulator/tps62360.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -279,11 +279,11 @@ static struct i2c_board_info __initdata ricoh583_regulators[] = {
 };
 
 /* TPS62361B DC-DC converter */
-static struct regulator_consumer_supply tps6236x_dcdc_supply[] = {
+static struct regulator_consumer_supply tps62361_dcdc_supply[] = {
 	REGULATOR_SUPPLY("vdd_core", NULL),
 };
 
-static struct tps6236x_regulator_platform_data tps6236x_pdata = {
+static struct tps62360_regulator_platform_data tps62361_pdata = {
 	.reg_init_data = {					\
 		.constraints = {				\
 			.min_uV = 500000,			\
@@ -297,19 +297,20 @@ static struct tps6236x_regulator_platform_data tps6236x_pdata = {
 			.boot_on =  1,				\
 			.apply_uV = 0,				\
 		},						\
-		.num_consumer_supplies = ARRAY_SIZE(tps6236x_dcdc_supply), \
-		.consumer_supplies = tps6236x_dcdc_supply,		\
-		},							\
-	.internal_pd_enable = 0,					\
-	.vsel = 3,							\
-	.init_uV = -1,							\
-	.init_apply = 0,						\
+		.num_consumer_supplies = ARRAY_SIZE(tps62361_dcdc_supply), \
+		.consumer_supplies = tps62361_dcdc_supply,	\
+		},						\
+	.en_discharge = true,					\
+	.vsel0_gpio = -1,					\
+	.vsel1_gpio = -1,					\
+	.vsel0_def_state = 1,					\
+	.vsel1_def_state = 1,					\
 };
 
-static struct i2c_board_info __initdata tps6236x_boardinfo[] = {
+static struct i2c_board_info __initdata tps62361_boardinfo[] = {
 	{
-		I2C_BOARD_INFO("tps62361B", 0x60),
-		.platform_data	= &tps6236x_pdata,
+		I2C_BOARD_INFO("tps62361", 0x60),
+		.platform_data	= &tps62361_pdata,
 	},
 };
 
@@ -351,8 +352,8 @@ int __init cardhu_pm299_regulator_init(void)
 	/* Register the TPS6236x for all boards whose sku bit 0 is set. */
 	if ((board_info.sku & SKU_DCDC_TPS62361_SUPPORT) ||
 			(pmu_board_info.sku & SKU_DCDC_TPS62361_SUPPORT)) {
-		pr_info("Registering the device TPS62361B\n");
-		i2c_register_board_info(4, tps6236x_boardinfo, 1);
+		pr_info("Registering the device TPS62361\n");
+		i2c_register_board_info(4, tps62361_boardinfo, 1);
 	}
 	return 0;
 }
