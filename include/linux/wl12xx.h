@@ -34,17 +34,6 @@ enum {
 	WL12XX_REFCLOCK_26_XTAL = 5, /* 26 MHz, XTAL */
 };
 
-/* TCXO clock values */
-enum {
-	WL12XX_TCXOCLOCK_19_2	= 0, /* 19.2MHz */
-	WL12XX_TCXOCLOCK_26	= 1, /* 26 MHz */
-	WL12XX_TCXOCLOCK_38_4	= 2, /* 38.4MHz */
-	WL12XX_TCXOCLOCK_52	= 3, /* 52 MHz */
-	WL12XX_TCXOCLOCK_16_368	= 4, /* 16.368 MHz */
-	WL12XX_TCXOCLOCK_32_736	= 5, /* 32.736 MHz */
-	WL12XX_TCXOCLOCK_16_8	= 6, /* 16.8 MHz */
-	WL12XX_TCXOCLOCK_33_6	= 7, /* 33.6 MHz */
-};
 
 /* TCXO clock values */
 enum {
