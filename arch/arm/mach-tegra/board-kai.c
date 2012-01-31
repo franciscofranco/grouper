@@ -274,6 +274,13 @@ static struct tegra_i2c_platform_data kai_i2c5_platform_data = {
 	.arb_recovery = arb_lost_recovery,
 };
 
+
+static struct i2c_board_info kai_i2c4_smb349_board_info[] = {
+	{
+		I2C_BOARD_INFO("smb349", 0x1B),
+	},
+};
+
 static void kai_i2c_init(void)
 {
 	tegra_i2c_device1.dev.platform_data = &kai_i2c1_platform_data;
@@ -287,6 +294,9 @@ static void kai_i2c_init(void)
 	platform_device_register(&tegra_i2c_device3);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device1);
+
+	i2c_register_board_info(4, kai_i2c4_smb349_board_info,
+		ARRAY_SIZE(kai_i2c4_smb349_board_info));
 }
 
 static struct platform_device *kai_uart_devices[] __initdata = {
