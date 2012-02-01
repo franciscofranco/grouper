@@ -188,16 +188,16 @@ static struct platform_device cardhu_keys_e1291_device = {
 		.debounce_interval = _deb_int,	\
 	}
 static struct interrupt_keys_button cardhu_int_keys[] = {
-	[0] = INT_KEY(KEY_POWER, TPS6591X_IRQ_BASE + TPS6591X_INT_PWRON, 0, 100),
+	[0] = INT_KEY(KEY_POWER, TPS6591X_IRQ_BASE + TPS6591X_INT_PWRON, 1, 100),
 };
 
 static struct interrupt_keys_button cardhu_pm298_int_keys[] = {
-	[0] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 0, 100),
-	[1] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 0, 3000),
+	[0] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 1, 100),
+	[1] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 1, 3000),
 };
 
 static struct interrupt_keys_button cardhu_pm299_int_keys[] = {
-	[0] = INT_KEY(KEY_POWER, RICOH583_IRQ_BASE + RICOH583_IRQ_ONKEY, 0, 100),
+	[0] = INT_KEY(KEY_POWER, RICOH583_IRQ_BASE + RICOH583_IRQ_ONKEY, 1, 100),
 };
 
 static struct interrupt_keys_platform_data cardhu_int_keys_pdata = {
