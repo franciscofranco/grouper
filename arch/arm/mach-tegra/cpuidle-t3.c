@@ -305,14 +305,21 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 	s64 sleep_time;
 	ktime_t entry_time;
 	struct tegra_twd_context twd_context;
-	unsigned long twd_rate = clk_get_rate(twd_clk);
 	bool sleep_completed = false;
 
 	if (!tegra_twd_get_state(&twd_context)) {
+		unsigned long twd_rate = clk_get_rate(twd_clk);
+
 		if ((twd_context.twd_ctrl & TWD_TIMER_CONTROL_ENABLE) &&
 		    (twd_context.twd_ctrl & TWD_TIMER_CONTROL_IT_ENABLE)) {
 			request = div_u64((u64)twd_context.twd_cnt * 1000000,
 					  twd_rate);
+			if (request >= state->target_residency) {
+				twd_context.twd_cnt -= state->exit_latency *
+					(twd_rate / 1000000);
+				writel(twd_context.twd_cnt,
+					twd_base + TWD_TIMER_COUNTER);
+			}
 		}
 	}
 
@@ -348,8 +355,8 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 		 * adjust the exit latency based on measurement
 		 */
 		int offset = sleep_time - request;
-		int latency = (15 * lp2_exit_latencies[cpu_number(dev->cpu)] +
-			offset) / 16;
+		int latency = lp2_exit_latencies[cpu_number(dev->cpu)] +
+			offset / 16;
 		latency = clamp(latency, 0, 10000);
 		lp2_exit_latencies[cpu_number(dev->cpu)] = latency;
 		state->exit_latency = latency;		/* for idle governor */
