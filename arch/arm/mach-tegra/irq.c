@@ -4,7 +4,7 @@
  * Author:
  *	Colin Cross <ccross@android.com>
  *
- * Copyright (C) 2010-2011, NVIDIA Corporation
+ * Copyright (C) 2010-2012, NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -29,6 +29,7 @@
 #include <mach/legacy_irq.h>
 
 #include "board.h"
+#include "gic.h"
 #include "pm-irq.h"
 
 #define INT_SYS_NR	(INT_GPIO_BASE - INT_PRI_BASE)
@@ -209,8 +210,7 @@ void __init tegra_init_irq(void)
 	gic_arch_extn.irq_set_wake = tegra_set_wake;
 	gic_arch_extn.flags = IRQCHIP_MASK_ON_SUSPEND;
 
-	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
-		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
+	tegra_gic_init();
 }
 
 void tegra_init_legacy_irq_cop(void)

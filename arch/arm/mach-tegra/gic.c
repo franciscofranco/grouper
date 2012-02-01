@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011, NVIDIA Corporation
+ * Copyright (C) 2010-2012, NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -127,3 +127,9 @@ void tegra_gic_affinity_to_cpu0(void)
 }
 #endif
 #endif
+
+void __init tegra_gic_init(void)
+{
+	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
+		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
+}
