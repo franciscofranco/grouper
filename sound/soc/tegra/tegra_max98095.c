@@ -422,31 +422,31 @@ static int tegra_max98095_event_hp(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget tegra_max98095_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Int Spk", tegra_max98095_event_int_spk),
-	SND_SOC_DAPM_OUTPUT("Earpiece"),
 	SND_SOC_DAPM_HP("Headphone Jack", tegra_max98095_event_hp),
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_INPUT("Int Mic"),
+	SND_SOC_DAPM_LINE("Line In", NULL),
 };
 
 static const struct snd_soc_dapm_route enterprise_audio_map[] = {
 	{"Int Spk", NULL, "SPKL"},
 	{"Int Spk", NULL, "SPKR"},
-	{"Earpiece", NULL, "RECL"},
-	{"Earpiece", NULL, "RECR"},
 	{"Headphone Jack", NULL, "HPL"},
 	{"Headphone Jack", NULL, "HPR"},
-	{"MICBIAS", NULL, "Mic Jack"},
-	{"MIC2", NULL, "MICBIAS"},
-	{"MICBIAS", NULL, "Int Mic"},
-	{"MIC1", NULL, "MICBIAS"},
+	{"MICBIAS2", NULL, "Mic Jack"},
+	{"MIC2", NULL, "MICBIAS2"},
+	{"MIC1", NULL, "Int Mic"},
+	{"MIC1", NULL, "MICBIAS1"},
+	{"INB1", NULL, "Line In"},
+	{"INB2", NULL, "Line In"},
 };
 
 static const struct snd_kcontrol_new tegra_max98095_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Int Spk"),
-	SOC_DAPM_PIN_SWITCH("Earpiece"),
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Int Mic"),
+	SOC_DAPM_PIN_SWITCH("LineIn"),
 };
 
 static int tegra_max98095_init(struct snd_soc_pcm_runtime *rtd)
