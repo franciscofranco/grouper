@@ -2,8 +2,8 @@
  * drivers/regulator/max77663-regulator.c
  * Maxim LDO and Buck regulators driver
  *
- * Copyright 2011 Maxim Integrated Products, Inc.
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright 2011-2012 Maxim Integrated Products, Inc.
+ * Copyright (C) 2011-2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -64,6 +64,7 @@
 #define MAX77663_REG_LDO7_CFG2		0x32
 #define MAX77663_REG_LDO8_CFG		0x33
 #define MAX77663_REG_LDO8_CFG2		0x34
+#define MAX77663_REG_LDO_CFG3		0x35
 
 /* Power Mode */
 #define POWER_MODE_NORMAL		3
@@ -90,6 +91,10 @@
 /* SD Failling slew rate Active-Discharge Mode */
 #define SD_FSRADE_MASK			0x01
 #define SD_FSRADE_SHIFT		0
+
+/* LDO Configuration 3 */
+#define TRACK4_MASK			0x20
+#define TRACK4_SHIFT			5
 
 /* Voltage */
 #define SDX_VOLT_MASK			0xFF
@@ -727,6 +732,18 @@ skip_init_apply:
 					"for EN2_CTRL_SD0\n");
 				return ret;
 			}
+		}
+	}
+
+	if ((reg->id == MAX77663_REGULATOR_ID_LDO4)
+			&& (pdata->flags & LDO4_EN_TRACKING)) {
+		val = TRACK4_MASK;
+		ret = max77663_write(_to_parent(reg), MAX77663_REG_LDO_CFG3, &val, 1, 0);
+		if (ret < 0) {
+			dev_err(reg->dev, "preinit: "
+				"Failed to set register 0x%x\n",
+				MAX77663_REG_LDO_CFG3);
+			return ret;
 		}
 	}
 

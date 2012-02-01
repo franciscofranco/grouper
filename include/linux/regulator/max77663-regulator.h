@@ -2,8 +2,8 @@
  * include/linux/regulator/max77663-regulator.h
  * Maxim LDO and Buck regulators driver
  *
- * Copyright 2011 Maxim Integrated Products, Inc.
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright 2011-2012 Maxim Integrated Products, Inc.
+ * Copyright (C) 2011-2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -103,6 +103,9 @@ enum max77663_regulator_fps_src {
 
 /* Group Low-Power Mode */
 #define GLPM_ENABLE		0x80
+
+/* Tracking for LDO4 */
+#define LDO4_EN_TRACKING	0x100
 
 struct max77663_regulator_fps_cfg {
 	enum max77663_regulator_fps_src src;
