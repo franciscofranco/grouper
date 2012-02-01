@@ -152,6 +152,7 @@ unsigned long tegra2_lp2_timer_remain(void);
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 void tegra3_lp2_set_trigger(unsigned long cycles);
 unsigned long tegra3_lp2_timer_remain(void);
+int tegra3_is_lp2_timer_ready(unsigned int cpu);
 #endif
 
 static inline void tegra_lp0_suspend_init(void)
@@ -178,6 +179,15 @@ static inline unsigned long tegra_lp2_timer_remain(void)
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	return tegra3_lp2_timer_remain();
+#endif
+}
+
+static inline int tegra_is_lp2_timer_ready(unsigned int cpu)
+{
+#if defined(CONFIG_TEGRA_LP2_ARM_TWD) || defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	return 1;
+#else
+	return tegra3_is_lp2_timer_ready(cpu);
 #endif
 }
 

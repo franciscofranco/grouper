@@ -41,6 +41,7 @@ config ARCH_TEGRA_3x_SOC
 	select ARCH_SUPPORTS_MSI if TEGRA_PCI
 	select PCI_MSI if TEGRA_PCI
 	select ARM_ERRATA_754322
+	select TEGRA_LP2_ARM_TWD if HAVE_ARM_TWD
 	help
 	  Support for NVIDIA Tegra 3 family of SoCs, based upon the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -471,6 +472,9 @@ config TEGRA_WDT_RECOVERY
 	help
 	  Enables watchdog recovery mechanism to protect against
 	  suspend/resume hangs.
+
+config TEGRA_LP2_ARM_TWD
+	bool
 endif
 
 config TEGRA_SLOW_CSITE
