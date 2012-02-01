@@ -1071,6 +1071,7 @@ static int tegra_nvavp_release(struct inode *inode, struct file *filp)
 		nvavp_uninit(nvavp);
 
 out:
+	nvmap_client_put(clientctx->nvmap);
 	mutex_unlock(&nvavp->open_lock);
 	kfree(clientctx);
 	return ret;
