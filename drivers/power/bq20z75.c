@@ -648,6 +648,17 @@ static int __devinit bq20z75_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, bq20z75_device);
 
+	/* Probing for the presence of the bq20z75 */
+	rc = bq20z75_read_word_data(client,
+		bq20z75_data[REG_SERIAL_NUMBER].addr);
+
+	if (rc < 0) {
+		dev_err(&client->dev,
+			"%s: bq20z75 is not responding\n", __func__);
+		rc = -ENODEV;
+		goto exit_mem_free;
+	}
+
 	if (!bq20z75_device->gpio_detect)
 		goto skip_gpio;
 
@@ -687,7 +698,6 @@ static int __devinit bq20z75_probe(struct i2c_client *client,
 	bq20z75_device->irq = irq;
 
 skip_gpio:
-
 	rc = power_supply_register(&client->dev, &bq20z75_device->power_supply);
 	if (rc) {
 		dev_err(&client->dev,
@@ -710,6 +720,7 @@ exit_psupply:
 	if (bq20z75_device->gpio_detect)
 		gpio_free(pdata->battery_detect);
 
+exit_mem_free:
 	kfree(bq20z75_device);
 
 	return rc;
