@@ -775,14 +775,14 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 			dev_err(mmc_dev(host->mmc), "%s regulator not found: %ld\n",
 				"vddio_sd_slot", PTR_ERR(tegra_host->vdd_slot_reg));
 			tegra_host->vdd_slot_reg = NULL;
-		} else {
-			if (tegra_host->card_present) {
-				if (tegra_host->vdd_slot_reg)
-					regulator_enable(tegra_host->vdd_slot_reg);
-				if (tegra_host->vdd_io_reg)
-					regulator_enable(tegra_host->vdd_io_reg);
-				tegra_host->is_rail_enabled = 1;
-			}
+		}
+
+		if (tegra_host->card_present) {
+			if (tegra_host->vdd_slot_reg)
+				regulator_enable(tegra_host->vdd_slot_reg);
+			if (tegra_host->vdd_io_reg)
+				regulator_enable(tegra_host->vdd_io_reg);
+			tegra_host->is_rail_enabled = 1;
 		}
 	}
 
