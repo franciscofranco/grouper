@@ -67,7 +67,7 @@ static struct tegra_kbc_wake_key cardhu_wake_cfg[] = {
 };
 
 static struct tegra_kbc_platform_data cardhu_kbc_platform_data = {
-	.debounce_cnt = 20,
+	.debounce_cnt = 20 * 32, /* 20ms debounce time */
 	.repeat_cnt = 1,
 	.scan_count = 30,
 	.wakeup = true,
