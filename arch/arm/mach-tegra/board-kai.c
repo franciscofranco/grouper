@@ -565,7 +565,7 @@ static struct platform_device *kai_devices[] __initdata = {
 
 static __initdata struct tegra_clk_init_table spi_clk_init_table[] = {
 	/* name         parent          rate            enabled */
-	{ "sbc1",       "pll_p",        72000000,       true},
+	{ "sbc1",       "pll_p",        52000000,       true},
 	{ NULL,         NULL,           0,              0},
 };
 
@@ -606,7 +606,7 @@ static int __init kai_touch_init(void)
 	case 0:
 		pr_info("Raydium PCB based touch init\n");
 		tegra_clk_init_from_table(spi_clk_init_table);
-		touch_init_raydium();
+		touch_init_raydium(TEGRA_GPIO_PZ3, TEGRA_GPIO_PN5, 0);
 		break;
 	case 1:
 		pr_info("Raydium On-Board touch init\n");
@@ -614,7 +614,7 @@ static int __init kai_touch_init(void)
 		tegra_clk_init_from_table(touch_clk_init_table);
 		clk_enable(tegra_get_clock_by_name("clk_out_3"));
 
-		touch_init_raydium();
+		touch_init_raydium(TEGRA_GPIO_PZ3, TEGRA_GPIO_PN5, 1);
 		break;
 	case 3:
 		pr_info("Synaptics PCB based touch init\n");
