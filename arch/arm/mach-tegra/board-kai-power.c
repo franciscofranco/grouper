@@ -46,6 +46,8 @@
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
 
+static bool is_kai_machine = false;
+
 static struct regulator_consumer_supply max77663_sd0_supply[] = {
 	REGULATOR_SUPPLY("vdd_cpu", NULL),
 };
@@ -477,9 +479,12 @@ static struct platform_device *fixed_reg_devs[] = {
 	E1565_FIXED_REG
 };
 
-static int __init kai_max77663_gpio_switch_regulator_init(void)
+static int __init kai_fixed_regulator_init(void)
 {
 	int i;
+
+	if (!is_kai_machine)
+		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(fixed_reg_devs); ++i) {
 		int gpio_nr;
@@ -493,6 +498,7 @@ static int __init kai_max77663_gpio_switch_regulator_init(void)
 
 	return platform_add_devices(fixed_reg_devs, ARRAY_SIZE(fixed_reg_devs));
 }
+subsys_initcall_sync(kai_fixed_regulator_init);
 
 int __init kai_regulator_init(void)
 {
@@ -510,7 +516,8 @@ int __init kai_regulator_init(void)
 	if (ret < 0)
 		return ret;
 
-	return kai_max77663_gpio_switch_regulator_init();
+	is_kai_machine = true;
+	return 0;
 }
 
 static void kai_board_suspend(int lp_state, enum suspend_stage stg)
