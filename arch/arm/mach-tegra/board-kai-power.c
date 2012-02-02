@@ -341,17 +341,30 @@ static int __init kai_max77663_regulator_init(void)
 	return 0;
 }
 
-static struct regulator_consumer_supply fixed_reg_en_3v3_sys_supply[] = {
+static struct regulator_consumer_supply fixed_reg_en_3v3_sys_a00_supply[] = {
 	REGULATOR_SUPPLY("vdd_3v3", NULL),
 	REGULATOR_SUPPLY("vdd_3v3_devices", NULL),
 	REGULATOR_SUPPLY("debug_cons", NULL),
 	REGULATOR_SUPPLY("pwrdet_pex_ctl", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_en_avdd_hdmi_usb_supply[] = {
+static struct regulator_consumer_supply fixed_reg_en_3v3_sys_a01_supply[] = {
+	REGULATOR_SUPPLY("vdd_3v3", NULL),
+	REGULATOR_SUPPLY("vdd_3v3_devices", NULL),
+	REGULATOR_SUPPLY("debug_cons", NULL),
+	REGULATOR_SUPPLY("pwrdet_pex_ctl", NULL),
+	REGULATOR_SUPPLY("vddio_gmi", NULL),
+};
+
+static struct regulator_consumer_supply fixed_reg_en_avdd_hdmi_usb_a00_supply[] = {
 	REGULATOR_SUPPLY("avdd_hdmi", NULL),
 	REGULATOR_SUPPLY("avdd_usb", NULL),
 	REGULATOR_SUPPLY("vddio_gmi", NULL),
+};
+
+static struct regulator_consumer_supply fixed_reg_en_avdd_hdmi_usb_a01_supply[] = {
+	REGULATOR_SUPPLY("avdd_hdmi", NULL),
+	REGULATOR_SUPPLY("avdd_usb", NULL),
 };
 
 static struct regulator_consumer_supply fixed_reg_en_1v8_cam_supply[] = {
@@ -432,27 +445,52 @@ static struct regulator_consumer_supply fixed_reg_cdc_en_supply[] = {
 		},							\
 	}
 
-FIXED_REG(1, en_3v3_sys,	en_3v3_sys,		NULL,
+/* A00 specific */
+FIXED_REG(1, en_3v3_sys_a00,	en_3v3_sys_a00,		NULL,
 	1,	0,	MAX77663_GPIO_BASE + MAX77663_GPIO3,	true,	1,	3300);
-FIXED_REG(2, en_avdd_hdmi_usb,	en_avdd_hdmi_usb,	FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(2, en_avdd_hdmi_usb_a00, en_avdd_hdmi_usb_a00, FIXED_SUPPLY(en_3v3_sys_a00),
 	1,	0,	MAX77663_GPIO_BASE + MAX77663_GPIO2,	true,	1,	3300);
-FIXED_REG(3, en_1v8_cam,	en_1v8_cam,		max77663_rails(sd2),
+FIXED_REG(3, en_1v8_cam_a00,	en_1v8_cam,		max77663_rails(sd2),
 	0,	0,	TEGRA_GPIO_PS0,				true,	0,	1800);
-FIXED_REG(4, en_vddio_vid,	en_vddio_vid,		NULL,
+FIXED_REG(4, en_vddio_vid_a00,	en_vddio_vid,		NULL,
 	0,	0,	TEGRA_GPIO_PB2,				true,	0,	5000);
-FIXED_REG(5, en_3v3_modem,	en_3v3_modem,		NULL,
+FIXED_REG(5, en_3v3_modem_a00,	en_3v3_modem,		NULL,
 	0,	0,	TEGRA_GPIO_PP0,				true,	0,	3300);
-FIXED_REG(6, en_vdd_pnl,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(6, en_vdd_pnl_a00,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PW1,				true,	0,	3300);
-FIXED_REG(7, en_cam3_ldo,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(7, en_cam3_ldo_a00,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
-FIXED_REG(8, en_vdd_com,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(8, en_vdd_com_a00,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PD0,				true,	0,	3300);
-FIXED_REG(9,  en_vdd_sdmmc1,	en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(9,  en_vdd_sdmmc1_a00, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
-FIXED_REG(10, en_3v3_fuse,	en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys),
+FIXED_REG(10, en_3v3_fuse_a00,	en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PC1,				true,	0,	3300);
-FIXED_REG(11, cdc_en,		cdc_en,			max77663_rails(sd2),
+FIXED_REG(11, cdc_en_a00,	cdc_en,			max77663_rails(sd2),
+	0,	1,	TEGRA_GPIO_PX2,				true,	0,	1200);
+
+/* A01 specific */
+FIXED_REG(1, en_3v3_sys_a01,	en_3v3_sys_a01,		NULL,
+	1,	0,	MAX77663_GPIO_BASE + MAX77663_GPIO3,	true,	1,	3300);
+FIXED_REG(2, en_avdd_hdmi_usb_a01, en_avdd_hdmi_usb_a01, FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	MAX77663_GPIO_BASE + MAX77663_GPIO2,	true,	0,	3300);
+FIXED_REG(3, en_1v8_cam_a01,	en_1v8_cam,		max77663_rails(sd2),
+	0,	0,	TEGRA_GPIO_PS0,				true,	0,	1800);
+FIXED_REG(4, en_vddio_vid_a01,	en_vddio_vid,		NULL,
+	0,	0,	TEGRA_GPIO_PB2,				true,	0,	5000);
+FIXED_REG(5, en_3v3_modem_a01,	en_3v3_modem,		NULL,
+	0,	0,	TEGRA_GPIO_PP0,				true,	0,	3300);
+FIXED_REG(6, en_vdd_pnl_a01,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	TEGRA_GPIO_PW1,				true,	0,	3300);
+FIXED_REG(7, en_cam3_ldo_a01,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
+FIXED_REG(8, en_vdd_com_a01,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	TEGRA_GPIO_PD0,				true,	0,	3300);
+FIXED_REG(9,  en_vdd_sdmmc1_a01, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
+FIXED_REG(10, en_3v3_fuse_a01,	en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys_a01),
+	0,	0,	TEGRA_GPIO_PC1,				true,	0,	3300);
+FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
 	0,	1,	TEGRA_GPIO_PX2,				true,	0,	1200);
 
 /*
@@ -461,32 +499,65 @@ FIXED_REG(11, cdc_en,		cdc_en,			max77663_rails(sd2),
 
 #define ADD_FIXED_REG(_name)	(&fixed_reg_##_name##_dev)
 
-#define E1565_FIXED_REG \
-	ADD_FIXED_REG(en_3v3_sys),		\
-	ADD_FIXED_REG(en_avdd_hdmi_usb),	\
-	ADD_FIXED_REG(en_1v8_cam),		\
-	ADD_FIXED_REG(en_vddio_vid),		\
-	ADD_FIXED_REG(en_3v3_modem),		\
-	ADD_FIXED_REG(en_vdd_pnl),		\
-	ADD_FIXED_REG(en_cam3_ldo),		\
-	ADD_FIXED_REG(en_vdd_com),		\
-	ADD_FIXED_REG(en_vdd_sdmmc1),		\
-	ADD_FIXED_REG(en_3v3_fuse),		\
-	ADD_FIXED_REG(cdc_en),			\
+/* A00 specific */
+#define E1565_A00_FIXED_REG \
+	ADD_FIXED_REG(en_3v3_sys_a00),		\
+	ADD_FIXED_REG(en_avdd_hdmi_usb_a00),	\
+	ADD_FIXED_REG(en_1v8_cam_a00),		\
+	ADD_FIXED_REG(en_vddio_vid_a00),	\
+	ADD_FIXED_REG(en_3v3_modem_a00),	\
+	ADD_FIXED_REG(en_vdd_pnl_a00),		\
+	ADD_FIXED_REG(en_cam3_ldo_a00),		\
+	ADD_FIXED_REG(en_vdd_com_a00),		\
+	ADD_FIXED_REG(en_vdd_sdmmc1_a00),	\
+	ADD_FIXED_REG(en_3v3_fuse_a00),		\
+	ADD_FIXED_REG(cdc_en_a00),		\
 
-/* Gpio switch regulator platform data for Kai */
-static struct platform_device *fixed_reg_devs[] = {
-	E1565_FIXED_REG
+/* A01 specific */
+#define E1565_A01_FIXED_REG \
+	ADD_FIXED_REG(en_3v3_sys_a01),		\
+	ADD_FIXED_REG(en_avdd_hdmi_usb_a01),	\
+	ADD_FIXED_REG(en_1v8_cam_a01),		\
+	ADD_FIXED_REG(en_vddio_vid_a01),	\
+	ADD_FIXED_REG(en_3v3_modem_a01),	\
+	ADD_FIXED_REG(en_vdd_pnl_a01),		\
+	ADD_FIXED_REG(en_cam3_ldo_a01),		\
+	ADD_FIXED_REG(en_vdd_com_a01),		\
+	ADD_FIXED_REG(en_vdd_sdmmc1_a01),	\
+	ADD_FIXED_REG(en_3v3_fuse_a01),		\
+	ADD_FIXED_REG(cdc_en_a01),		\
+
+/* Gpio switch regulator platform data for Kai A00 */
+static struct platform_device *fixed_reg_devs_a00[] = {
+	E1565_A00_FIXED_REG
+};
+
+/* Gpio switch regulator platform data for Kai A01 */
+static struct platform_device *fixed_reg_devs_a01[] = {
+	E1565_A01_FIXED_REG
 };
 
 static int __init kai_fixed_regulator_init(void)
 {
 	int i;
+	struct board_info board_info;
+	struct platform_device **fixed_reg_devs;
+	int nfixreg_devs;
+
+	tegra_get_board_info(&board_info);
+
+	if (board_info.fab == BOARD_FAB_A00) {
+		fixed_reg_devs = fixed_reg_devs_a00;
+		nfixreg_devs = ARRAY_SIZE(fixed_reg_devs_a00);
+	} else {
+		fixed_reg_devs = fixed_reg_devs_a01;
+		nfixreg_devs = ARRAY_SIZE(fixed_reg_devs_a01);
+	}
 
 	if (!is_kai_machine)
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(fixed_reg_devs); ++i) {
+	for (i = 0; i < nfixreg_devs; ++i) {
 		int gpio_nr;
 		struct fixed_voltage_config *fixed_reg_pdata =
 			fixed_reg_devs[i]->dev.platform_data;
@@ -496,7 +567,7 @@ static int __init kai_fixed_regulator_init(void)
 			tegra_gpio_enable(gpio_nr);
 	}
 
-	return platform_add_devices(fixed_reg_devs, ARRAY_SIZE(fixed_reg_devs));
+	return platform_add_devices(fixed_reg_devs, nfixreg_devs);
 }
 subsys_initcall_sync(kai_fixed_regulator_init);
 
