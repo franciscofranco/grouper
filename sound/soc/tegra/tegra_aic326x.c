@@ -237,31 +237,9 @@ static int tegra_aic326x_hw_params(struct snd_pcm_substream *substream,
 	if (mclk < 0)
 		return mclk;
 
-
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-	clk = clk_get_sys(NULL, "cdev1");
-#else
-	clk = clk_get_sys("extern1", NULL);
-#endif
-	if (IS_ERR(clk)) {
-		dev_err(card->dev, "Can't retrieve clk cdev1\n");
-		err = PTR_ERR(clk);
-		return err;
-	}
-
-	rate = clk_get_rate(clk);
-	printk("extern1 rate=%d\n",rate);
-
-#if TEGRA30_I2S_MASTER_PLAYBACK
 	daifmt = SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_NB_NF |
-				SND_SOC_DAIFMT_CBS_CFS;
-#else
-	daifmt = SND_SOC_DAIFMT_I2S |
-				SND_SOC_DAIFMT_NB_NF |
-				SND_SOC_DAIFMT_CBM_CFM;
-	mclk = rate;
-#endif
+			SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS;
 
 	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
 	if (err < 0) {
@@ -744,25 +722,26 @@ static const struct snd_soc_dapm_widget tegra_aic326x_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_INPUT("Ext Mic"),
 	SND_SOC_DAPM_LINE("Linein", NULL),
+	SND_SOC_DAPM_INPUT("Int Mic"),
 };
 
 static const struct snd_soc_dapm_route aic326x_audio_map[] = {
 	{"Int Spk", NULL, "SPKL"},
 	{"Int Spk", NULL, "SPKR"},
-	{"Earpiece", NULL, "RECL"},
-	{"Earpiece", NULL, "RECR"},
+	{"Earpiece", NULL, "RECP"},
+	{"Earpiece", NULL, "RECM"},
 	{"Headphone Jack", NULL, "HPL"},
 	{"Headphone Jack", NULL, "HPR"},
 	{"IN2L", NULL, "Mic Jack"},
-
 	/*TODO correct */
 	/* external mic is stero */
 	{"IN2L", NULL, "Ext Mic"},
 	{"IN2R", NULL, "Ext Mic"},
-
 	/* Line in */
 	{"IN2L", NULL, "Linein"},
 	{"IN2R", NULL, "Linein"},
+	/* Internal MIC */
+	{"IN1L", NULL, "Int Mic"},
 };
 
 static const struct snd_kcontrol_new tegra_aic326x_controls[] = {
@@ -772,6 +751,7 @@ static const struct snd_kcontrol_new tegra_aic326x_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
 	SOC_DAPM_PIN_SWITCH("Ext Mic"),
 	SOC_DAPM_PIN_SWITCH("Linein"),
+	SOC_DAPM_PIN_SWITCH("Int Mic"),
 };
 
 static int tegra_aic326x_init(struct snd_soc_pcm_runtime *rtd)
