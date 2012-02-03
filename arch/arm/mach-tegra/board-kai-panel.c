@@ -520,6 +520,7 @@ static struct tegra_dc_out kai_disp1_out = {
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.sd_settings	= &kai_sd_settings,
 	.parent_clk	= "pll_p",
+	.parent_clk_backup = "pll_d2_out0",
 
 	.type		= TEGRA_DC_OUT_RGB,
 	.depth		= 18,
