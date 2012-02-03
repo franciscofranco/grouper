@@ -19,7 +19,7 @@
 
 #include <linux/pm_runtime.h>
 #include <linux/nvhost.h>
-
+#include <mach/clk.h>
 #include "dev.h"
 
 struct nvhost_master *nvhost;
@@ -487,17 +487,34 @@ static int nvhost_pm_restore_noirq(struct device *dev)
 
 int __weak nvhost_pm_runtime_suspend(struct device *dev)
 {
-	return pm_generic_runtime_suspend(dev);
+	int i;
+	struct nvhost_device *device = to_nvhost_device(dev);
+
+	for (i = 0; i < device->num_clks; i++)
+		clk_disable(device->clk[i]);
+
+	if (device->can_powergate)
+		schedule_delayed_work(&device->powerstate_down,
+			msecs_to_jiffies(device->powergate_delay));
+
+	return 0;
 };
 
 int __weak nvhost_pm_runtime_resume(struct device *dev)
 {
-	return pm_generic_runtime_resume(dev);
+	int i;
+	struct nvhost_device *device = to_nvhost_device(dev);
+
+	for (i = 0; i < device->num_clks; i++)
+		clk_enable(device->clk[i]);
+
+	return 0;
 };
 
 int __weak nvhost_pm_runtime_idle(struct device *dev)
 {
-	return pm_generic_runtime_idle(dev);
+	pm_runtime_autosuspend(dev);
+	return 0;
 };
 
 #else /* !CONFIG_PM_RUNTIME */

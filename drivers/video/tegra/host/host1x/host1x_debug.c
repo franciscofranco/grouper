@@ -275,8 +275,8 @@ static void t20_debug_show_channel_cdma(struct nvhost_master *m,
 	cbstat = readl(m->sync_aperture + HOST1X_SYNC_CBSTAT_x(chid));
 
 	nvhost_debug_output(o, "%d-%s (%d): ", chid,
-			    channel->dev->name,
-			    channel->dev->refcount);
+		    channel->dev->name,
+		    atomic_read(&channel->dev->dev.power.usage_count));
 
 	if (HOST1X_VAL(CHANNEL_DMACTRL, DMASTOP, dmactrl)
 		|| !channel->cdma.push_buffer.mapped) {

@@ -38,13 +38,6 @@ struct nvhost_clock {
 	long default_rate;
 };
 
-enum nvhost_device_powerstate_t {
-	NVHOST_POWER_STATE_DEINIT,
-	NVHOST_POWER_STATE_RUNNING,
-	NVHOST_POWER_STATE_CLOCKGATED,
-	NVHOST_POWER_STATE_POWERGATED
-};
-
 struct nvhost_device {
 	const char	*name;		/* Device name */
 	struct device	dev;		/* Linux device struct */
@@ -74,8 +67,7 @@ struct nvhost_device {
 	int		num_clks;	/* Number of clocks opened for dev */
 	struct clk	*clk[NVHOST_MODULE_MAX_CLOCKS];
 	struct mutex	lock;		/* Power management lock */
-	int		powerstate;	/* Current power state */
-	int		refcount;	/* Number of tasks active */
+	bool		powered;	/* Current power state */
 	wait_queue_head_t idle_wq;	/* Work queue for idle */
 	struct list_head client_list;	/* List of clients and rate requests */
 
