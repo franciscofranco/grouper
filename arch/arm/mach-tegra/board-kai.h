@@ -78,6 +78,7 @@ int kai_panel_init(void);
 int kai_sensors_init(void);
 int kai_keys_init(void);
 int kai_pins_state_init(void);
+int kai_emc_init(void);
 int kai_edp_init(void);
 void __init kai_tsensor_init(void);
 int __init touch_init_raydium(int irq_gpio, int reset_gpio, int platform);
