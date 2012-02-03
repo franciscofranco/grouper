@@ -195,7 +195,8 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
-#if defined(CONFIG_TRUSTED_FOUNDATIONS) && defined(CONFIG_CACHE_L2X0)
+#ifdef CONFIG_CACHE_L2X0
+#ifdef CONFIG_TRUSTED_FOUNDATIONS
 static void tegra_cache_smc(bool enable, u32 arg)
 {
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
@@ -264,11 +265,10 @@ static void tegra_l2x0_disable(void)
 	tegra_cache_smc(false, l2x0_way_mask);
 	local_irq_restore(flags);
 }
-#endif	/* CONFIG_TRUSTED_FOUNDATIONS && defined(CONFIG_CACHE_L2X0) */
+#endif	/* CONFIG_TRUSTED_FOUNDATIONS  */
 
 void tegra_init_cache(bool init)
 {
-#ifdef CONFIG_CACHE_L2X0
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
 	u32 aux_ctrl;
 	u32 speedo;
@@ -329,8 +329,8 @@ void tegra_init_cache(bool init)
 	}
 	l2x0_enable();
 #endif
-#endif
 }
+#endif
 
 static void __init tegra_init_power(void)
 {
