@@ -357,7 +357,7 @@ static struct i2c_board_info __initdata wm8753_board_info[] = {
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET),
 	},
 	{
-		I2C_BOARD_INFO("tlv320aic3262", 0x18),
+		I2C_BOARD_INFO("aic3262-codec", 0x18),
 		.platform_data = &whistler_aic3262_pdata,
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET),
 	},
