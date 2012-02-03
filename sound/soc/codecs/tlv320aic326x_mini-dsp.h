@@ -14,10 +14,10 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * History:
- * Rev 0.1   Added the multiconfig support      Mistral         17-08-2011
+ * Rev 0.1   Added the multiconfig support     17-08-2011
  *
  * Rev 0.2   Migrated for aic3262 nVidia
- *     Mistral         21-10-2011
+ *        21-10-2011
  */
 
 #ifndef _TLV320AIC3262_MINI_DSP_H

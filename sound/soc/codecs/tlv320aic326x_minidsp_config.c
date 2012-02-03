@@ -1,7 +1,7 @@
 /*
  * linux/sound/soc/codecs/tlv320aic326x_minidsp_config.c
  *
- * Copyright (C) 2011 Mistral Solutions Pvt Ltd.
+ * Copyright (C) 2012 Texas Instruments, Inc.
  *
  * This package is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,10 +16,10 @@
  *
  * History:
  *
- * Rev 0.1   Added the multiconfig support      Mistral         17-08-2011
+ * Rev 0.1   Added the multiconfig support           17-08-2011
  *
  * Rev 0.2   Migrated for aic3262 nVidia
- *     Mistral         21-10-2011
+ *           21-10-2011
  */
 
 /*
@@ -66,7 +66,7 @@
  * LOCAL STATIC DECLARATIONS
  *****************************************************************************
  */
-static int multibyte_coeff_change(struct snd_soc_codec *codec, int);
+int multibyte_coeff_change(struct snd_soc_codec *codec, int);
 
 static int m_control_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol);
@@ -350,7 +350,7 @@ void config_multibyte_for_mode(struct snd_soc_codec *codec, int mode)
  *            miniDSP_D and miniDSP_A Coefficient arrays.
  *---------------------------------------------------------------------------
  */
-static int multibyte_coeff_change(struct snd_soc_codec *codec, int bk)
+int multibyte_coeff_change(struct snd_soc_codec *codec, int bk)
 {
 
 	u8 value[2], swap_reg_pre, swap_reg_post;
@@ -398,6 +398,9 @@ static int multibyte_coeff_change(struct snd_soc_codec *codec, int bk)
 			"Buffer swap...FAILED\nswap_reg_pre=%x, swap_reg_post=%x\n",
 			swap_reg_pre, swap_reg_post);
 	}
+
+		aic3262_change_book(codec, 0);
+		return 0;
 
 err:
 	return 0;

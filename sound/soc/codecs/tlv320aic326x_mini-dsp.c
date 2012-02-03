@@ -1,7 +1,7 @@
 /*
  * linux/sound/soc/codecs/tlv320aic326x_mini-dsp.c
  *
- * Copyright (C) 2011 Mistral Solutions Pvt Ltd.
+ * Copyright (C) 2012 Texas Instruments, Inc.
  *
  * This package is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,10 +16,10 @@
  *
  * History:
  *
- * Rev 0.1   Added the miniDSP Support     Mistral         01-03-2011
+ * Rev 0.1   Added the miniDSP Support     01-03-2011
  *
  * Rev 0.2   Updated the code-base for miniDSP switching and
- *     mux control update.    Mistral         21-03-2011
+ *     mux control update.    21-03-2011
  *
  * Rev 0.3   Updated the code-base to support Multi-Configuration feature
  *           of PPS GDE
@@ -192,6 +192,7 @@ void update_kcontrols(struct snd_soc_codec *codec, int process_flow)
 		val1 = i2c_smbus_read_byte_data(codec->control_data,
 				cntl[i].control_base);
 		snd_mux_controls[i].private_value = 0;
+		aic3262_change_book(codec,0);
 	}
 }
 
@@ -236,6 +237,7 @@ int byte_i2c_array_transfer(struct snd_soc_codec *codec,
 			return -EIO;
 		}
 	}
+	aic3262_change_book(codec,0);
 	return 0;
 }
 
@@ -434,7 +436,7 @@ set_minidsp_mode(struct snd_soc_codec *codec, int new_mode)
 
 	DBG("%s: switch  mode start\n", __func__);
 	aic3262_reset_cache(codec);
-	reg_def_conf(codec);
+	/*reg_def_conf(codec);*/
 
 	if (new_mode == 0) {
 
@@ -830,7 +832,9 @@ int aic3262_minidsp_program(struct snd_soc_codec *codec)
 	DBG("#Verifying book 0\n");
 	i2c_verify_book0(codec);
 #endif
+	aic3262_change_book(codec,0);
 	set_minidsp_mode1(codec, 1);
+	aic3262_change_book(codec,0);
 #ifdef DEBUG
 	DBG("#verifying book 0\n");
 	i2c_verify_book0(codec);
@@ -882,12 +886,14 @@ static int m_control_get(struct snd_kcontrol *kcontrol,
 		val1 = i2c_smbus_read_byte_data(codec->control_data, 1);
 		ucontrol->value.integer.value[0] = ((val1>>1)&0x01);
 		DBG(KERN_INFO "control get : mode=%d\n", aic3262->process_flow);
+		aic3262_change_book(codec,0);
 	}
 	if (!strcmp(kcontrol->id.name, "ADC Adaptive mode Enable")) {
 		aic3262_change_book(codec, 40);
 		val1 = i2c_smbus_read_byte_data(codec->control_data, 1);
 		ucontrol->value.integer.value[0] = ((val1>>1)&0x01);
 		DBG(KERN_INFO "control get : mode=%d\n", dmode);
+		aic3262_change_book(codec,0);
 	}
 
 	return 0;
@@ -939,6 +945,7 @@ static int m_control_put(struct snd_kcontrol *kcontrol,
 			aic3262_change_book(codec, 80);
 			val1 = i2c_smbus_read_byte_data(codec->control_data, 1);
 			aic3262_write(codec, 1, (val1&0xfb)|(val<<1));
+			aic3262_change_book(codec,0);
 		}
 		amode = val;
 	}
@@ -950,6 +957,7 @@ static int m_control_put(struct snd_kcontrol *kcontrol,
 			aic3262_change_book(codec, 40);
 			val1 = i2c_smbus_read_byte_data(codec->control_data, 1);
 			aic3262_write(codec, 1, (val1&0xfb)|(val<<1));
+			aic3262_change_book(codec,0);
 		}
 		dmode = val;
 	}
@@ -1234,6 +1242,7 @@ static int minidsp_mux_ctrl_mixer_controls(struct snd_soc_codec *codec,
 					snd_mux_controls[i].name);
 		}
 	}
+		aic3262_change_book(codec, 0);
 	return 0;
 }
 
