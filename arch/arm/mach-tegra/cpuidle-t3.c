@@ -61,6 +61,8 @@
 
 #define CLK_RST_CONTROLLER_CPU_CMPLX_STATUS \
 	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x470)
+#define PMC_POWERGATE_STATUS \
+	(IO_ADDRESS(TEGRA_PMC_BASE) + 0x038)
 
 #ifdef CONFIG_SMP
 static s64 tegra_cpu_wake_by_time[4] = {
@@ -117,6 +119,22 @@ void tegra3_cpu_idle_stats_lp2_time(unsigned int cpu, s64 us)
 	idle_stats.cpu_wants_lp2_time[cpu_number(cpu)] += us;
 }
 
+/* Allow rail off only if all secondary CPUs are power gated, and no
+   rail update is in progress */
+static bool tegra3_rail_off_is_allowed(void)
+{
+	u32 rst = readl(CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
+	u32 pg = readl(PMC_POWERGATE_STATUS) >> 8;
+
+	if (((rst & 0xE) != 0xE) || ((pg & 0xE) != 0))
+		return false;
+
+	if (tegra_dvfs_rail_updating(cpu_clk_for_dvfs))
+		return false;
+
+	return true;
+}
+
 bool tegra3_lp2_is_allowed(struct cpuidle_device *dev,
 	struct cpuidle_state *state)
 {
@@ -135,20 +153,15 @@ bool tegra3_lp2_is_allowed(struct cpuidle_device *dev,
 		num_online_cpus() > 1)
 		return false;
 
+#ifndef CONFIG_TEGRA_RAIL_OFF_MULTIPLE_CPUS
 	/* FIXME: All CPU's entering LP2 is not working.
 	 * Don't let CPU0 enter LP2 when any secondary CPU is online.
 	 */
 	if ((dev->cpu == 0) && (num_online_cpus() > 1))
 		return false;
-
-	if (dev->cpu == 0) {
-		u32 reg = readl(CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
-		if ((reg & 0xE) != 0xE)
-			return false;
-
-		if (tegra_dvfs_rail_updating(cpu_clk_for_dvfs))
-			return false;
-	}
+#endif
+	if ((dev->cpu == 0)  && (!tegra3_rail_off_is_allowed()))
+		return false;
 
 	request = ktime_to_us(tick_nohz_get_sleep_length());
 	if (state->exit_latency != lp2_exit_latencies[cpu_number(dev->cpu)]) {
@@ -171,13 +184,29 @@ static inline void tegra3_lp3_fall_back(struct cpuidle_device *dev)
 	dev->last_state = &dev->states[0];
 }
 
+static inline void tegra3_lp2_restore_affinity(void)
+{
+#ifdef CONFIG_SMP
+	/* Disable the distributor. */
+	tegra_gic_dist_disable();
+
+	/* Restore the other CPU's interrupt affinity. */
+	tegra_gic_restore_affinity();
+
+	/* Re-enable the distributor. */
+	tegra_gic_dist_enable();
+#endif
+}
+
 static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 			   struct cpuidle_state *state, s64 request)
 {
 	ktime_t entry_time;
 	ktime_t exit_time;
 	bool sleep_completed = false;
+	bool multi_cpu_entry = false;
 	int bin;
+	s64 sleep_time;
 
 	/* LP2 entry time */
 	entry_time = ktime_get();
@@ -189,7 +218,8 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 	}
 
 #ifdef CONFIG_SMP
-	if (!is_lp_cluster() && (num_online_cpus() > 1)) {
+	multi_cpu_entry = !is_lp_cluster() && (num_online_cpus() > 1);
+	if (multi_cpu_entry) {
 		s64 wake_time;
 		unsigned int i;
 
@@ -201,19 +231,12 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 
 		/* Did an interrupt come in for another CPU before we
 		   could disable the distributor? */
-		if (!tegra3_lp2_is_allowed(dev, state)) {
+		if (!tegra3_rail_off_is_allowed()) {
 			/* Yes, re-enable the distributor and LP3. */
 			tegra_gic_dist_enable();
 			tegra3_lp3_fall_back(dev);
 			return;
 		}
-
-		/* Save and disable the affinity setting for the other
-		   CPUs and route all interrupts to CPU0. */
-		tegra_gic_disable_affinity();
-
-		/* Re-enable the distributor. */
-		tegra_gic_dist_enable();
 
 		/* LP2 initial targeted wake time */
 		wake_time = ktime_to_us(entry_time) + request;
@@ -227,53 +250,55 @@ static void tegra3_idle_enter_lp2_cpu_0(struct cpuidle_device *dev,
 		/* LP2 actual targeted wake time */
 		request = wake_time - ktime_to_us(entry_time);
 		BUG_ON(wake_time < 0LL);
-	}
-#endif
 
-	if (request > state->target_residency) {
-		s64 sleep_time = request -
-			lp2_exit_latencies[cpu_number(dev->cpu)];
-
-		bin = time_to_bin((u32)request / 1000);
-		idle_stats.tear_down_count[cpu_number(dev->cpu)]++;
-		idle_stats.lp2_count++;
-		idle_stats.lp2_count_bin[bin]++;
-
-		trace_power_start(POWER_CSTATE, 2, dev->cpu);
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
-		if (!is_lp_cluster())
-			tegra_dvfs_rail_off(tegra_cpu_rail, entry_time);
-
-		if (tegra_idle_lp2_last(sleep_time, 0) == 0)
-			sleep_completed = true;
-		else {
-			int irq = tegra_gic_pending_interrupt();
-			idle_stats.lp2_int_count[irq]++;
+		if (request < state->target_residency) {
+			/* Not enough time left to enter LP2 */
+			tegra_gic_dist_enable();
+			tegra3_lp3_fall_back(dev);
+			return;
 		}
 
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
-		exit_time = ktime_get();
-		if (!is_lp_cluster())
-			tegra_dvfs_rail_on(tegra_cpu_rail, exit_time);
-		idle_stats.in_lp2_time[cpu_number(dev->cpu)] +=
-			ktime_to_us(ktime_sub(exit_time, entry_time));
-	} else
-		exit_time = ktime_get();
+		/* Cancel LP2 wake timers for all secondary CPUs */
+		tegra_lp2_timer_cancel_secondary();
 
-
-#ifdef CONFIG_SMP
-	if (!is_lp_cluster() && (num_online_cpus() > 1)) {
-
-		/* Disable the distributor. */
-		tegra_gic_dist_disable();
-
-		/* Restore the other CPU's interrupt affinity. */
-		tegra_gic_restore_affinity();
+		/* Save and disable the affinity setting for the other
+		   CPUs and route all interrupts to CPU0. */
+		tegra_gic_disable_affinity();
 
 		/* Re-enable the distributor. */
 		tegra_gic_dist_enable();
 	}
 #endif
+
+	sleep_time = request -
+		lp2_exit_latencies[cpu_number(dev->cpu)];
+
+	bin = time_to_bin((u32)request / 1000);
+	idle_stats.tear_down_count[cpu_number(dev->cpu)]++;
+	idle_stats.lp2_count++;
+	idle_stats.lp2_count_bin[bin]++;
+
+	trace_power_start(POWER_CSTATE, 2, dev->cpu);
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+	if (!is_lp_cluster())
+		tegra_dvfs_rail_off(tegra_cpu_rail, entry_time);
+
+	if (tegra_idle_lp2_last(sleep_time, 0) == 0)
+		sleep_completed = true;
+	else {
+		int irq = tegra_gic_pending_interrupt();
+		idle_stats.lp2_int_count[irq]++;
+	}
+
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+	exit_time = ktime_get();
+	if (!is_lp_cluster())
+		tegra_dvfs_rail_on(tegra_cpu_rail, exit_time);
+	idle_stats.in_lp2_time[cpu_number(dev->cpu)] +=
+		ktime_to_us(ktime_sub(exit_time, entry_time));
+
+	if (multi_cpu_entry)
+		tegra3_lp2_restore_affinity();
 
 	if (sleep_completed) {
 		/*
@@ -389,9 +414,12 @@ void tegra3_idle_lp2(struct cpuidle_device *dev,
 
 	cpu_pm_enter();
 
-	if (last_cpu && (dev->cpu == 0))
-		tegra3_idle_enter_lp2_cpu_0(dev, state, request);
-	else
+	if (dev->cpu == 0) {
+		if (last_cpu)
+			tegra3_idle_enter_lp2_cpu_0(dev, state, request);
+		else
+			tegra3_lp3_fall_back(dev);
+	} else
 		tegra3_idle_enter_lp2_cpu_n(dev, state, request);
 
 	cpu_pm_exit();

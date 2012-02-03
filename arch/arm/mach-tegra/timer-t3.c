@@ -70,6 +70,7 @@
 
 static void __iomem *timer_reg_base = IO_ADDRESS(TEGRA_TMR1_BASE);
 static cpumask_t wake_timer_ready;
+static cpumask_t wake_timer_canceled;
 
 #define timer_writel(value, reg) \
 	__raw_writel(value, (u32)timer_reg_base + (reg))
@@ -217,12 +218,28 @@ unsigned long tegra3_lp2_timer_remain(void)
 {
 	int cpu = cpu_number();
 
+	if (cpumask_test_and_clear_cpu(cpu, &wake_timer_canceled))
+		return -ETIME;
+
 	return timer_readl(lp2_wake_timers[cpu] + TIMER_PCR) & 0x1ffffffful;
 }
 
 int tegra3_is_lp2_timer_ready(unsigned int cpu)
 {
 	return cpumask_test_cpu(cpu, &wake_timer_ready);
+}
+
+void tegra3_lp2_timer_cancel_secondary(void)
+{
+	int cpu;
+	int base;
+
+	for (cpu = 1; cpu < ARRAY_SIZE(lp2_wake_timers); cpu++) {
+		base = lp2_wake_timers[cpu];
+		cpumask_set_cpu(cpu, &wake_timer_canceled);
+		timer_writel(0, base + TIMER_PTV);
+		timer_writel(1<<30, base + TIMER_PCR);
+	}
 }
 #endif
 
