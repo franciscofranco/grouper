@@ -369,13 +369,27 @@ static int tegra_aic326x_bt_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_fmt(rtd->cpu_dai,
 			SND_SOC_DAIFMT_DSP_A |
 			SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS);
+			SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
 		dev_err(rtd->codec->card->dev, "cpu_dai fmt not set\n");
 		return err;
 	}
 
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	err = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAP_SEL_DAC2,
+					TEGRA20_DAS_DAP_ID_4);
+	if (err < 0) {
+		dev_err(card->dev, "failed to set dac-dap path\n");
+		return err;
+	}
+
+	err = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_4,
+					TEGRA20_DAS_DAP_SEL_DAC2);
+	if (err < 0) {
+		dev_err(card->dev, "failed to set dac-dap path\n");
+		return err;
+	}
+#else
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		tegra_aic326x_set_dam_cif(i2s->dam_ifc, params_rate(params),
 				params_channels(params), sample_size);
