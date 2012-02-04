@@ -119,18 +119,45 @@ static int tegra_aic326x_call_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct tegra_aic326x *machine = snd_kcontrol_chip(kcontrol);
 	int is_call_mode_new = ucontrol->value.integer.value[0];
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	int codec_dap_id, codec_dap_sel, bb_dap_id, bb_dap_sel;
+#else
 	int codec_index;
+#endif
 
 	if (machine->is_call_mode == is_call_mode_new)
 		return 0;
 
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	bb_dap_id = TEGRA20_DAS_DAP_ID_3;
+	bb_dap_sel = TEGRA20_DAS_DAP_SEL_DAP3;
+
+	if (machine->is_device_bt) {
+		codec_dap_id = TEGRA20_DAS_DAP_ID_4;
+		codec_dap_sel = TEGRA20_DAS_DAP_SEL_DAP4;
+	}
+	else {
+		codec_dap_id = TEGRA20_DAS_DAP_ID_2;
+		codec_dap_sel = TEGRA20_DAS_DAP_SEL_DAP2;
+	}
+#else
 	if (machine->is_device_bt)
 		codec_index = BT_SCO;
 	else
 		codec_index = HIFI_CODEC;
+#endif
 
 	if (is_call_mode_new) {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+		tegra20_das_set_tristate(codec_dap_id, 1);
+		tegra20_das_set_tristate(bb_dap_id, 1);
+		tegra20_das_connect_dap_to_dap(codec_dap_id,
+			bb_dap_sel, 1, 0, 0);
+		tegra20_das_connect_dap_to_dap(bb_dap_id,
+			codec_dap_sel, 0, 0, 0);
+		tegra20_das_set_tristate(codec_dap_id, 0);
+		tegra20_das_set_tristate(bb_dap_id, 0);
+#else
 		if (machine->codec_info[codec_index].rate == 0 ||
 			machine->codec_info[codec_index].channels == 0)
 				return -EINVAL;
@@ -140,7 +167,16 @@ static int tegra_aic326x_call_mode_put(struct snd_kcontrol *kcontrol,
 			&machine->codec_info[BASEBAND]);
 #endif
 	} else {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+		tegra20_das_set_tristate(codec_dap_id, 1);
+		tegra20_das_set_tristate(bb_dap_id, 1);
+		tegra20_das_connect_dap_to_dap(bb_dap_id,
+			bb_dap_sel, 0, 0, 0);
+		tegra20_das_connect_dap_to_dap(codec_dap_id,
+			codec_dap_sel, 0, 0, 0);
+		tegra20_das_set_tristate(codec_dap_id, 0);
+		tegra20_das_set_tristate(bb_dap_id, 0);
+#else
 		tegra30_break_voice_call_connections(
 			&machine->codec_info[codec_index],
 			&machine->codec_info[BASEBAND]);
@@ -542,14 +578,16 @@ static int tegra_aic326x_voice_call_hw_params(
 static void tegra_aic326x_voice_call_shutdown(
 					struct snd_pcm_substream *substream)
 {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct tegra_aic326x *machine  =
 			snd_soc_card_get_drvdata(rtd->codec->card);
 
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	machine->codec_info[HIFI_CODEC].rate = 0;
 	machine->codec_info[HIFI_CODEC].channels = 0;
 #endif
+
+	machine->is_device_bt = 0;
 }
 
 static int tegra_aic326x_bt_voice_call_hw_params(
@@ -603,14 +641,16 @@ static int tegra_aic326x_bt_voice_call_hw_params(
 static void tegra_aic326x_bt_voice_call_shutdown(
 				struct snd_pcm_substream *substream)
 {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct tegra_aic326x *machine  =
 			snd_soc_card_get_drvdata(rtd->codec->card);
 
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	machine->codec_info[BT_SCO].rate = 0;
 	machine->codec_info[BT_SCO].channels = 0;
 #endif
+
+	machine->is_device_bt = 0;
 }
 
 static struct snd_soc_ops tegra_aic326x_hifi_ops = {
