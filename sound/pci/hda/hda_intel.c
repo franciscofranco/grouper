@@ -996,22 +996,22 @@ static int azx_reset(struct azx *chip, int full_reset)
 
 	count = 50;
 	while (azx_readb(chip, GCTL) && --count)
-		msleep(1);
+		mdelay(1);
 
 	/* delay for >= 100us for codec PLL to settle per spec
 	 * Rev 0.9 section 5.5.1
 	 */
-	msleep(1);
+	mdelay(1);
 
 	/* Bring controller out of reset */
 	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
 
 	count = 50;
 	while (!azx_readb(chip, GCTL) && --count)
-		msleep(1);
+		mdelay(1);
 
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
-	msleep(1);
+	mdelay(1);
 
       __skip:
 	/* check to see if controller is ready */

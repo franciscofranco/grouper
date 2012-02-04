@@ -3276,7 +3276,7 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 						   AC_VERB_GET_POWER_STATE, 0);
 			if (state == power_state)
 				break;
-			msleep(1);
+			mdelay(1);
 		} while (time_after_eq(end_time, jiffies));
 	}
 }
