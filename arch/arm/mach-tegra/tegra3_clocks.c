@@ -4750,7 +4750,7 @@ int tegra_update_mselect_rate(unsigned long cpu_rate)
 
 #ifdef CONFIG_PM_SLEEP
 static u32 clk_rst_suspend[RST_DEVICES_NUM + CLK_OUT_ENB_NUM +
-			   PERIPH_CLK_SOURCE_NUM + 22];
+			   PERIPH_CLK_SOURCE_NUM + 24];
 
 static int tegra_clk_suspend(void)
 {
@@ -4759,6 +4759,10 @@ static int tegra_clk_suspend(void)
 
 	*ctx++ = clk_readl(OSC_CTRL) & OSC_CTRL_MASK;
 	*ctx++ = clk_readl(CPU_SOFTRST_CTRL);
+
+	*ctx++ = clk_readl(tegra_pll_p_out1.reg);
+	*ctx++ = clk_readl(tegra_pll_p_out3.reg);
+
 	*ctx++ = clk_readl(tegra_pll_c.reg + PLL_BASE);
 	*ctx++ = clk_readl(tegra_pll_c.reg + PLL_MISC(&tegra_pll_c));
 	*ctx++ = clk_readl(tegra_pll_a.reg + PLL_BASE);
@@ -4822,6 +4826,8 @@ static void tegra_clk_resume(void)
 	u32 plla_base;
 	u32 plld_base;
 	u32 plld2_base;
+	u32 pll_p_out12, pll_p_out34;
+	u32 pll_a_out0, pll_m_out1, pll_c_out1;
 	struct clk *p;
 
 	val = clk_readl(OSC_CTRL) & ~OSC_CTRL_MASK;
@@ -4829,9 +4835,18 @@ static void tegra_clk_resume(void)
 	clk_writel(val, OSC_CTRL);
 	clk_writel(*ctx++, CPU_SOFTRST_CTRL);
 
-	/* Since we are going to reset devices in this function, pllc/a is
-	 * required to be enabled. The actual value will be restore back later.
+	/* Since we are going to reset devices and switch clock sources in this
+	 * function, plls and secondary dividers is required to be enabled. The
+	 * actual value will be restored back later. Note that boot plls: pllm,
+	 * pllp, and pllu are already configured and enabled.
 	 */
+	val = PLL_OUT_CLKEN | PLL_OUT_RESET_DISABLE;
+	val |= val << 16;
+	pll_p_out12 = *ctx++;
+	clk_writel(pll_p_out12 | val, tegra_pll_p_out1.reg);
+	pll_p_out34 = *ctx++;
+	clk_writel(pll_p_out34 | val, tegra_pll_p_out3.reg);
+
 	pllc_base = *ctx++;
 	clk_writel(pllc_base | PLL_BASE_ENABLE, tegra_pll_c.reg + PLL_BASE);
 	clk_writel(*ctx++, tegra_pll_c.reg + PLL_MISC(&tegra_pll_c));
@@ -4850,9 +4865,13 @@ static void tegra_clk_resume(void)
 
 	udelay(1000);
 
-	clk_writel(*ctx++, tegra_pll_m_out1.reg);
-	clk_writel(*ctx++, tegra_pll_a_out0.reg);
-	clk_writel(*ctx++, tegra_pll_c_out1.reg);
+	val = PLL_OUT_CLKEN | PLL_OUT_RESET_DISABLE;
+	pll_m_out1 = *ctx++;
+	clk_writel(pll_m_out1 | val, tegra_pll_m_out1.reg);
+	pll_a_out0 = *ctx++;
+	clk_writel(pll_a_out0 | val, tegra_pll_a_out0.reg);
+	pll_c_out1 = *ctx++;
+	clk_writel(pll_c_out1 | val, tegra_pll_c_out1.reg);
 
 	clk_writel(*ctx++, tegra_clk_cclk_g.reg);
 	clk_writel(*ctx++, tegra_clk_cclk_g.reg + SUPER_CLK_DIVIDER);
@@ -4913,13 +4932,20 @@ static void tegra_clk_resume(void)
 	clk_writel(*ctx++, MISC_CLK_ENB);
 	clk_writel(*ctx++, CLK_MASK_ARM);
 
-	/* Restore back the actual pllc/a value */
+	/* Restore back the actual pll and secondary divider values */
 	/* FIXME: need to root cause why pllc is required to be on
 	 * clk_writel(pllc_base, tegra_pll_c.reg + PLL_BASE);
 	 */
+	clk_writel(pll_p_out12, tegra_pll_p_out1.reg);
+	clk_writel(pll_p_out34, tegra_pll_p_out3.reg);
+
 	clk_writel(plla_base, tegra_pll_a.reg + PLL_BASE);
 	clk_writel(plld_base, tegra_pll_d.reg + PLL_BASE);
 	clk_writel(plld2_base, tegra_pll_d2.reg + PLL_BASE);
+
+	clk_writel(pll_m_out1, tegra_pll_m_out1.reg);
+	clk_writel(pll_a_out0, tegra_pll_a_out0.reg);
+	clk_writel(pll_c_out1, tegra_pll_c_out1.reg);
 
 	/* Since EMC clock is not restored, and may not preserve parent across
 	   suspend, update current state, and mark EMC DFS as out of sync */
