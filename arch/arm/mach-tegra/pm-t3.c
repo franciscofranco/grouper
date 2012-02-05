@@ -3,7 +3,7 @@
  *
  * Tegra3 SOC-specific power and cluster management
  *
- * Copyright (c) 2009-2011, NVIDIA Corporation.
+ * Copyright (c) 2009-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/clockchips.h>
 
 #include <mach/gpio.h>
 #include <mach/iomap.h>
@@ -380,9 +381,17 @@ int tegra_cluster_control(unsigned int us, unsigned int flags)
 		if (us)
 			tegra_lp2_set_trigger(0);
 	} else {
+		int cpu = 0;
+
 		tegra_set_cpu_in_lp2(0);
 		cpu_pm_enter();
+		if (!timekeeping_suspended)
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
+					   &cpu);
 		tegra_idle_lp2_last(0, flags);
+		if (!timekeeping_suspended)
+			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
+					   &cpu);
 		cpu_pm_exit();
 		tegra_clear_cpu_in_lp2(0);
 	}
