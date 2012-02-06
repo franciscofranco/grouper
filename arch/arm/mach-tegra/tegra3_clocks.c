@@ -4618,21 +4618,22 @@ static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
 };
 
 static struct tegra_cpufreq_table_data cpufreq_tables[] = {
-	{ freq_table_300MHz, 0, 1 },
-	{ freq_table_1p0GHz, 2,  8, 3},
-	{ freq_table_1p3GHz, 2, 10, 3},
-	{ freq_table_1p4GHz, 2, 11, 3},
-	{ freq_table_1p5GHz, 2, 12, 3},
-	{ freq_table_1p7GHz, 2, 12, 3},
+	{ freq_table_300MHz, 0,  1 },
+	{ freq_table_1p0GHz, 2,  8 },
+	{ freq_table_1p3GHz, 2, 10 },
+	{ freq_table_1p4GHz, 2, 11 },
+	{ freq_table_1p5GHz, 2, 12 },
+	{ freq_table_1p7GHz, 2, 12 },
 };
 
 static int clip_cpu_rate_limits(
-	struct cpufreq_frequency_table *freq_table,
+	struct tegra_cpufreq_table_data *data,
 	struct cpufreq_policy *policy,
 	struct clk *cpu_clk_g,
 	struct clk *cpu_clk_lp)
 {
 	int idx, ret;
+	struct cpufreq_frequency_table *freq_table = data->freq_table;
 
 	/* clip CPU G mode maximum frequency to table entry */
 	ret = cpufreq_frequency_table_target(policy, freq_table,
@@ -4660,6 +4661,7 @@ static int clip_cpu_rate_limits(
 	}
 	cpu_clk_lp->max_rate = freq_table[idx].frequency * 1000;
 	cpu_clk_g->min_rate = freq_table[idx-1].frequency * 1000;
+	data->suspend_index = idx;
 	return 0;
 }
 
@@ -4687,7 +4689,7 @@ struct tegra_cpufreq_table_data *tegra_cpufreq_table_get(void)
 		if (!ret) {
 			if ((policy.max * 1000) == selection_rate) {
 				ret = clip_cpu_rate_limits(
-					cpufreq_tables[i].freq_table,
+					&cpufreq_tables[i],
 					&policy, cpu_clk_g, cpu_clk_lp);
 				if (!ret)
 					return &cpufreq_tables[i];
