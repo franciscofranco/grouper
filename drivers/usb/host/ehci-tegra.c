@@ -47,7 +47,6 @@
 
 #define STS_SRI	(1<<7)	/*	SOF Recieved	*/
 
-#define TEGRA_HSIC_CONNECTION_MAX_RETRIES 5
 #define HOSTPC_REG_OFFSET		0x1b4
 
 #define HOSTPC1_DEVLC_STS 		(1 << 28)
@@ -65,13 +64,11 @@ struct tegra_ehci_hcd {
 	int port_resuming;
 	int power_down_on_bus_suspend;
 	int default_enable;
-	struct delayed_work work;
 	enum tegra_usb_phy_port_speed port_speed;
 	struct work_struct clk_timer_work;
 	struct timer_list clk_timer;
 	bool clock_enabled;
 	bool timer_event;
-	int hsic_connect_retries;
 	struct mutex tegra_ehci_hcd_mutex;
 	unsigned int irq;
 };
@@ -698,9 +695,8 @@ restart:
 			tegra_ehci_restart(hcd, false);
 
 		tegra_usb_phy_bus_idle(tegra->phy);
-		tegra->hsic_connect_retries = 0;
 		if (!tegra_usb_phy_is_device_connected(tegra->phy))
-			schedule_delayed_work(&tegra->work, 50);
+			pr_err("%s: no hsic device conenction\n", __func__);
 	} else {
 		tegra_ehci_restart(hcd, false);
 	}
@@ -932,23 +928,6 @@ static void tegra_ehci_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 	free_temp_buffer(urb);
 }
 
-static void tegra_hsic_connection_work(struct work_struct *work)
-{
-	struct tegra_ehci_hcd *tegra =
-		container_of(work, struct tegra_ehci_hcd, work.work);
-	if (tegra_usb_phy_is_device_connected(tegra->phy)) {
-		cancel_delayed_work(&tegra->work);
-		return;
-	}
-	/* Few cases HSIC device may not be connected, so   *
-	** skip this check after configured max re-tries.   */
-	if (tegra->hsic_connect_retries++ > TEGRA_HSIC_CONNECTION_MAX_RETRIES)
-		return;
-
-	schedule_delayed_work(&tegra->work, jiffies + msecs_to_jiffies(50));
-	return;
-}
-
 void clk_timer_callback(unsigned long data)
 {
 	struct tegra_ehci_hcd *tegra = (struct tegra_ehci_hcd*) data;
@@ -1158,8 +1137,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_io;
 	}
 
-	INIT_DELAYED_WORK(&tegra->work, tegra_hsic_connection_work);
-
 	INIT_WORK(&tegra->clk_timer_work, clk_timer_work_handler);
 
 	tegra->phy = tegra_usb_phy_open(instance, hcd->regs, pdata->phy_config,
@@ -1314,7 +1291,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 		disable_irq_wake(tegra->irq);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-	cancel_delayed_work(&tegra->work);
 	tegra_usb_phy_power_off(tegra->phy, true);
 	tegra_usb_phy_close(tegra->phy);
 	iounmap(hcd->regs);
