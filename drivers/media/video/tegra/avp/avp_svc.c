@@ -362,8 +362,6 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 
 	if (msg->module_id == AVP_MODULE_ID_VDE)
 		emc_rate = ULONG_MAX;
-	else
-		emc_rate = 0;
 
 	mutex_lock(&avp_svc->clk_lock);
 	aclk = &avp_svc->clks[mod->clk_req];
