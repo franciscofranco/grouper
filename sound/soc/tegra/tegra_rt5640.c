@@ -124,6 +124,61 @@ static int tegra_rt5640_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int tegra_bt_sco_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_card *card = rtd->card;
+	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
+	int srate, mclk, min_mclk;
+	int err;
+
+	srate = params_rate(params);
+	switch (srate) {
+	case 11025:
+	case 22050:
+	case 44100:
+	case 88200:
+		mclk = 11289600;
+		break;
+	case 8000:
+	case 16000:
+	case 32000:
+	case 48000:
+	case 64000:
+	case 96000:
+		mclk = 12288000;
+		break;
+	default:
+		return -EINVAL;
+	}
+	min_mclk = 64 * srate;
+
+	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
+	if (err < 0) {
+		if (!(machine->util_data.set_mclk % min_mclk))
+			mclk = machine->util_data.set_mclk;
+		else {
+			dev_err(card->dev, "Can't configure clocks\n");
+			return err;
+		}
+	}
+
+	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
+
+	err = snd_soc_dai_set_fmt(cpu_dai,
+					SND_SOC_DAIFMT_DSP_A |
+					SND_SOC_DAIFMT_NB_NF |
+					SND_SOC_DAIFMT_CBS_CFS);
+	if (err < 0) {
+		dev_err(card->dev, "cpu_dai fmt not set\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static int tegra_spdif_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
@@ -181,6 +236,11 @@ static int tegra_hw_free(struct snd_pcm_substream *substream)
 
 static struct snd_soc_ops tegra_rt5640_ops = {
 	.hw_params = tegra_rt5640_hw_params,
+	.hw_free = tegra_hw_free,
+};
+
+static struct snd_soc_ops tegra_rt5640_bt_sco_ops = {
+	.hw_params = tegra_bt_sco_hw_params,
 	.hw_free = tegra_hw_free,
 };
 
@@ -416,7 +476,7 @@ static struct snd_soc_dai_link tegra_rt5640_dai[] = {
 		.codec_name = "rt5640.4-001c",
 		.platform_name = "tegra-pcm-audio",
 		.cpu_dai_name = "tegra30-i2s.1",
-		.codec_dai_name = "rt5640-aif2",
+		.codec_dai_name = "rt5640-aif1",
 		.init = tegra_rt5640_init,
 		.ops = &tegra_rt5640_ops,
 	},
@@ -428,6 +488,15 @@ static struct snd_soc_dai_link tegra_rt5640_dai[] = {
 		.cpu_dai_name = "tegra30-spdif",
 		.codec_dai_name = "dit-hifi",
 		.ops = &tegra_spdif_ops,
+	},
+	{
+		.name = "BT-SCO",
+		.stream_name = "BT SCO PCM",
+		.codec_name = "spdif-dit.1",
+		.platform_name = "tegra-pcm-audio",
+		.cpu_dai_name = "tegra30-i2s.4",
+		.codec_dai_name = "dit-hifi",
+		.ops = &tegra_rt5640_bt_sco_ops,
 	},
 };
 
