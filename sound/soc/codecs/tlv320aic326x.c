@@ -619,6 +619,20 @@ static const DECLARE_TLV_DB_SCALE(micpga_gain_tlv, 0, 50, 0);
 static const DECLARE_TLV_DB_SCALE(adc_fine_gain_tlv, -40, 10, 0);
 static const DECLARE_TLV_DB_SCALE(beep_gen_volume_tlv, -6300, 100, 0);
 
+/* Chip-level Input and Output CM Mode Controls */
+static const char *input_common_mode_text[] = {
+    "0.9v", "0.75v" };
+
+static const char *output_common_mode_text[] = {
+    "Input CM", "1.25v", "1.5v", "1.65v" };
+
+static const struct soc_enum input_cm_mode =
+    SOC_ENUM_SINGLE(CM_REG, 2, 2, input_common_mode_text);
+
+static const struct soc_enum output_cm_mode =
+    SOC_ENUM_SINGLE(CM_REG, 0, 4, output_common_mode_text);
+
+
 /*
  *****************************************************************************
  * Structure Initialization
@@ -726,7 +740,8 @@ static const struct snd_kcontrol_new aic3262_snd_controls[] = {
 	SOC_SINGLE("HP_DEPOP", HP_DEPOP, 0, 255,0),
 	SOC_DOUBLE("IN1 LO BYPASS VOLUME" , LINE_AMP_CNTL_R2, 3, 0, 3, 1),
 
-
+	SOC_ENUM("Input CM mode", input_cm_mode),
+	SOC_ENUM("Output CM mode", output_cm_mode),
 };
 
 
@@ -966,8 +981,8 @@ static int aic3262_multi_i2s_asi1_mute(struct snd_soc_dai *dai, int mute)
 		DBG(KERN_INFO "Mute else part\n");
 		snd_soc_update_bits(codec, DAC_MVOL_CONF,
 						DAC_LR_MUTE_MASK, 0x0);
-
-		/*aic3262_multi_i2s_dump_regs(dai);*/
+		snd_soc_write(codec, ADC_FINE_GAIN,(0X00 & 0x77) | 0x0);
+		aic3262_multi_i2s_dump_regs(dai);
 	}
 
 	DBG(KERN_INFO "#%s : mute %d ended\n", __func__, mute);
@@ -2413,7 +2428,8 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	{0, ADC_FINE_GAIN, 0x00},   /*ladc - unmute, radc - unmute*/
 	{0, MICL_PGA, 0x4f},
 	{0, MICR_PGA, 0x4f},
-	{0, MIC_BIAS_CNTL, 0xFC},
+	/*controls MicBias ext power based on B0_P1_R51_D6*/
+	{0, MIC_BIAS_CNTL, 0x80},
 	/*   ASI1 Configuration */
 	{0, ASI1_BUS_FMT, 0},
 	{0, ASI1_BWCLK_CNTL_REG, 0x00},		/* originaly 0x24*/
@@ -2436,7 +2452,8 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	{0, INT1_CNTL, 0x80},
 	{0, INT_FMT, 0x40},
 	{0, GPIO1_IO_CNTL, 0x14},
-	{0, HP_DETECT, 0x94},
+	/* enables debounce with 512ms*/
+	{0, HP_DETECT, 0x96},
 
 #if defined(CONFIG_MINI_DSP)
 	{0, 60, 0},
@@ -2511,25 +2528,25 @@ static const struct snd_kcontrol_new lor_output_mixer_controls[] = {
 /* Left SPKL Mixer */
 static const struct snd_kcontrol_new spkl_output_mixer_controls[] = {
 	SOC_DAPM_SINGLE("MAL Switch", SPK_AMP_CNTL_R1, 7, 1, 0),
-	SOC_DAPM_SINGLE_TLV("LOL Volume", SPK_AMP_CNTL_R2, 0, 0x7f,1,
+	SOC_DAPM_SINGLE_TLV("LOL Volume", SPK_AMP_CNTL_R2, 0, 0x7f,0,
 								lo_hp_tlv),
 	SOC_DAPM_SINGLE("SPR_IN Switch", SPK_AMP_CNTL_R1, 2, 1, 0),
 };
 
 /* Right SPKR Mixer */
 static const struct snd_kcontrol_new spkr_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE_TLV("LOR Volume", SPK_AMP_CNTL_R3, 0, 0x7f, 1,
+	SOC_DAPM_SINGLE_TLV("LOR Volume", SPK_AMP_CNTL_R3, 0, 0x7f, 0,
 								lo_hp_tlv),
 	SOC_DAPM_SINGLE("MAR Switch", SPK_AMP_CNTL_R1, 6, 1, 0),
 };
 
 /* REC Mixer */
 static const struct snd_kcontrol_new rec_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE_TLV("LOL-B2 Volume", RAMP_CNTL_R1, 0, 0x7f,1,
+	SOC_DAPM_SINGLE_TLV("LOL-B2 Volume", RAMP_CNTL_R1, 0, 0x7f,0,
 							lo_hp_tlv),
 	SOC_DAPM_SINGLE_TLV("IN1L Volume", IN1L_SEL_RM, 0, 0x7f, 1, lo_hp_tlv),
 	SOC_DAPM_SINGLE_TLV("IN1R Volume", IN1R_SEL_RM, 0, 0x7f, 1, lo_hp_tlv),
-	SOC_DAPM_SINGLE_TLV("LOR-B2 Volume", RAMP_CNTL_R2, 0,0x7f, 1,lo_hp_tlv),
+	SOC_DAPM_SINGLE_TLV("LOR-B2 Volume", RAMP_CNTL_R2, 0,0x7f, 0,lo_hp_tlv),
 };
 
 /* Left Input Mixer */
@@ -2863,6 +2880,7 @@ static const struct snd_soc_dapm_widget aic3262_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MICBIAS("Mic Bias Ext", MIC_BIAS_CNTL, 6, 0),
 	SND_SOC_DAPM_MICBIAS("Mic Bias Int", MIC_BIAS_CNTL, 2, 0),
+
 	SND_SOC_DAPM_SUPPLY("PLLCLK",PLL_PR_POW_REG,7,0,pll_power_on_event,
 						SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("NDAC",NDAC_DIV_POW_REG,7,0, NULL, 0),
@@ -3086,7 +3104,7 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 	{"CM1L", NULL, "CM"},
 	{"CM2L", NULL, "CM"},
 	{"CM1R", NULL, "CM"},
-	{"CM1R", NULL, "CM"},
+	{"CM2R", NULL, "CM"},
 
 	{"Left MicPGA",NULL,"Left Input Mixer"},
 	{"Right MicPGA",NULL,"Right Input Mixer"},
@@ -3647,7 +3665,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 
 	//DBG("%s++\n", __func__);
 
-	pr_err("@@@@In Intrp\n");
 
 	aic3262_change_page(codec, 0);
 
@@ -3673,7 +3690,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 		DBG("no headset/headphone\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				0, SND_JACK_HEADSET);
-		pr_err("@@@@NO HP or HS\n");
 	}
 
 	/* Headphone Detected */
@@ -3681,7 +3697,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 		DBG("headphone\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				SND_JACK_HEADPHONE, SND_JACK_HEADSET);
-		pr_err("@@@@HP detected\n");
 	}
 
 	/* Headset Detected - only with capless */
@@ -3689,7 +3704,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 		DBG("headset\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				SND_JACK_HEADSET, SND_JACK_HEADSET);
-		pr_err("@@@@HS detected\n");
 	}
 
 	DBG("%s--\n", __func__);
@@ -3816,10 +3830,7 @@ static int aic3262_probe(struct snd_soc_codec *codec)
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to init TI codec: %d\n", ret);
 		return ret;
-	} else {
-		pr_err("@@@@@@@@@@TI codec successfully init\n");
 	}
-
 
 	if (aic3262->irq) {
 		/* audio interrupt */
@@ -3946,7 +3957,6 @@ static __devinit int aic3262_codec_probe(struct i2c_client *i2c,
 
 	struct aic3262_priv *aic3262;
 
-	pr_err("@@@@@@@@@TI codec probe\n")
 	DBG(KERN_INFO "#%s: Entered\n", __func__);
 
 	aic3262 = kzalloc(sizeof(struct aic3262_priv), GFP_KERNEL);
@@ -4157,8 +4167,6 @@ static int __init tlv320aic3262_modinit(void)
 	if (ret != 0)
 		printk(KERN_ERR "Failed to register aic326x i2c driver %d\n",
 			ret);
-
-	pr_err("@@@@@@@@@TI modinit register I2C driver\n");
 #endif
 #if defined(CONFIG_SPI_MASTER)
 	printk(KERN_INFO "Inside config_spi_master\n");
