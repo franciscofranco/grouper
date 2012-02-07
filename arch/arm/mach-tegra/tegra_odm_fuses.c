@@ -123,17 +123,101 @@ struct param_info {
 	char sysfs_name[FUSE_NAME_LEN];
 };
 
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+
+#define DEVKEY_START_OFFSET 0x12
+#define DEVKEY_START_BIT    0x08
+
+#define JTAG_START_OFFSET 0x0
+#define JTAG_START_BIT    0x24
+
+#define ODM_PROD_START_OFFSET 0x0
+#define ODM_PROD_START_BIT    0x23
+
+#define SB_DEVCFG_START_OFFSET 0x14
+#define SB_DEVCFG_START_BIT    0x08
+
+#define SB_DEVSEL_START_OFFSET 0x14
+#define SB_DEVSEL_START_BIT    0x24
+
+#define SBK_START_OFFSET 0x0A
+#define SBK_START_BIT    0x08
+
+#define SW_RESERVED_START_OFFSET 0x14
+#define SW_RESERVED_START_BIT    0x28
+
+#define IGNORE_DEVSEL_START_OFFSET 0x14
+#define IGNORE_DEVSEL_START_BIT    0x27
+
+#define ODM_RESERVED_DEVSEL_START_OFFSET 0X16
+#define ODM_RESERVED_START_BIT    0X4
+
+#elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
+
+#define DEVKEY_START_OFFSET 0x14
+#define DEVKEY_START_BIT    0x22
+
+#define JTAG_START_OFFSET 0x0
+#define JTAG_START_BIT    0x24
+
+#define ODM_PROD_START_OFFSET 0x0
+#define ODM_PROD_START_BIT    0x23
+
+#define SB_DEVCFG_START_OFFSET 0x18
+#define SB_DEVCFG_START_BIT    0x22
+
+#define SB_DEVSEL_START_OFFSET 0x1A
+#define SB_DEVSEL_START_BIT    0x06
+
+#define SBK_START_OFFSET 0x0E
+#define SBK_START_BIT    0x22
+
+#define SW_RESERVED_START_OFFSET 0x1A
+#define SW_RESERVED_START_BIT    0x10
+
+#define IGNORE_DEVSEL_START_OFFSET 0x1A
+#define IGNORE_DEVSEL_START_BIT    0x09
+
+#define ODM_RESERVED_DEVSEL_START_OFFSET 0X1A
+#define ODM_RESERVED_START_BIT    0X14
+
+#else
+
+#define DEVKEY_START_OFFSET 0x2C
+#define DEVKEY_START_BIT    0x07
+
+#define JTAG_START_OFFSET 0x0
+#define JTAG_START_BIT    0x3
+
+#define ODM_PROD_START_OFFSET 0x0
+#define ODM_PROD_START_BIT    0x4
+
+#define SB_DEVCFG_START_OFFSET 0x2E
+#define SB_DEVCFG_START_BIT    0x07
+
+#define SB_DEVSEL_START_OFFSET 0x2E
+#define SB_DEVSEL_START_BIT    0x23
+
+#define SBK_START_OFFSET 0x24
+#define SBK_START_BIT    0x07
+
+#define SW_RESERVED_START_OFFSET 0x2E
+#define SW_RESERVED_START_BIT    0x07
+
+#define IGNORE_DEVSEL_START_OFFSET 0x2E
+#define IGNORE_DEVSEL_START_BIT    0x26
+
+#define ODM_RESERVED_DEVSEL_START_OFFSET 0X30
+#define ODM_RESERVED_START_BIT    0X0
+
+#endif
+
 static struct param_info fuse_info_tbl[] = {
 	[DEVKEY] = {
 		.addr = &fuse_info.devkey,
 		.sz = sizeof(fuse_info.devkey),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x12,
-		.start_bit = 8,
-#else
-		.start_off = 0x16,
-		.start_bit = 22,
-#endif
+		.start_off = DEVKEY_START_OFFSET,
+		.start_bit = DEVKEY_START_BIT,
 		.nbits = 32,
 		.data_offset = 0,
 		.sysfs_name = "device_key",
@@ -141,8 +225,8 @@ static struct param_info fuse_info_tbl[] = {
 	[JTAG_DIS] = {
 		.addr = &fuse_info.jtag_dis,
 		.sz = sizeof(fuse_info.jtag_dis),
-		.start_off = 0x0,
-		.start_bit = 24,
+		.start_off = JTAG_START_OFFSET,
+		.start_bit = JTAG_START_BIT,
 		.nbits = 1,
 		.data_offset = 1,
 		.sysfs_name = "jtag_disable",
@@ -150,8 +234,8 @@ static struct param_info fuse_info_tbl[] = {
 	[ODM_PROD_MODE] = {
 		.addr = &fuse_info.odm_prod_mode,
 		.sz = sizeof(fuse_info.odm_prod_mode),
-		.start_off = 0x0,
-		.start_bit = 23,
+		.start_off = ODM_PROD_START_OFFSET,
+		.start_bit = ODM_PROD_START_BIT,
 		.nbits = 1,
 		.data_offset = 2,
 		.sysfs_name = "odm_production_mode",
@@ -159,13 +243,8 @@ static struct param_info fuse_info_tbl[] = {
 	[SEC_BOOT_DEV_CFG] = {
 		.addr = &fuse_info.bootdev_cfg,
 		.sz = sizeof(fuse_info.bootdev_cfg),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x14,
-		.start_bit = 8,
-#else
-		.start_off = 0x18,
-		.start_bit = 22,
-#endif
+		.start_off = SB_DEVCFG_START_OFFSET,
+		.start_bit = SB_DEVCFG_START_BIT,
 		.nbits = 16,
 		.data_offset = 3,
 		.sysfs_name = "sec_boot_dev_cfg",
@@ -173,13 +252,8 @@ static struct param_info fuse_info_tbl[] = {
 	[SEC_BOOT_DEV_SEL] = {
 		.addr = &fuse_info.bootdev_sel,
 		.sz = sizeof(fuse_info.bootdev_sel),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x14,
-		.start_bit = 24,
-#else
-		.start_off = 0x1A,
-		.start_bit = 6,
-#endif
+		.start_off = SB_DEVSEL_START_OFFSET,
+		.start_bit = SB_DEVSEL_START_BIT,
 		.nbits = 3,
 		.data_offset = 4,
 		.sysfs_name = "sec_boot_dev_sel",
@@ -187,13 +261,8 @@ static struct param_info fuse_info_tbl[] = {
 	[SBK] = {
 		.addr = fuse_info.sbk,
 		.sz = sizeof(fuse_info.sbk),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x0A,
-		.start_bit = 8,
-#else
-		.start_off = 0x0E,
-		.start_bit = 22,
-#endif
+		.start_off = SBK_START_OFFSET,
+		.start_bit = SBK_START_BIT,
 		.nbits = 128,
 		.data_offset = 5,
 		.sysfs_name = "secure_boot_key",
@@ -201,13 +270,8 @@ static struct param_info fuse_info_tbl[] = {
 	[SW_RSVD] = {
 		.addr = &fuse_info.sw_rsvd,
 		.sz = sizeof(fuse_info.sw_rsvd),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x14,
-		.start_bit = 28,
-#else
-		.start_off = 0x1A,
-		.start_bit = 10,
-#endif
+		.start_off = SW_RESERVED_START_OFFSET,
+		.start_bit = SW_RESERVED_START_BIT,
 		.nbits = 4,
 		.data_offset = 9,
 		.sysfs_name = "sw_reserved",
@@ -215,13 +279,8 @@ static struct param_info fuse_info_tbl[] = {
 	[IGNORE_DEV_SEL_STRAPS] = {
 		.addr = &fuse_info.ignore_devsel_straps,
 		.sz = sizeof(fuse_info.ignore_devsel_straps),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x14,
-		.start_bit = 27,
-#else
-		.start_off = 0x1A,
-		.start_bit = 9,
-#endif
+		.start_off = IGNORE_DEVSEL_START_OFFSET,
+		.start_bit = IGNORE_DEVSEL_START_BIT,
 		.nbits = 1,
 		.data_offset = 10,
 		.sysfs_name = "ignore_dev_sel_straps",
@@ -229,13 +288,8 @@ static struct param_info fuse_info_tbl[] = {
 	[ODM_RSVD] = {
 		.addr = fuse_info.odm_rsvd,
 		.sz = sizeof(fuse_info.odm_rsvd),
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-		.start_off = 0x16,
-		.start_bit = 4,
-#else
-		.start_off = 0x1A,
-		.start_bit = 14,
-#endif
+		.start_off = ODM_RESERVED_DEVSEL_START_OFFSET,
+		.start_bit = ODM_RESERVED_START_BIT,
 		.nbits = 256,
 		.data_offset = 11,
 		.sysfs_name = "odm_reserved",
