@@ -931,8 +931,9 @@ static int tegra_aic326x_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_dapm_nc_pin(dapm, "IN2L");
-	snd_soc_dapm_nc_pin(dapm, "IN2R");
+	//snd_soc_dapm_nc_pin(dapm, "IN2L");
+	//snd_soc_dapm_nc_pin(dapm, "IN2R");
+	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS_EXT ON");
 	snd_soc_dapm_sync(dapm);
 
 	return 0;
