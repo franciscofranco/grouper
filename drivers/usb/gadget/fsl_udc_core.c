@@ -51,6 +51,8 @@
 #include <asm/unaligned.h>
 #include <asm/dma.h>
 
+#include <mach/iomap.h>
+
 #include "fsl_usb2_udc.h"
 
 #ifdef CONFIG_ARCH_TEGRA
@@ -62,6 +64,7 @@
 #define	DRIVER_VERSION	"Apr 20, 2007"
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
+#define USB1_PREFETCH_ID	6
 
 #ifdef CONFIG_ARCH_TEGRA
 static const char driver_name[] = "fsl-tegra-udc";
@@ -2286,6 +2289,11 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return IRQ_NONE;
 	}
+
+#ifdef CONFIG_ARCH_TEGRA
+	/* Fence read for coherency of AHB master intiated writes */
+	readb(IO_ADDRESS(IO_PPCS_PHYS + USB1_PREFETCH_ID));
+#endif
 #ifndef CONFIG_TEGRA_SILICON_PLATFORM
 	{
 		u32 temp = fsl_readl(&usb_sys_regs->vbus_sensors);
