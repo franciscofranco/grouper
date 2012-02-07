@@ -2416,15 +2416,15 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	{0, PLL_PR_POW_REG, 0x11},	/*PLL Power=0-down, P=1, R=1 vals*/
 	{0, 0x3d, 1},
 
-	{0, LMIC_PGA_PIN, 0x55},	/*IN1_L select - - 10k -LMICPGA_P*/
+	{0, LMIC_PGA_PIN, 0x0},	/*IN1_L select - - 10k -LMICPGA_P*/
 	{0, LMIC_PGA_MIN, 0x40},	/*CM to LMICPGA-M*/
-	{0, RMIC_PGA_PIN, 0x55},	/*IN1_R select - - 10k -RMIC_PGA_P*/
-	{0, RMIC_PGA_MIN, 0x40},	/*CM to RMICPGA_M*/
+	{0, RMIC_PGA_PIN, 0x0},	/*IN1_R select - - 10k -RMIC_PGA_P*/
+	{0, RMIC_PGA_MIN, 0x0},	/*CM to RMICPGA_M*/
 	{0, MIC_PWR_DLY , 33},	/*LMIC-PGA-POWERUP-DELAY - default*/
 	{0, REF_PWR_DLY, 1},	/*FIXMELATER*/
 
 
-	{0, ADC_CHANNEL_POW, 0xc2}, /*ladc, radc ON , SOFT STEP disabled*/
+	{0, ADC_CHANNEL_POW, 0x0}, /*ladc, radc ON , SOFT STEP disabled*/
 	{0, ADC_FINE_GAIN, 0x00},   /*ladc - unmute, radc - unmute*/
 	{0, MICL_PGA, 0x4f},
 	{0, MICR_PGA, 0x4f},
@@ -3663,7 +3663,7 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 	unsigned int value;
 	unsigned int micbits, hsbits = 0;
 
-	//DBG("%s++\n", __func__);
+	DBG(KERN_INFO "%s++\n", __func__);
 
 
 	aic3262_change_page(codec, 0);
@@ -3672,41 +3672,42 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 	value = snd_soc_read(codec, STICKY_FLAG2);
 	DBG(KERN_INFO "reg44 0x%x\n", value);
 
+
 	value = snd_soc_read(codec, INT_FLAG2);
-	DBG("reg46 0x%x\n", value);
+	DBG(KERN_INFO "reg46 0x%x\n", value);
 
 	value = snd_soc_read(codec, DAC_FLAG_R1);
-	DBG("reg37 0x%x\n", value);
+	DBG(KERN_INFO "reg37 0x%x\n", value);
 
 	micbits = value & DAC_FLAG_MIC_MASKBITS;
-	DBG("micbits 0x%x\n", micbits);
+	DBG(KERN_INFO "micbits 0x%x\n", micbits);
 
 	hsbits = value & DAC_FLAG_HS_MASKBITS;
-	DBG("hsbits 0x%x\n", hsbits);
+	DBG(KERN_INFO "hsbits 0x%x\n", hsbits);
 
 
 	/* No Headphone or Headset*/
 	if (!micbits && !hsbits) {
-		DBG("no headset/headphone\n");
+		DBG(KERN_INFO "no headset/headphone\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				0, SND_JACK_HEADSET);
 	}
 
 	/* Headphone Detected */
 	if ((micbits == DAC_FLAG_R1_NOMIC) || (hsbits)) {
-		DBG("headphone\n");
+		DBG(KERN_INFO "headphone\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				SND_JACK_HEADPHONE, SND_JACK_HEADSET);
 	}
 
 	/* Headset Detected - only with capless */
 	if (micbits == DAC_FLAG_R1_MIC) {
-		DBG("headset\n");
+		DBG(KERN_INFO "headset\n");
 		snd_soc_jack_report(aic3262->headset_jack,
 				SND_JACK_HEADSET, SND_JACK_HEADSET);
 	}
 
-	DBG("%s--\n", __func__);
+	DBG(KERN_INFO "%s--\n", __func__);
 	return IRQ_HANDLED;
 }
 
