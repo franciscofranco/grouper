@@ -91,6 +91,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_NON_STD_VOLTAGE_SWITCHING		(1ULL<<32)
 /* Controller doesn't follow the standard frequency tuning procedure */
 #define SDHCI_QUIRK_NON_STANDARD_TUNING 		(1LL<<33)
+/* Controller doesn't calculate max_discard_to */
+#define SDHCI_QUIRK_NO_CALC_MAX_DISCARD_TO 		(1LL<<34)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
