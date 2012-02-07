@@ -776,7 +776,7 @@ static const struct snd_soc_dapm_widget tegra_aic326x_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_INPUT("Ext Mic"),
 	SND_SOC_DAPM_LINE("Linein", NULL),
-	SND_SOC_DAPM_INPUT("Int Mic"),
+	SND_SOC_DAPM_MIC("Int Mic", NULL),
 };
 
 static const struct snd_soc_dapm_route aic326x_audio_map[] = {
@@ -786,16 +786,19 @@ static const struct snd_soc_dapm_route aic326x_audio_map[] = {
 	{"Earpiece", NULL, "RECM"},
 	{"Headphone Jack", NULL, "HPL"},
 	{"Headphone Jack", NULL, "HPR"},
-	{"IN2L", NULL, "Mic Jack"},
-	/*TODO correct */
-	/* external mic is stero */
-	{"IN2L", NULL, "Ext Mic"},
-	{"IN2R", NULL, "Ext Mic"},
+	/* internal (IN2L/IN2R) mic is stero */
+	{"Mic Bias Ext" ,NULL, "Int Mic"},
+	{"IN2L", NULL, "Mic Bias Ext"},
+	{"Mic Bias Ext" ,NULL, "Int Mic"},
+	{"IN2R", NULL, "Mic Bias Ext"},
 	/* Line in */
-	{"IN2L", NULL, "Linein"},
-	{"IN2R", NULL, "Linein"},
-	/* Internal MIC */
-	{"IN1L", NULL, "Int Mic"},
+	//{"IN2L", NULL, "Linein"},
+	//{"IN2R", NULL, "Linein"},
+	/* Headset (IN1L) MIC */
+	{"Mic Bias Int" ,NULL, "Mic Jack"},
+	{"CM1L" ,NULL, "Mic Jack"},
+	{"IN1L", NULL, "Mic Bias Int"},
+	{"IN1L", NULL, "CM1L"},
 };
 
 static const struct snd_kcontrol_new tegra_aic326x_controls[] = {
