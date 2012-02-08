@@ -1045,6 +1045,16 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 	tegra_aic326x_i2s_dai_name[machine->codec_info[BT_SCO].i2s_id];
 #endif
 
+#ifdef CONFIG_SWITCH
+	/* Add h2w switch class support */
+	ret = switch_dev_register(&aic326x_wired_switch_dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "not able to register switch device %d\n",
+			ret);
+		goto err_fini_utils;
+	}
+#endif
+
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
@@ -1056,16 +1066,6 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No TI AIC3262 codec\n");
 		goto err_unregister_card;
 	}
-
-#ifdef CONFIG_SWITCH
-	/* Add h2w switch class support */
-	ret = switch_dev_register(&aic326x_wired_switch_dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "not able to register switch device %d\n",
-			ret);
-		goto err_unregister_card;
-	}
-#endif
 
 	return 0;
 
