@@ -36,6 +36,7 @@
 #define SDHCI_VENDOR_CLOCK_CNTRL	0x100
 #define SDHCI_VENDOR_CLOCK_CNTRL_SDMMC_CLK	0x1
 #define SDHCI_VENDOR_CLOCK_CNTRL_PADPIPE_CLKEN_OVERRIDE	0x8
+#define SDHCI_VENDOR_CLOCK_CNTRL_SPI_MODE_CLKEN_OVERRIDE	0x4
 #define SDHCI_VENDOR_CLOCK_CNTRL_BASE_CLK_FREQ_SHIFT	8
 #define SDHCI_VENDOR_CLOCK_CNTRL_TAP_VALUE_SHIFT	16
 #define SDHCI_VENDOR_CLOCK_CNTRL_SDR50_TUNING		0x20
@@ -190,6 +191,8 @@ static void tegra3_sdhci_post_reset_init(struct sdhci_host *sdhci)
 	vendor_ctrl |= (tegra3_sdhost_max_clk[tegra_host->instance] / 1000000) <<
 		SDHCI_VENDOR_CLOCK_CNTRL_BASE_CLK_FREQ_SHIFT;
 	vendor_ctrl |= SDHCI_VENDOR_CLOCK_CNTRL_PADPIPE_CLKEN_OVERRIDE;
+	vendor_ctrl &= ~SDHCI_VENDOR_CLOCK_CNTRL_SPI_MODE_CLKEN_OVERRIDE;
+
 	/* Set tap delay */
 	if (plat->tap_delay) {
 		vendor_ctrl &= ~(0xFF <<
