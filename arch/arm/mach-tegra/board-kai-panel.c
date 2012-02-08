@@ -572,6 +572,7 @@ static int kai_disp1_check_fb(struct device *dev, struct fb_info *info)
 }
 #endif
 
+#if defined(CONFIG_TEGRA_NVMAP)
 static struct nvmap_platform_carveout kai_carveouts[] = {
 	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
 	[1] = {
@@ -595,10 +596,12 @@ static struct platform_device kai_nvmap_device = {
 		.platform_data = &kai_nvmap_data,
 	},
 };
-
+#endif
 
 static struct platform_device *kai_gfx_devices[] __initdata = {
+#if defined(CONFIG_TEGRA_NVMAP)
 	&kai_nvmap_device,
+#endif
 #ifdef CONFIG_TEGRA_GRHOST
 	&tegra_grhost_device,
 #endif
@@ -638,9 +641,10 @@ int __init kai_panel_init(void)
 
 	tegra_get_board_info(&board_info);
 
+#if defined(CONFIG_TEGRA_NVMAP)
 	kai_carveouts[1].base = tegra_carveout_start;
 	kai_carveouts[1].size = tegra_carveout_size;
-
+#endif
 	gpio_request(kai_lvds_avdd_en, "lvds_avdd_en");
 	gpio_direction_output(kai_lvds_avdd_en, 1);
 	tegra_gpio_enable(kai_lvds_avdd_en);
