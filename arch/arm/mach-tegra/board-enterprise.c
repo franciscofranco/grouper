@@ -904,6 +904,7 @@ static void enterprise_baseband_init(void)
 		break;
 #ifdef CONFIG_TEGRA_BB_M7400
 	case TEGRA_BB_M7400: /* M7400 HSIC */
+		tegra_ehci_uhsic_pdata.power_down_on_bus_suspend = 0;
 		tegra_ehci2_device.dev.platform_data
 			= &tegra_ehci_uhsic_pdata;
 		platform_device_register(&tegra_baseband_m7400_device);
