@@ -829,6 +829,21 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	per_pin = &spec->pins[pin_idx];
 	eld = &per_pin->sink_eld;
 
+#ifdef CONFIG_SND_HDA_PLATFORM_NVIDIA_TEGRA
+	if ((codec->preset->id == 0x10de0020) &&
+	    (!eld->monitor_present || !eld->lpcm_sad_ready)) {
+		if (!eld->monitor_present) {
+			if (tegra_hdmi_setup_hda_presence() < 0) {
+				snd_printk(KERN_WARNING
+					   "HDMI: No HDMI device connected\n");
+				return -ENODEV;
+			}
+		}
+		if (!eld->lpcm_sad_ready)
+			return -EAGAIN;
+	}
+#endif
+
 	/* Dynamically assign converter to stream */
 	for (cvt_idx = 0; cvt_idx < spec->num_cvts; cvt_idx++) {
 		per_cvt = &spec->cvts[cvt_idx];
@@ -870,36 +885,8 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	hinfo->formats = per_cvt->formats;
 	hinfo->maxbps = per_cvt->maxbps;
 
-#ifdef CONFIG_SND_HDA_PLATFORM_NVIDIA_TEGRA
-	if ((codec->preset->id == 0x10de0020) &&
-	    (!eld->eld_valid || !eld->sad_count)) {
-		int err = 0;
-		unsigned long timeout;
-
-		if (!eld->eld_valid) {
-			err = tegra_hdmi_setup_hda_presence();
-			if (err < 0) {
-				snd_printk(KERN_WARNING
-					   "HDMI: No HDMI device connected\n");
-				return -ENODEV;
-			}
-		}
-
-		timeout = jiffies + msecs_to_jiffies(5000);
-		for (;;) {
-			if (eld->eld_valid && eld->sad_count)
-				break;
-
-			if (time_after(jiffies, timeout))
-				break;
-
-			mdelay(10);
-		}
-	}
-#endif
-
 	/* Restrict capabilities by ELD if this isn't disabled */
-	if (!static_hdmi_pcm && eld->eld_valid) {
+	if (!static_hdmi_pcm && (eld->eld_valid || eld->lpcm_sad_ready)) {
 		snd_hdmi_eld_update_pcm_info(eld, hinfo);
 		if (hinfo->channels_min > hinfo->channels_max ||
 		    !hinfo->rates || !hinfo->formats)
