@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/unaligned.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -38,6 +39,7 @@
 #define RESET_LSB 0x00
 #define MAX17048_DELAY		1000
 #define MAX17048_BATTERY_FULL	95
+#define MAX17048_VERSION_NO	0x11
 
 struct max17048_chip {
 	struct i2c_client		*client;
@@ -170,15 +172,9 @@ static void max17048_get_soc(struct i2c_client *client)
 	chip->soc = msb;
 }
 
-static void max17048_get_version(struct i2c_client *client)
+static uint16_t max17048_get_version(struct i2c_client *client)
 {
-	u8 msb;
-	u8 lsb;
-
-	msb = max17048_read_reg(client, MAX17048_VER_MSB);
-	lsb = max17048_read_reg(client, MAX17048_VER_LSB);
-
-	dev_info(&client->dev, "MAX17048 Fuel-Gauge Ver %d%d\n", msb, lsb);
+	return swab16(i2c_smbus_read_word_data(client, MAX17048_VER_MSB));
 }
 
 static void max17048_get_online(struct i2c_client *client)
@@ -263,6 +259,7 @@ static int __devinit max17048_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct max17048_chip *chip;
 	int ret;
+	uint16_t version;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -274,6 +271,13 @@ static int __devinit max17048_probe(struct i2c_client *client,
 	chip->usb_online = 0;
 
 	i2c_set_clientdata(client, chip);
+
+	version = max17048_get_version(client);
+	if (version != MAX17048_VERSION_NO) {
+		ret = -ENODEV;
+		goto error2;
+	}
+	dev_info(&client->dev, "MAX17048 Fuel-Gauge Ver 0x%x\n", version);
 
 	chip->battery.name		= "battery";
 	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
@@ -311,7 +315,6 @@ static int __devinit max17048_probe(struct i2c_client *client,
 		goto error;
 	}
 	max17048_reset(client);
-	max17048_get_version(client);
 
 	INIT_DELAYED_WORK_DEFERRABLE(&chip->work, max17048_work);
 	schedule_delayed_work(&chip->work, MAX17048_DELAY);
