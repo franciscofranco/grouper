@@ -2449,7 +2449,7 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	{0, BEEP_CNTL_R2, 0x04},
 
 	/* Interrupt config for headset detection */
-	{0, INT1_CNTL, 0x80},
+	//{0, INT1_CNTL, 0x80}, /*Enable INT after Jack Registration*/
 	{0, INT_FMT, 0x40},
 	{0, GPIO1_IO_CNTL, 0x14},
 	/* enables debounce with 512ms*/
@@ -3720,10 +3720,10 @@ int aic326x_headset_detect(struct snd_soc_codec *codec,
 	struct snd_soc_jack *jack, int jack_type)
 {
 	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
-	aic3262->headset_jack = jack;
 
-	/*TODO*/
-	aic3262_jack_handler(aic3262->irq, codec);
+	aic3262->headset_jack = jack;
+	/*Enable the Headset Interrupts*/
+	snd_soc_write(codec, INT1_CNTL, 0x80);
 
 	return 0;
 }
