@@ -3,7 +3,7 @@
  * Max77663 mfd driver (I2C bus access)
  *
  * Copyright 2011 Maxim Integrated Products, Inc.
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright (C) 2011-2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -157,6 +157,8 @@ struct max77663_chip {
 	u8 cache_gpio_pu;
 	u8 cache_gpio_pd;
 	u8 cache_gpio_alt;
+
+	u8 rtc_i2c_addr;
 };
 
 struct max77663_chip *max77663_chip;
@@ -248,7 +250,7 @@ static inline int max77663_i2c_write(struct i2c_client *client, u8 addr,
 	dev_dbg(&client->dev, "i2c_write: addr=0x%02x, src=0x%02x, bytes=%u\n",
 		addr, *((u8 *)src), bytes);
 
-	if (client->addr == MAX77663_RTC_I2C_ADDR) {
+	if (client->addr == max77663_chip->rtc_i2c_addr) {
 		/* RTC registers support sequential writing */
 		buf[0] = addr;
 		memcpy(&buf[1], src, bytes);
@@ -1291,7 +1293,12 @@ static int max77663_probe(struct i2c_client *client,
 	chip->i2c_power = client;
 	i2c_set_clientdata(client, chip);
 
-	chip->i2c_rtc = i2c_new_dummy(client->adapter, MAX77663_RTC_I2C_ADDR);
+	if (pdata->rtc_i2c_addr)
+		chip->rtc_i2c_addr = pdata->rtc_i2c_addr;
+	else
+		chip->rtc_i2c_addr = MAX77663_RTC_I2C_ADDR;
+
+	chip->i2c_rtc = i2c_new_dummy(client->adapter, chip->rtc_i2c_addr);
 	i2c_set_clientdata(chip->i2c_rtc, chip);
 
 	chip->dev = &client->dev;

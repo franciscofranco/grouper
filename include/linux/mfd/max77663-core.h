@@ -2,7 +2,7 @@
  * include/linux/mfd/max77663-core.h
  *
  * Copyright 2011 Maxim Integrated Products, Inc.
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright (C) 2011-2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -136,6 +136,8 @@ struct max77663_platform_data {
 	struct mfd_cell *sub_devices;
 
 	unsigned int flags;
+
+	unsigned char rtc_i2c_addr;
 };
 
 #if defined(CONFIG_MFD_MAX77663)
