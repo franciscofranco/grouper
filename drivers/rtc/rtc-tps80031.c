@@ -141,7 +141,7 @@ static int tps80031_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_min = buff[1];
 	tm->tm_hour = buff[2];
 	tm->tm_mday = buff[3];
-	tm->tm_mon = buff[4];
+	tm->tm_mon = buff[4] - 1;
 	tm->tm_year = buff[5] + RTC_YEAR_OFFSET;
 	tm->tm_wday = buff[6];
 	return 0;
@@ -175,7 +175,7 @@ static int tps80031_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buff[1] = tm->tm_min;
 	buff[2] = tm->tm_hour;
 	buff[3] = tm->tm_mday;
-	buff[4] = tm->tm_mon;
+	buff[4] = tm->tm_mon + 1;
 	buff[5] = tm->tm_year % RTC_YEAR_OFFSET;
 	buff[6] = tm->tm_wday;
 
@@ -223,7 +223,7 @@ static int tps80031_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	buff[1] = alrm->time.tm_min;
 	buff[2] = alrm->time.tm_hour;
 	buff[3] = alrm->time.tm_mday;
-	buff[4] = alrm->time.tm_mon;
+	buff[4] = alrm->time.tm_mon + 1;
 	buff[5] = alrm->time.tm_year % RTC_YEAR_OFFSET;
 	convert_decimal_to_bcd(buff, sizeof(buff));
 	err = tps80031_write_regs(dev, RTC_ALARM, sizeof(buff), buff);
@@ -247,7 +247,7 @@ static int tps80031_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->time.tm_min = buff[1];
 	alrm->time.tm_hour = buff[2];
 	alrm->time.tm_mday = buff[3];
-	alrm->time.tm_mon = buff[4];
+	alrm->time.tm_mon = buff[4] - 1;
 	alrm->time.tm_year = buff[5] + RTC_YEAR_OFFSET;
 
 	return 0;
