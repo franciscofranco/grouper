@@ -206,6 +206,13 @@ static int tegra_camera_clk_set_rate(struct tegra_camera_dev *dev)
 		 */
 		if (info->flag == TEGRA_CAMERA_ENABLE_PD2VI_CLK)
 			tegra_clk_cfg_ex(clk, TEGRA_CLK_VI_INP_SEL, 2);
+
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+		u32 val;
+		void __iomem *apb_misc = IO_ADDRESS(TEGRA_APB_MISC_BASE);
+		val = readl(apb_misc + 0x42c);
+		writel(val | 0x1, apb_misc + 0x42c);
+#endif
 	}
 
 	info->rate = clk_get_rate(clk);
