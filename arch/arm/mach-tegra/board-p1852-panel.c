@@ -130,5 +130,9 @@ int __init p1852_panel_init(void)
 	if (!err)
 		err = nvhost_device_register(&tegra_disp1_device);
 
+#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_NVAVP)
+	if (!err)
+		err = nvhost_device_register(&nvavp_device);
+#endif
 	return err;
 }
