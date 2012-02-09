@@ -1405,8 +1405,13 @@ static int acm_resume(struct usb_interface *intf)
 	}
 
 	spin_lock_irq(&acm->read_lock);
-	acm->susp_count -= 1;
-	cnt = acm->susp_count;
+	if (acm->susp_count > 0) {
+		acm->susp_count -= 1;
+		cnt = acm->susp_count;
+	} else {
+		spin_unlock_irq(&acm->read_lock);
+		return 0;
+	}
 	spin_unlock_irq(&acm->read_lock);
 
 	if (cnt)
