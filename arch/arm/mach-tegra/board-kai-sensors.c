@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/cm3217.h>
 #include <linux/mpu.h>
 #include <linux/regulator/consumer.h>
 #include <asm/mach-types.h>
@@ -32,6 +33,19 @@
 
 static struct regulator *kai_1v8_cam3;
 static struct regulator *kai_vdd_cam3;
+
+static struct cm3217_platform_data kai_cm3217_pdata = {
+	.levels = {10, 160, 225, 320, 640, 1280, 2600, 5800, 8000, 10240},
+	.golden_adc = 0,
+	.power = 0,
+};
+
+static struct i2c_board_info kai_i2c0_cm3217_board_info[] = {
+	{
+		I2C_BOARD_INFO("cm3217", 0x10),
+		.platform_data = &kai_cm3217_pdata,
+	},
+};
 
 static int kai_camera_init(void)
 {
@@ -235,6 +249,9 @@ int __init kai_sensors_init(void)
 
 	i2c_register_board_info(2, kai_i2c2_board_info,
 		ARRAY_SIZE(kai_i2c2_board_info));
+
+	i2c_register_board_info(0, kai_i2c0_cm3217_board_info,
+		ARRAY_SIZE(kai_i2c0_cm3217_board_info));
 
 	mpuirq_init();
 
