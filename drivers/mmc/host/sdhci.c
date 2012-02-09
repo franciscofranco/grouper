@@ -2330,7 +2330,7 @@ int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 	if (mmc->card && (mmc->card->type != MMC_TYPE_SDIO))
 		ret = mmc_suspend_host(host->mmc);
 
-	if (host->flags & MMC_PM_KEEP_POWER)
+	if (mmc->pm_flags & MMC_PM_KEEP_POWER)
 		host->card_int_set = sdhci_readl(host, SDHCI_INT_ENABLE) &
 			SDHCI_INT_CARD_INT;
 
