@@ -819,7 +819,6 @@ static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 		tegra_usb_suspend(hcd, false);
 		tegra->bus_suspended = 1;
 	}
-	tegra_usb_phy_postsuspend(tegra->phy, false);
 	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 
 	return error_status;
