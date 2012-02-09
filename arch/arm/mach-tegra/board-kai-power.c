@@ -222,7 +222,8 @@ MAX77663_PDATA_INIT(ldo8, 800000, 3950000, max77663_rails(sd3), 0, 0, 0,
 	{								\
 		.name = "max77663-regulator",				\
 		.id = MAX77663_REGULATOR_ID_##_id,			\
-		.platform_data = &max77663_regulator_pdata_##_data,		\
+		.platform_data = &max77663_regulator_pdata_##_data,	\
+		.pdata_size = sizeof(max77663_regulator_pdata_##_data),	\
 	}
 
 #define MAX77663_RTC()							\
