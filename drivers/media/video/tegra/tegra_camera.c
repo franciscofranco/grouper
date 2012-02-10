@@ -99,11 +99,13 @@ static int tegra_camera_disable_csi(struct tegra_camera_dev *dev)
 
 static int tegra_camera_enable_emc(struct tegra_camera_dev *dev)
 {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	/* tegra_camera wasn't added as a user of emc_clk until 3x.
 	   set to 150 MHz, will likely need to be increased as we support
 	   sensors with higher framerates and resolutions. */
 	clk_enable(dev->emc_clk);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	clk_set_rate(dev->emc_clk, 300000000);
+#else
 	clk_set_rate(dev->emc_clk, 150000000);
 #endif
 	return 0;
@@ -111,9 +113,7 @@ static int tegra_camera_enable_emc(struct tegra_camera_dev *dev)
 
 static int tegra_camera_disable_emc(struct tegra_camera_dev *dev)
 {
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	clk_disable(dev->emc_clk);
-#endif
 	return 0;
 }
 
@@ -527,11 +527,9 @@ static int tegra_camera_probe(struct platform_device *pdev)
 	err = tegra_camera_clk_get(pdev, "csi", &dev->csi_clk);
 	if (err)
 		goto csi_clk_get_err;
-#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	err = tegra_camera_clk_get(pdev, "emc", &dev->emc_clk);
 	if (err)
 		goto emc_clk_get_err;
-#endif
 
 	/* dev is set in order to restore in _remove */
 	platform_set_drvdata(pdev, dev);
