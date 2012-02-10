@@ -448,7 +448,6 @@ struct ti_st_plat_data {
 	int (*chip_disable) (struct kim_data_s *);
 	int (*chip_asleep) (struct kim_data_s *);
 	int (*chip_awake) (struct kim_data_s *);
-	int (*set_power)(int);
 };
 
 #endif /* TI_WILINK_ST_H */
