@@ -3,7 +3,7 @@
  *
  * MTD mapping driver for the internal SNOR controller in Tegra SoCs
  *
- * Copyright (C) 2009 - 2011 NVIDIA Corporation
+ * Copyright (C) 2009 - 2012 NVIDIA Corporation
  *
  * Author:
  *	Raghavendra VK <rvk@nvidia.com>
@@ -413,13 +413,13 @@ static int tegra_nor_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	err = parse_mtd_partitions(info->mtd, part_probes, &info->parts, 0);
 	if (err > 0)
-		err = add_mtd_partitions(info->mtd, info->parts, err);
+		err = mtd_device_register(info->mtd, info->parts, err);
 	else if (err <= 0 && plat->flash.parts)
 		err =
-		    add_mtd_partitions(info->mtd, plat->flash.parts,
+		    mtd_device_register(info->mtd, plat->flash.parts,
 				       plat->flash.nr_parts);
 	else
-		add_mtd_device(info->mtd);
+		mtd_device_register(info->mtd, NULL, 0);
 
 	return 0;
 
@@ -436,11 +436,9 @@ static int tegra_nor_remove(struct platform_device *pdev)
 {
 	struct tegra_nor_info *info = platform_get_drvdata(pdev);
 
-	if (info->parts) {
-		del_mtd_partitions(info->mtd);
+	mtd_device_unregister(info->mtd);
+	if (info->parts)
 		kfree(info->parts);
-	} else
-		del_mtd_device(info->mtd);
 	map_destroy(info->mtd);
 	clk_disable(info->clk);
 	clk_put(info->clk);
