@@ -76,7 +76,7 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_SPO_R_MIXER	, 0x2800},/* SPKVOLR -> SPORMIX */
 /*	{RT5640_SPO_L_MIXER	, 0xb800},//DAC -> SPOLMIX */
 /*	{RT5640_SPO_R_MIXER	, 0x1800},//DAC -> SPORMIX */
-	{RT5640_I2S1_SDP	, 0xD000},/*change IIS1 and IIS2 */
+/*	{RT5640_I2S1_SDP	, 0xD000},//change IIS1 and IIS2 */
 	/*record*/
 	{RT5640_IN1_IN2		, 0x5080},/*IN1 boost 40db & differential mode*/
 	{RT5640_IN3_IN4		, 0x0500},/*IN2 boost 40db & signal ended mode*/
@@ -2336,8 +2336,30 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 static int rt5640_remove(struct snd_soc_codec *codec)
 {
 	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	rt5640_reset(codec);
+	snd_soc_write(codec, RT5640_PWR_ANLG1, 0);
+
 	return 0;
 }
+#ifdef CONFIG_PM
+static int rt5640_suspend(struct snd_soc_codec *codec, pm_message_t state)
+{
+	rt5640_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_write(codec, RT5640_PWR_ANLG1, 0);
+
+	return 0;
+}
+
+static int rt5640_resume(struct snd_soc_codec *codec)
+{
+	rt5640_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	return 0;
+}
+#else
+#define rt5640_suspend NULL
+#define rt5640_resume NULL
+#endif
 
 #define RT5640_STEREO_RATES SNDRV_PCM_RATE_8000_96000
 #define RT5640_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -2417,6 +2439,8 @@ struct snd_soc_dai_driver rt5640_dai[] = {
 static struct snd_soc_codec_driver soc_codec_dev_rt5640 = {
 	.probe = rt5640_probe,
 	.remove = rt5640_remove,
+	.suspend = rt5640_suspend,
+	.resume = rt5640_resume,
 	.set_bias_level = rt5640_set_bias_level,
 	.reg_cache_size = RT5640_VENDOR_ID2 + 1,
 	.reg_word_size = sizeof(u16),
