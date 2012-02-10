@@ -1,7 +1,7 @@
 /*
  * ov14810.c - ov14810 sensor driver
  *
- * Copyright (c) 2011, NVIDIA, All Rights Reserved.
+ * Copyright (c) 2011-2012, NVIDIA, All Rights Reserved.
  *
  * Contributors:
  *	  Krupal Divvela <kdivvela@nvidia.com>
@@ -565,6 +565,7 @@ struct ov14810_sensor {
 
 struct ov14810_info {
 	int mode;
+	int uC_programmed;
 	struct ov14810_sensor sensor;
 	struct ov14810_sensor uC;
 	struct ov14810_sensor slaveDev;
@@ -1025,8 +1026,9 @@ static int ov14810uC_open(void)
 
 	pr_info("ov14810uC programmming started \n");
 
-	for (i=0; i < 8192; i++) {
-		ov14810_write16(info->uC.i2c_client, ( ( (i & 0xff) << 8) | ( (i & 0xff00) >> 8) ), uCProgram[i]);
+	for (i = 0; i < sizeof(uCProgram); i++) {
+		ov14810_write16(info->uC.i2c_client,
+			( ( (i & 0xff) << 8) | ( (i & 0xff00) >> 8) ), uCProgram[i]);
 	}
 	pr_info("ov14810uC programmming finished \n");
 
@@ -1046,12 +1048,16 @@ static int ov14810_open(struct inode *inode, struct file *file)
 	if (err)
 		return err;
 
-	err = ov14810_slavedev_open();
+	if (info->uC_programmed == 0) {
+		err = ov14810_slavedev_open();
 
-	if (err)
-		return err;
+		if (err)
+			return err;
 
-	err = ov14810uC_open();
+		err = ov14810uC_open();
+		if (!err)
+			info->uC_programmed = 1;
+	}
 
 	return err;
 }
@@ -1147,6 +1153,7 @@ static int ov14810_slavedev_probe(struct i2c_client *client,
 
 	info->slaveDev.pdata = client->dev.platform_data;
 	info->slaveDev.i2c_client = client;
+	info->uC_programmed = 0;
 
 	return 0;
 }
