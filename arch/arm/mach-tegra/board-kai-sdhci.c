@@ -23,7 +23,6 @@
 #include <linux/err.h>
 #include <linux/mmc/host.h>
 #include <linux/wl12xx.h>
-#include <linux/regulator/consumer.h>
 
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
@@ -52,7 +51,6 @@ static int kai_wifi_status_register(
 	return 0;
 }
 
-static struct regulator *vdd_com = NULL;
 
 static struct wl12xx_platform_data kai_wlan_data __initdata = {
 	.irq = TEGRA_GPIO_TO_IRQ(KAI_WLAN_IRQ),
@@ -212,18 +210,7 @@ int kai_wifi_power(int power_on)
 {
 	pr_err("Powering %s wifi\n", (power_on ? "on" : "off"));
 
-	if (vdd_com == NULL) {
-		vdd_com = regulator_get(NULL, "vdd_com_bd");
-		if (WARN_ON(IS_ERR(vdd_com))) {
-			pr_err("%s: couldn't get regulator vdd_com: %ld\n",
-				__func__, PTR_ERR(vdd_com));
-			return -ENODEV;
-		}
-	}
-
 	if (power_on) {
-		regulator_enable(vdd_com);
-		mdelay(100);
 		gpio_set_value(KAI_WLAN_EN, 1);
 		mdelay(15);
 		gpio_set_value(KAI_WLAN_EN, 0);
@@ -232,7 +219,6 @@ int kai_wifi_power(int power_on)
 		mdelay(70);
 	} else {
 		gpio_set_value(KAI_WLAN_EN, 0);
-		regulator_disable(vdd_com);
 	}
 
 	return 0;

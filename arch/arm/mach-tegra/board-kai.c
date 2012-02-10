@@ -117,36 +117,6 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 };
 
 
-static struct regulator *vdd_com_bt = NULL;
-
-static int plat_kim_set_power(int state)
-{
-	static int bt_power_state;
-	if (state == bt_power_state)
-		return 0;
-
-	if (vdd_com_bt == NULL) {
-		vdd_com_bt = regulator_get(NULL, "vdd_com_bd");
-		if (WARN_ON(IS_ERR(vdd_com_bt))) {
-			pr_err("%s: couldn't get regulator vdd_com_bt: %ld\n",
-				__func__, PTR_ERR(vdd_com_bt));
-			vdd_com_bt = NULL;
-			return -ENODEV;
-		}
-	}
-
-	pr_info("Powering %s bluetooth\n", (state ? "on" : "off"));
-	bt_power_state = state;
-
-	if (state) {
-		regulator_enable(vdd_com_bt);
-		mdelay(100);
-	} else
-		regulator_disable(vdd_com_bt);
-
-	return 0;
-}
-
 static unsigned long retry_suspend;
 
 static int plat_kim_suspend(struct platform_device *pdev, pm_message_t state)
@@ -180,7 +150,6 @@ struct ti_st_plat_data wilink_pdata = {
 	.baud_rate	= 3000000,
 	.suspend	= plat_kim_suspend,
 	.resume		= plat_kim_resume,
-	.set_power	= plat_kim_set_power,
 };
 
 static struct platform_device wl128x_device = {
