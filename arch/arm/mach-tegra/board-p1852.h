@@ -21,6 +21,7 @@
 
 #include <mach/gpio.h>
 #include <mach/irqs.h>
+#include <linux/gpio.h>
 #include <linux/mfd/tps6591x.h>
 
 
