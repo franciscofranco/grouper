@@ -41,6 +41,13 @@
 #define MAX77663_GPIO_BASE	TEGRA_NR_GPIOS
 #define MAX77663_GPIO_END	(MAX77663_GPIO_BASE + MAX77663_GPIO_NR)
 
+/* Audio-related GPIOs */
+#define TEGRA_GPIO_CDC_IRQ		TEGRA_GPIO_PW3
+#define TEGRA_GPIO_SPKR_EN		-1
+#define TEGRA_GPIO_HP_DET		TEGRA_GPIO_PW2
+#define TEGRA_GPIO_INT_MIC_EN		TEGRA_GPIO_PK3
+#define TEGRA_GPIO_EXT_MIC_EN		TEGRA_GPIO_PK4
+
 /*****************Interrupt tables ******************/
 /* External peripheral act as interrupt controller */
 /* MAX77663 IRQs */

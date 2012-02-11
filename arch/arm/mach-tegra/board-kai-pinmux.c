@@ -447,6 +447,17 @@ static __initdata struct tegra_pingroup_config unused_pins_lowpower[] = {
 
 };
 
+static void __init kai_pinmux_audio_init(void)
+{
+	tegra_gpio_enable(TEGRA_GPIO_CDC_IRQ);
+	gpio_request(TEGRA_GPIO_CDC_IRQ, "rt5640");
+	gpio_direction_input(TEGRA_GPIO_CDC_IRQ);
+
+	tegra_gpio_enable(TEGRA_GPIO_HP_DET);
+	tegra_gpio_enable(TEGRA_GPIO_INT_MIC_EN);
+	tegra_gpio_enable(TEGRA_GPIO_EXT_MIC_EN);
+}
+
 /* We are disabling this code for now. */
 #define GPIO_INIT_PIN_MODE(_gpio, _is_input, _value)	\
 	{					\
@@ -478,6 +489,9 @@ static void __init kai_gpio_init_configure(void)
 
 int __init kai_pinmux_init(void)
 {
+	struct board_info board_info;
+	tegra_get_board_info(&board_info);
+	BUG_ON(board_info.board_id != BOARD_E1565);
 	kai_gpio_init_configure();
 
 	tegra_pinmux_config_table(kai_pinmux_common, ARRAY_SIZE(kai_pinmux_common));
@@ -486,6 +500,7 @@ int __init kai_pinmux_init(void)
 
 	tegra_pinmux_config_table(unused_pins_lowpower,
 		ARRAY_SIZE(unused_pins_lowpower));
+	kai_pinmux_audio_init();
 
 	return 0;
 }

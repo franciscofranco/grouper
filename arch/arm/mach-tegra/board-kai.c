@@ -46,6 +46,7 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/i2s.h>
+#include <mach/tegra_rt5640_pdata.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
@@ -274,11 +275,15 @@ static struct tegra_i2c_platform_data kai_i2c5_platform_data = {
 	.arb_recovery = arb_lost_recovery,
 };
 
-
 static struct i2c_board_info kai_i2c4_smb349_board_info[] = {
 	{
 		I2C_BOARD_INFO("smb349", 0x1B),
 	},
+};
+
+static struct i2c_board_info __initdata rt5640_board_info = {
+	I2C_BOARD_INFO("rt5640", 0x1c),
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
 };
 
 static void kai_i2c_init(void)
@@ -297,6 +302,8 @@ static void kai_i2c_init(void)
 
 	i2c_register_board_info(4, kai_i2c4_smb349_board_info,
 		ARRAY_SIZE(kai_i2c4_smb349_board_info));
+
+	i2c_register_board_info(4, &rt5640_board_info, 1);
 }
 
 static struct platform_device *kai_uart_devices[] __initdata = {
@@ -506,6 +513,22 @@ static struct platform_device tegra_rtc_device = {
 	.num_resources = ARRAY_SIZE(tegra_rtc_resources),
 };
 
+static struct tegra_rt5640_platform_data kai_audio_pdata = {
+	.gpio_spkr_en		= TEGRA_GPIO_SPKR_EN,
+	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
+	.gpio_hp_mute		= -1,
+	.gpio_int_mic_en	= TEGRA_GPIO_INT_MIC_EN,
+	.gpio_ext_mic_en	= TEGRA_GPIO_EXT_MIC_EN,
+};
+
+static struct platform_device kai_audio_device = {
+	.name	= "tegra-snd-rt5640",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &kai_audio_pdata,
+	},
+};
+
 static struct platform_device *kai_devices[] __initdata = {
 	&tegra_pmu_device,
 	&tegra_rtc_device,
@@ -531,6 +554,7 @@ static struct platform_device *kai_devices[] __initdata = {
 	&spdif_dit_device,
 	&bluetooth_dit_device,
 	&tegra_pcm_device,
+	&kai_audio_device,
 	&tegra_hda_device,
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_AES)
 	&tegra_aes_device,
