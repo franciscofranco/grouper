@@ -120,6 +120,7 @@ struct adt7461_data {
 	u8 temp_hyst;
 	u8 alarms; /* bitvector */
 	void (*alarm_fn)(bool raised);
+	int irq_gpio;
 };
 
 /*
@@ -498,11 +499,10 @@ static void adt7461_work_func(struct work_struct *work)
 {
 	struct adt7461_data *data =
 			container_of(work, struct adt7461_data, work);
-	int irq = data->client->irq;
 
 	if (data->alarm_fn) {
 		/* Therm2 line is active low */
-		data->alarm_fn(!gpio_get_value(irq_to_gpio(irq)));
+		data->alarm_fn(!gpio_get_value(data->irq_gpio));
 	}
 }
 
@@ -572,8 +572,18 @@ static int adt7461_init_client(struct i2c_client *client)
 	if (!pdata || !pdata->supported_hwrev)
 		return -ENODEV;
 
-	if (pdata->therm2)
+	data->irq_gpio = -1;
+
+	if (pdata->therm2) {
 		data->flags |= ADT7461_FLAG_THERM2;
+
+		if (gpio_is_valid(pdata->irq_gpio)) {
+			if (!IS_ERR(gpio_request(pdata->irq_gpio, "adt7461"))) {
+				gpio_direction_input(pdata->irq_gpio);
+				data->irq_gpio = pdata->irq_gpio;
+			}
+		}
+	}
 
 	if (pdata->ext_range)
 		data->flags |= ADT7461_FLAG_ADT7461_EXT;
@@ -708,8 +718,12 @@ static int adt7461_remove(struct i2c_client *client)
 {
 	struct adt7461_data *data = i2c_get_clientdata(client);
 
-	free_irq(client->irq, data);
-	cancel_work_sync(&data->work);
+	if (data->flags & ADT7461_FLAG_THERM2) {
+		free_irq(client->irq, data);
+		cancel_work_sync(&data->work);
+	}
+	if (gpio_is_valid(data->irq_gpio))
+		gpio_free(data->irq_gpio);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adt7461_group);
 	device_remove_file(&client->dev,

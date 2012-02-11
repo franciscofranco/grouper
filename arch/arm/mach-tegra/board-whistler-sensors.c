@@ -319,8 +319,6 @@ static struct i2c_board_info whistler_i2c1_board_info[] = {
 static void whistler_adt7461_init(void)
 {
 	tegra_gpio_enable(ADT7461_IRQ_GPIO);
-	gpio_request(ADT7461_IRQ_GPIO, "adt7461");
-	gpio_direction_input(ADT7461_IRQ_GPIO);
 }
 
 static struct adt7461_platform_data whistler_adt7461_pdata = {
@@ -334,6 +332,7 @@ static struct adt7461_platform_data whistler_adt7461_pdata = {
 	.shutdown_local_limit = 120,
 	.throttling_ext_limit = 90,
 	.alarm_fn = tegra_throttling_enable,
+	.irq_gpio = ADT7461_IRQ_GPIO,
 };
 
 static struct i2c_board_info whistler_i2c4_board_info[] = {

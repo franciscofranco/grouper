@@ -36,6 +36,7 @@ struct adt7461_platform_data {
 	u8 shutdown_local_limit;
 	u8 throttling_ext_limit;
 	void (*alarm_fn)(bool raised);
+	int irq_gpio;
 };
 
 #endif /* _LINUX_ADT7461_H */
