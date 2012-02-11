@@ -490,6 +490,7 @@ static netdev_tx_t baseband_usb_netdev_start_xmit(
 	if (err < 0) {
 		pr_err("tx urb submit error\n");
 		usb->stats.tx_errors++;
+		netif_stop_queue(dev);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -748,7 +749,6 @@ static int usb_net_raw_ip_tx_urb_submit(struct baseband_usb *usb,
 	}
 	if (!usb->usb.interface) {
 		pr_err("usb interface disconnected - not submitting tx urb\n");
-		kfree_skb(skb);
 		return -EINVAL;
 	}
 
@@ -756,14 +756,12 @@ static int usb_net_raw_ip_tx_urb_submit(struct baseband_usb *usb,
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		pr_err("usb_alloc_urb() failed\n");
-		kfree_skb(skb);
 		return -ENOMEM;
 	}
 	buf = kzalloc(skb->len - 14, GFP_ATOMIC);
 	if (!buf) {
 		pr_err("usb buffer kzalloc() failed\n");
 		usb_free_urb(urb);
-		kfree_skb(skb);
 		return -ENOMEM;
 	}
 	err = skb_copy_bits(skb, 14, buf, skb->len - 14);
@@ -771,7 +769,6 @@ static int usb_net_raw_ip_tx_urb_submit(struct baseband_usb *usb,
 		pr_err("skb_copy_bits() failed - %d\n", err);
 		kfree(buf);
 		usb_free_urb(urb);
-		kfree_skb(skb);
 		return err;
 	}
 	usb_fill_bulk_urb(urb, usb->usb.device, usb->usb.pipe.bulk.out,
@@ -806,23 +803,19 @@ static void usb_net_raw_ip_tx_urb_work(struct work_struct *work)
 		return;
 	}
 
+	/* check if usb interface disconnected */
+	if (!usb->usb.interface) {
+		pr_err("%s: not submitting tx urb %p -interface disconnected\n",
+			__func__, urb);
+		return;
+	}
+
 	/* submit queued tx urb(s) */
 	while ((urb = usb_get_from_anchor(&usb->usb.tx_urb_deferred))
 		!= (struct urb *) 0) {
 		/* decrement count from usb_get_from_anchor() */
 		usb_free_urb(urb);
-		/* check if usb interface disconnected */
-		if (!usb->usb.interface) {
-			pr_err("%s: not submitting tx urb %p"
-				" - interface disconnected\n",
-				__func__, urb);
-			if (urb->transfer_buffer) {
-				kfree(urb->transfer_buffer);
-				urb->transfer_buffer = (void *) 0;
-			}
-			usb_free_urb(urb);
-			continue;
-		}
+
 		/* autoresume before tx */
 		usb_mark_last_busy(usb->usb.device);
 		err = usb_autopm_get_interface(usb->usb.interface);
