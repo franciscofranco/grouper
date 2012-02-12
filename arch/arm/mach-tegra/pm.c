@@ -719,6 +719,7 @@ static void tegra_pm_set(enum tegra_suspend_mode mode)
 
 	switch (mode) {
 	case TEGRA_SUSPEND_LP0:
+		rate = clk_get_rate_all_locked(tegra_pclk);
 		if (pdata->combined_req) {
 			reg |= TEGRA_POWER_PWRREQ_OE;
 			reg &= ~TEGRA_POWER_CPU_PWRREQ_OE;
