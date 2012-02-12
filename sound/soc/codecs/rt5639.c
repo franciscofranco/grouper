@@ -106,7 +106,7 @@ static int rt5639_reg_init(struct snd_soc_codec *codec)
 #endif
 
 static const u16 rt5639_reg[RT5639_VENDOR_ID2 + 1] = {
-	[RT5639_RESET] = 0x000c,
+	[RT5639_RESET] = 0x0008,
 	[RT5639_SPK_VOL] = 0xc8c8,
 	[RT5639_HP_VOL] = 0xc8c8,
 	[RT5639_OUTPUT] = 0xc8c8,
