@@ -2,11 +2,9 @@
  * tegra_rt5640.c - Tegra machine ASoC driver for boards using ALC5640 codec.
  *
  * Author: Johnny Qiu <joqiu@nvidia.com>
- * Copyright (C) 2011 - NVIDIA, Inc.
+ * Copyright (C) 2011-2012, NVIDIA, Inc.
  *
  * Based on code copyright/by:
- *
- * (c) 2009, 2010 Nvidia Graphics Pvt. Ltd.
  *
  * Copyright 2007 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory
@@ -65,6 +63,7 @@ struct tegra_rt5640 {
 	struct tegra_rt5640_platform_data *pdata;
 	struct regulator *spk_reg;
 	struct regulator *dmic_reg;
+	struct regulator *cdc_en;
 	int gpio_requested;
 #ifdef CONFIG_SWITCH
 	int jack_status;
@@ -87,9 +86,9 @@ static int tegra_rt5640_hw_params(struct snd_pcm_substream *substream,
 	mclk = 256 * srate;
 	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
 	if (err < 0) {
-		if (!(machine->util_data.set_mclk % mclk))
+		if (!(machine->util_data.set_mclk % mclk)) {
 			mclk = machine->util_data.set_mclk;
-		else {
+		} else {
 			dev_err(card->dev, "Can't configure clocks\n");
 			return err;
 		}
@@ -536,6 +535,15 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_machine;
 
+	machine->cdc_en = regulator_get(NULL, "cdc_en");
+	if (WARN_ON(IS_ERR(machine->cdc_en))) {
+		dev_err(&pdev->dev, "Couldn't get regulator cdc_en: %ld\n",
+						PTR_ERR(machine->cdc_en));
+		machine->cdc_en = 0;
+	} else {
+		regulator_enable(machine->cdc_en);
+	}
+
 	machine->spk_reg = regulator_get(&pdev->dev, "vdd_spk_amp");
 	if (IS_ERR(machine->spk_reg)) {
 		dev_info(&pdev->dev, "No speaker regulator found\n");
@@ -606,6 +614,11 @@ static int __devexit tegra_rt5640_driver_remove(struct platform_device *pdev)
 		regulator_put(machine->spk_reg);
 	if (machine->dmic_reg)
 		regulator_put(machine->dmic_reg);
+
+	if (machine->cdc_en) {
+		regulator_disable(machine->cdc_en);
+		regulator_put(machine->cdc_en);
+	}
 
 	snd_soc_unregister_card(card);
 
