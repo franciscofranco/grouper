@@ -45,6 +45,7 @@ static struct tegra_bb_gpio_data m7400_gpios[] = {
 	{ { GPIO_INVALID, 0, NULL }, false },	/* End of table */
 };
 static bool ehci_registered;
+static int modem_status;
 static int gpio_awr;
 static int gpio_cwr;
 static int gpio_arr;
@@ -83,8 +84,9 @@ static int m7400_apup_handshake(bool checkresponse)
 {
 	int retval = 0;
 
-	/* Signal AP ready - Drive AWR high. */
+	/* Signal AP ready - Drive AWR and ARR high. */
 	gpio_set_value(gpio_awr, 1);
+	gpio_set_value(gpio_arr, 1);
 
 	if (checkresponse) {
 		/* Wait for CP ack - by driving CWR high. */
@@ -106,41 +108,70 @@ static void m7400_apdown_handshake(void)
 
 static int m7400_l2_suspend(void)
 {
+	/* Gets called for two cases :
+		a) Port suspend.
+		b) Bus suspend. */
+	if (modem_status == BBSTATE_L2)
+		return 0;
+
 	/* Post bus suspend: Drive ARR low. */
 	gpio_set_value(gpio_arr, 0);
+	modem_status = BBSTATE_L2;
 	return 0;
 }
 
 static int m7400_l2_resume(void)
 {
+	/* Gets called for two cases :
+		a) L2 resume.
+		b) bus resume phase of L3 resume. */
+	if (modem_status == BBSTATE_L0)
+		return 0;
+
 	/* Pre bus resume: Drive ARR high. */
 	gpio_set_value(gpio_arr, 1);
 
-	/* Wait for CP ack - by driving CWR high. */
+	/* If host initiated resume - Wait for CP ack (CWR goes high). */
+	/* If device initiated resume - CWR will be already high. */
 	if (gpio_wait_timeout(gpio_cwr, 1, 10) != 0) {
 		pr_info("%s: Error: timeout waiting for modem ack.\n",
 						__func__);
 		return -1;
 	}
+	modem_status = BBSTATE_L0;
 	return 0;
 }
 
 static void m7400_l3_suspend(void)
 {
 	m7400_apdown_handshake();
+	modem_status = BBSTATE_L3;
 }
 
 static void m7400_l3_resume(void)
 {
 	m7400_apup_handshake(true);
+	modem_status = BBSTATE_L0;
 }
 
 static irqreturn_t m7400_wake_irq(int irq, void *dev_id)
 {
-	pr_info("%s called.\n", __func__);
+	struct usb_interface *intf;
 
-	/* Resume usb host activity. */
-	/* TBD */
+	switch (modem_status) {
+	case BBSTATE_L2:
+		/* Resume usb host activity. */
+		if (m7400_usb_device) {
+			usb_lock_device(m7400_usb_device);
+			intf = usb_ifnum_to_if(m7400_usb_device, 0);
+			usb_autopm_get_interface(intf);
+			usb_autopm_put_interface(intf);
+			usb_unlock_device(m7400_usb_device);
+		}
+		break;
+	default:
+		break;
+	}
 
 	return IRQ_HANDLED;
 }
@@ -225,8 +256,8 @@ static int m7400_attrib_write(struct device *dev, int value)
 
 static int m7400_registered(struct usb_device *udev)
 {
-	pr_info("%s called.\n", __func__);
 	m7400_usb_device = udev;
+	modem_status = BBSTATE_L0;
 	return 0;
 }
 
@@ -285,6 +316,7 @@ static void *m7400_init(void *pdata)
 	}
 
 	ehci_registered = false;
+	modem_status = BBSTATE_UNKNOWN;
 	return (void *) &m7400_data;
 }
 
