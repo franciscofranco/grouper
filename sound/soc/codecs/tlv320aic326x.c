@@ -54,6 +54,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <asm/div64.h>
@@ -165,6 +166,7 @@ static int aic3262_multi_i2s_asi1_mute(struct snd_soc_dai *dai, int mute);
 static int aic3262_multi_i2s_asi2_mute(struct snd_soc_dai *dai, int mute);
 
 static int aic3262_multi_i2s_asi3_mute(struct snd_soc_dai *dai, int mute);
+
 #if 0
 static const char *wclk1_pincontrol[] = {
 	"ASI1 Word Clock Input/Output", "CLKOUT output"};
@@ -558,7 +560,7 @@ static int __new_control_info(struct snd_kcontrol *kcontrol,
  *----------------------------------------------------------------------------
  */
 static int __new_control_get(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_value *ucontrol)
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	u32 val;
@@ -576,7 +578,7 @@ static int __new_control_get(struct snd_kcontrol *kcontrol,
  *----------------------------------------------------------------------------
  */
 static int __new_control_put(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_value *ucontrol)
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
@@ -621,17 +623,16 @@ static const DECLARE_TLV_DB_SCALE(beep_gen_volume_tlv, -6300, 100, 0);
 
 /* Chip-level Input and Output CM Mode Controls */
 static const char *input_common_mode_text[] = {
-    "0.9v", "0.75v" };
+	"0.9v", "0.75v" };
 
 static const char *output_common_mode_text[] = {
-    "Input CM", "1.25v", "1.5v", "1.65v" };
+	"Input CM", "1.25v", "1.5v", "1.65v" };
 
 static const struct soc_enum input_cm_mode =
-    SOC_ENUM_SINGLE(CM_REG, 2, 2, input_common_mode_text);
+	SOC_ENUM_SINGLE(CM_REG, 2, 2, input_common_mode_text);
 
 static const struct soc_enum output_cm_mode =
-    SOC_ENUM_SINGLE(CM_REG, 0, 4, output_common_mode_text);
-
+	SOC_ENUM_SINGLE(CM_REG, 0, 4, output_common_mode_text);
 
 /*
  *****************************************************************************
@@ -739,9 +740,9 @@ static const struct snd_kcontrol_new aic3262_snd_controls[] = {
 	SOC_SINGLE("GPIO1 CONTROL", GPIO1_IO_CNTL, 0, 255,0),
 	SOC_SINGLE("HP_DEPOP", HP_DEPOP, 0, 255,0),
 	SOC_DOUBLE("IN1 LO BYPASS VOLUME" , LINE_AMP_CNTL_R2, 3, 0, 3, 1),
-
 	SOC_ENUM("Input CM mode", input_cm_mode),
 	SOC_ENUM("Output CM mode", output_cm_mode),
+
 };
 
 
@@ -774,6 +775,8 @@ static const struct aic3262_rate_divs aic3262_divs[] = {
 	/* 16k rate */
 #ifdef CONFIG_MINI_DSP
 	{12000000, 16000, 1, 8, 1920, 384, 4, 4, 128, 4, 12, 12,
+		{{0, 60, 0}, {0, 61, 0} } },
+	{12288000, 16000, 1, 9, 0, 216, 2, 16, 72, 2, 48, 27,
 		{{0, 60, 0}, {0, 61, 0} } },
 #else
 	{12000000, 16000, 1, 8, 1920, 128, 8, 6, 128, 8, 6, 4,
@@ -1592,6 +1595,9 @@ static int aic3262_asi2_clk_config(struct snd_soc_codec *codec,
 	minidspA_data |= aic3262->asiCtxt[1].adc_input;
 	snd_soc_write(codec, ASI2_ADC_INPUT_CNTL, minidspA_data);
 
+	/* NO Manual configuration of WCLK and BCLK for Master Mode.
+	* DAPM Handles all the required modifications.
+	*/
 	if (aic3262->asiCtxt[1].master == 1) {
 		DBG(KERN_INFO
 		"#%s: Codec Master on ASI2 Port. Enabling BCLK WCLK Divider.\n",
@@ -1602,6 +1608,7 @@ static int aic3262_asi2_clk_config(struct snd_soc_codec *codec,
 		wclk_N_value = snd_soc_read(codec, ASI2_WCLK_N);
 		snd_soc_write(codec, ASI2_WCLK_N, (wclk_N_value | 0xA0));
 	}
+
 	return 0;
 
 }
@@ -2106,6 +2113,51 @@ err:
 	return 0;
 }
 
+
+/*
+*
+* aic3262_multi_i2s_set_clkdiv
+*
+*/
+static int aic3262_multi_i2s_set_clkdiv(struct snd_soc_dai *codec_dai, int div_id, int div)
+{
+	int value;
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
+
+
+	value = snd_soc_read(codec, div_id);
+	snd_soc_write(codec, div_id, (value | div));
+
+	printk(KERN_INFO "#%s: DAI ID %d Page %d Register %d Divider_Val %d Final_Value 0x%x\n",
+			__func__, codec_dai->id, (div_id /128), (div_id%128), div,
+			(value | div));
+
+	/* Store the Clock Divider inside the Private Structure */
+	switch(codec_dai->id) {
+	case 1:
+		if (div_id == ASI1_BCLK_N)
+		aic3262->asiCtxt[0].bclk_div = div;
+		if (div_id == ASI1_WCLK_N)
+		aic3262->asiCtxt[0].wclk_div = div;
+	break;
+	case 2:
+		if (div_id == ASI2_BCLK_N)
+		aic3262->asiCtxt[1].bclk_div = div;
+		if (div_id == ASI2_WCLK_N)
+		aic3262->asiCtxt[1].wclk_div = div;
+	break;
+	case 3:
+		if (div_id == ASI3_BCLK_N)
+		aic3262->asiCtxt[2].bclk_div = div;
+		if (div_id == ASI3_WCLK_N)
+		aic3262->asiCtxt[2].wclk_div = div;
+	break;
+	}
+	return 0;
+}
+
+
 /*
  *----------------------------------------------------------------------------
  * @struct  snd_soc_codec_dai |
@@ -2123,6 +2175,7 @@ struct snd_soc_dai_ops aic3262_multi_i2s_dai_ops = {
 	.set_pll        = aic3262_multi_i2s_set_dai_pll,
 	.set_sysclk     = aic3262_multi_i2s_set_dai_sysclk,
 	.shutdown        = aic3262_multi_i2s_shutdown,
+	.set_clkdiv      = aic3262_multi_i2s_set_clkdiv,
 };
 
 
@@ -2441,7 +2494,7 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 
 	/* ASI2 Configuration */
 	{0, ASI2_BUS_FMT, 0},
-	{0, ASI2_BCLK_N_CNTL, 1},
+	{0, ASI2_BCLK_N_CNTL, 0x0},
 	{0, ASI2_BCLK_N, 0x84},
 	{0, ASI2_BWCLK_OUT_CNTL, 0x20},
 
@@ -2449,7 +2502,7 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	{0, BEEP_CNTL_R2, 0x04},
 
 	/* Interrupt config for headset detection */
-	//{0, INT1_CNTL, 0x80}, /*Enable INT after Jack Registration*/
+	//{0, INT1_CNTL, 0x80}, /*INT enabled after Jack registration*/
 	{0, INT_FMT, 0x40},
 	{0, GPIO1_IO_CNTL, 0x14},
 	/* enables debounce with 512ms*/
@@ -2643,6 +2696,28 @@ SOC_ENUM_SINGLE_DECL(dacminidspin1_enum, MINIDSP_PORT_CNTL_REG, 4, dacminidspin1
 static const struct snd_kcontrol_new dacminidspin1_control =
 	SOC_DAPM_ENUM("DAC MiniDSP IN1 Route", dacminidspin1_enum);
 
+static const char *dacminidspin2_text[] = {
+	"ASI1 In", "ASI2 In","ASI3 In"
+};
+
+//static const struct soc_enum dacminidspin1_enum =
+//       SOC_ENUM_SINGLE(MINIDSP_DATA_PORT_CNTL, 5, 2, dacminidspin1_text);
+SOC_ENUM_SINGLE_DECL(dacminidspin2_enum, MINIDSP_PORT_CNTL_REG, 2, dacminidspin2_text);
+
+static const struct snd_kcontrol_new dacminidspin2_control =
+	SOC_DAPM_ENUM("DAC MiniDSP IN2 Route", dacminidspin2_enum);
+
+static const char *dacminidspin3_text[] = {
+	"ASI1 In", "ASI2 In","ASI3 In"
+};
+
+//static const struct soc_enum dacminidspin1_enum =
+//       SOC_ENUM_SINGLE(MINIDSP_DATA_PORT_CNTL, 5, 2, dacminidspin1_text);
+SOC_ENUM_SINGLE_DECL(dacminidspin3_enum, MINIDSP_PORT_CNTL_REG, 0, dacminidspin3_text);
+
+static const struct snd_kcontrol_new dacminidspin3_control =
+SOC_DAPM_ENUM("DAC MiniDSP IN3 Route", dacminidspin3_enum);
+
 static const char *asi1out_text[] = {
 	"Off",
 	"ASI1 Out",
@@ -2683,6 +2758,29 @@ static const char *asi1bclk_text[] = {
 	"ADC_CLK",
 	"ADC_MOD_CLK",
 };
+
+SOC_ENUM_SINGLE_DECL(asi1bclk_enum, ASI1_BCLK_N_CNTL, 0, asi1bclk_text);
+static const struct snd_kcontrol_new asi1bclk_control =
+	SOC_DAPM_ENUM("ASI1_BCLK Route", asi1bclk_enum);
+
+static const char *asi2bclk_text[] = {
+	"DAC_CLK",
+	"DAC_MOD_CLK",
+	"ADC_CLK",
+	"ADC_MOD_CLK",
+};
+SOC_ENUM_SINGLE_DECL(asi2bclk_enum, ASI2_BCLK_N_CNTL, 0, asi2bclk_text);
+static const struct snd_kcontrol_new asi2bclk_control =
+	SOC_DAPM_ENUM("ASI2_BCLK Route", asi2bclk_enum);
+static const char *asi3bclk_text[] = {
+	"DAC_CLK",
+	"DAC_MOD_CLK",
+	"ADC_CLK",
+	"ADC_MOD_CLK",
+};
+SOC_ENUM_SINGLE_DECL(asi3bclk_enum, ASI3_BCLK_N_CNTL, 0, asi3bclk_text);
+static const struct snd_kcontrol_new asi3bclk_control =
+	SOC_DAPM_ENUM("ASI3_BCLK Route", asi3bclk_enum);
 
 static int aic326x_hp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
@@ -2800,7 +2898,10 @@ static const struct snd_soc_dapm_widget aic3262_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MUX("DAC MiniDSP IN1 Route",
 			SND_SOC_NOPM, 0, 0, &dacminidspin1_control),
-
+SND_SOC_DAPM_MUX("DAC MiniDSP IN2 Route",
+			SND_SOC_NOPM, 0, 0, &dacminidspin2_control),
+	SND_SOC_DAPM_MUX("DAC MiniDSP IN3 Route",
+			SND_SOC_NOPM, 0, 0, &dacminidspin3_control),
 
 	SND_SOC_DAPM_PGA("CM", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("CM1L", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -2883,29 +2984,67 @@ static const struct snd_soc_dapm_widget aic3262_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("PLLCLK",PLL_PR_POW_REG,7,0,pll_power_on_event,
 						SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_SUPPLY("NDAC",NDAC_DIV_POW_REG,7,0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MDAC",MDAC_DIV_POW_REG,7,0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("NADC",NADC_DIV_POW_REG,7,0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MADC",MADC_DIV_POW_REG,7,0, NULL, 0),
-
-
+	SND_SOC_DAPM_SUPPLY("DACCLK",NDAC_DIV_POW_REG,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("CODEC_CLK_IN",SND_SOC_NOPM,0,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC_MOD_CLK",MDAC_DIV_POW_REG,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADCCLK",NADC_DIV_POW_REG,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC_MOD_CLK",MADC_DIV_POW_REG,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI1_BCLK",ASI1_BCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI1_WCLK",ASI1_WCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI2_BCLK",ASI2_BCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI2_WCLK",ASI2_WCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI3_BCLK",ASI3_BCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ASI3_WCLK",ASI3_WCLK_N,7,0, NULL, 0),
+	SND_SOC_DAPM_MUX("ASI1_BCLK Route",
+		SND_SOC_NOPM, 0, 0, &asi1bclk_control),
+	SND_SOC_DAPM_MUX("ASI2_BCLK Route", SND_SOC_NOPM, 0, 0, &asi2bclk_control),
+	SND_SOC_DAPM_MUX("ASI3_BCLK Route", SND_SOC_NOPM, 0, 0, &asi3bclk_control),
 };
 
 static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
-/* TODO: Do we need only DACCLK for ASIIN's and ADCCLK for ASIOUT??? */
-/* Clock portion */
-	{"NDAC", NULL, "PLLCLK"},
-	{"MDAC", NULL, "NDAC"},
-	{"ASI1IN", NULL , "NDAC"},
-	{"ASI1IN", NULL , "NADC"},
-	{"ASI1IN", NULL , "MDAC"},
-	{"ASI1IN", NULL , "MADC"},
+	/* TODO: Do we need only DACCLK for ASIIN's and ADCCLK for ASIOUT??? */
+	/* Clock portion */
+	{"CODEC_CLK_IN", NULL, "PLLCLK"},
+	{"DACCLK", NULL, "CODEC_CLK_IN"},
+	{"ADCCLK", NULL, "CODEC_CLK_IN"},
+	{"DAC_MOD_CLK", NULL, "DACCLK"},
+#ifdef AIC3262_SYNC_MODE
+	{"ADC_MOD_CLK", NULL,"DACCLK"},
+#else
+	{"ADC_MOD_CLK", NULL, "ADCCLK"},
+#endif
 
-	{"ASI1OUT", NULL , "NDAC"},
-	{"ASI1OUT", NULL , "NADC"},
-	{"ASI1OUT", NULL , "MDAC"},
-	{"ASI1OUT", NULL , "MADC"},
+	{"ASI1_BCLK Route","DAC_CLK","DACCLK"},
+	{"ASI1_BCLK Route","DAC_MOD_CLK","DAC_MOD_CLK"},
+	{"ASI1_BCLK Route","ADC_CLK","ADCCLK"},
+	{"ASI1_BCLK Route","ADC_MOD_CLK","ADC_MOD_CLK"},
 
+	{"ASI2_BCLK Route","DAC_CLK","DACCLK"},
+	{"ASI2_BCLK Route","DAC_MOD_CLK","DAC_MOD_CLK"},
+	{"ASI2_BCLK Route","ADC_CLK","ADCCLK"},
+	{"ASI2_BCLK Route","ADC_MOD_CLK","ADC_MOD_CLK"},
+
+	{"ASI3_BCLK Route","DAC_CLK","DACCLK"},
+	{"ASI3_BCLK Route","DAC_MOD_CLK","DAC_MOD_CLK"},
+	{"ASI3_BCLK Route","ADC_CLK","ADCCLK"},
+	{"ASI3_BCLK Route","ADC_MOD_CLK","ADC_MOD_CLK"},
+
+	{"ASI1_BCLK", NULL, "ASI1_BCLK Route"},
+	{"ASI2_BCLK", NULL, "ASI2_BCLK Route"},
+	{"ASI3_BCLK", NULL, "ASI3_BCLK Route"},
+
+
+	{"ASI1IN", NULL , "PLLCLK"},
+	{"ASI1IN", NULL , "DACCLK"},
+	{"ASI1IN", NULL , "ADCCLK"},
+	{"ASI1IN", NULL , "DAC_MOD_CLK"},
+	{"ASI1IN", NULL , "ADC_MOD_CLK"},
+
+	{"ASI1OUT", NULL , "PLLCLK"},
+	{"ASI1OUT", NULL , "DACCLK"},
+	{"ASI1OUT", NULL , "ADCCLK"},
+	{"ASI1OUT", NULL , "DAC_MOD_CLK"},
+	{"ASI1OUT", NULL , "ADC_MOD_CLK"},
 #ifdef AIC3262_ASI1_MASTER
 	{"ASI1IN", NULL , "ASI1_BCLK"},
 	{"ASI1OUT", NULL , "ASI1_BCLK"},
@@ -2914,15 +3053,18 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 #else
 
 #endif
-	{"ASI2IN", NULL , "NDAC"},
-	{"ASI2IN", NULL , "NADC"},
-	{"ASI2IN", NULL , "MDAC"},
-	{"ASI2IN", NULL , "MADC"},
 
-	{"ASI2OUT", NULL , "NDAC"},
-	{"ASI2OUT", NULL , "NADC"},
-	{"ASI2OUT", NULL , "MDAC"},
-	{"ASI2OUT", NULL , "MADC"},
+	{"ASI2IN", NULL , "PLLCLK"},
+	{"ASI2IN", NULL , "DACCLK"},
+	{"ASI2IN", NULL , "ADCCLK"},
+	{"ASI2IN", NULL , "DAC_MOD_CLK"},
+	{"ASI2IN", NULL , "ADC_MOD_CLK"},
+
+	{"ASI2OUT", NULL , "PLLCLK"},
+	{"ASI2OUT", NULL , "DACCLK"},
+	{"ASI2OUT", NULL , "ADCCLK"},
+	{"ASI2OUT", NULL , "DAC_MOD_CLK"},
+	{"ASI2OUT", NULL , "ADC_MOD_CLK"},
 
 #ifdef AIC3262_ASI2_MASTER
 	{"ASI2IN", NULL , "ASI2_BCLK"},
@@ -2932,15 +3074,18 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 #else
 
 #endif
-	{"ASI3IN", NULL , "NDAC"},
-	{"ASI3IN", NULL , "NADC"},
-	{"ASI3IN", NULL , "MDAC"},
-	{"ASI3IN", NULL , "MADC"},
+	{"ASI3IN", NULL , "PLLCLK"},
+	{"ASI3IN", NULL , "DACCLK"},
+	{"ASI3IN", NULL , "ADCCLK"},
+	{"ASI3IN", NULL , "DAC_MOD_CLK"},
+	{"ASI3IN", NULL , "ADC_MOD_CLK"},
 
-	{"ASI3OUT", NULL , "NDAC"},
-	{"ASI3OUT", NULL , "NADC"},
-	{"ASI3OUT", NULL , "MDAC"},
-	{"ASI3OUT", NULL , "MADC"},
+
+	{"ASI3OUT", NULL , "PLLCLK"},
+	{"ASI3OUT", NULL , "DACCLK"},
+	{"ASI3OUT", NULL , "ADCCLK"},
+	{"ASI3OUT", NULL , "DAC_MOD_CLK"},
+	{"ASI3OUT", NULL , "ADC_MOD_CLK"},
 
 #ifdef AIC3262_ASI3_MASTER
 	{"ASI3IN", NULL , "ASI3_BCLK"},
@@ -2949,6 +3094,7 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 	{"ASI3OUT", NULL , "ASI3_WCLK"},
 #else
 #endif
+
 /* Playback (DAC) Portion */
 	{"HPL Output Mixer","LDAC Switch","Left DAC"},
 	{"HPL Output Mixer","MAL Switch","MAL PGA"},
@@ -3055,8 +3201,22 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 	{"DAC MiniDSP IN1 Route","ASI3 In","ASI3IN Port"},
 	{"DAC MiniDSP IN1 Route","ADC MiniDSP Out","ADC MiniDSP OUT1"},
 
+	{"DAC MiniDSP IN2 Route","ASI1 In","ASI1IN Port"},
+	{"DAC MiniDSP IN2 Route","ASI2 In","ASI2IN Port"},
+	{"DAC MiniDSP IN2 Route","ASI3 In","ASI3IN Port"},
+
+	{"DAC MiniDSP IN3 Route","ASI1 In","ASI1IN Port"},
+	{"DAC MiniDSP IN3 Route","ASI2 In","ASI2IN Port"},
+	{"DAC MiniDSP IN3 Route","ASI3 In","ASI3IN Port"},
+
 	{"Left DAC", "NULL", "DAC MiniDSP IN1 Route"},
 	{"Right DAC", "NULL", "DAC MiniDSP IN1 Route"},
+
+	{"Left DAC", "NULL","DAC MiniDSP IN2 Route"},
+	{"Right DAC", "NULL","DAC MiniDSP IN2 Route"},
+
+	{"Left DAC", "NULL","DAC MiniDSP IN3 Route"},
+	{"Right DAC", "NULL","DAC MiniDSP IN3 Route"},
 
 
 /* Mixer Amplifier */
@@ -3115,6 +3275,10 @@ static const struct snd_soc_dapm_route aic3262_dapm_routes[] ={
 /* ASI Output Routing */
 	{"ADC MiniDSP OUT1", NULL, "Left ADC"},
 	{"ADC MiniDSP OUT1", NULL, "Right ADC"},
+	{"ADC MiniDSP OUT2", NULL, "Left ADC"},
+	{"ADC MiniDSP OUT2", NULL, "Right ADC"},
+	{"ADC MiniDSP OUT3", NULL, "Left ADC"},
+	{"ADC MiniDSP OUT3", NULL, "Right ADC"},
 
 	{"ASI1OUT Route", "ASI1 Out","ADC MiniDSP OUT1"},// Port 1
 	{"ASI1OUT Route", "ASI1In Bypass","ASI1IN Port"},
@@ -3664,7 +3828,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 	unsigned int micbits, hsbits = 0;
 
 	DBG(KERN_INFO "%s++\n", __func__);
-
 
 	aic3262_change_page(codec, 0);
 

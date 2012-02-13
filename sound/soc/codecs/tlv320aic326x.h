@@ -25,6 +25,8 @@
 #define AUDIO_NAME "aic3262"
 #define AIC3262_VERSION "1.1"
 
+#define AIC3262_ASI2_MASTER 1
+
 /* Enable this macro allow for different ASI formats */
 /*#define ASI_MULTI_FMT*/
 #undef ASI_MULTI_FMT
@@ -176,6 +178,7 @@ page, so fix that before commenting this line*/
 #define HF_CLK_TRIM_R2		30
 #define HF_CLK_TRIM_R3		31
 #define HF_CLK_TRIM_R4		32
+#define ADC_FLAG_R1		36
 #define DAC_FLAG_R1		37
 #define DAC_FLAG_R2		38
 
@@ -538,6 +541,7 @@ struct aic3262_priv {
 	u32 active_count;
 	int current_dac_config[MAX_ASI_COUNT];
 	int current_adc_config[MAX_ASI_COUNT];
+	int current_config;
 	struct aic3262_asi_data asiCtxt[MAX_ASI_COUNT];
 	enum AIC3262_PLL_OPTION aic3262_pllclkin_option;
 	u8 dac_clkin_option;
@@ -552,6 +556,7 @@ struct aic3262_priv {
 	u8 spk_amp;
 	struct spi_device *spi;
 	struct snd_soc_jack *headset_jack;
+	int codec_audio_mode;
 #if defined(LOCAL_REG_ACCESS)
 	void *control_data;
 #endif
