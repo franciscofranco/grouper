@@ -520,13 +520,12 @@ static int tegra_aic326x_voice_call_hw_params(
 	struct snd_soc_card *card = codec->card;
 	struct tegra_aic326x *machine = snd_soc_card_get_drvdata(card);
 	int srate, mclk;
-	int err;
+	int err, pcmdiv, vxclkdiv;;
 
 	srate = params_rate(params);
 	mclk = tegra_aic326x_get_mclk(srate);
 	if (mclk < 0)
 		return mclk;
-
 
 	err = tegra_asoc_utils_set_rate(&machine->util_data, srate, mclk);
 	if (err < 0) {
@@ -541,9 +540,9 @@ static int tegra_aic326x_voice_call_hw_params(
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
 
 	err = snd_soc_dai_set_fmt(codec_dai,
-					SND_SOC_DAIFMT_DSP_B |
+					SND_SOC_DAIFMT_DSP_A |
 					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBS_CFS);
+					SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
 		dev_err(card->dev, "codec_dai fmt not set\n");
 		return err;
@@ -555,6 +554,24 @@ static int tegra_aic326x_voice_call_hw_params(
 		dev_err(card->dev, "codec_dai clock not set\n");
 		return err;
 	}
+
+	if (params_rate(params) == 8000) {
+		/* Change these Settings for 8KHz*/
+		pcmdiv = 1;
+		/* BB expecting 2048Khz bclk */
+		vxclkdiv = 27;
+	} else if (params_rate(params) == 16000) {
+		pcmdiv = 1;
+		/* BB expecting 2048Khz bclk */
+		vxclkdiv = 27;
+	} else {
+		dev_err(card->dev, "codec_dai unsupported voice rate\n");
+		return -EINVAL;
+	}
+
+	//snd_soc_dai_set_clkdiv(codec_dai, ASI2_BCLK_N, vxclkdiv);
+	//snd_soc_dai_set_clkdiv(codec_dai, ASI2_WCLK_N, pcmdiv);
+
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	/* codec configuration */
@@ -1044,6 +1061,7 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 	tegra_aic326x_dai[DAI_LINK_BTSCO].cpu_dai_name =
 	tegra_aic326x_i2s_dai_name[machine->codec_info[BT_SCO].i2s_id];
 #endif
+
 
 #ifdef CONFIG_SWITCH
 	/* Add h2w switch class support */
