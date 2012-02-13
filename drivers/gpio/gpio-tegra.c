@@ -203,7 +203,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 }
 
 static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
-					int value)
+				unsigned debounce)
 {
 	return -ENOSYS;
 }
