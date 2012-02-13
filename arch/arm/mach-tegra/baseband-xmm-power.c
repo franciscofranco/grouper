@@ -376,13 +376,14 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 {
 	int value;
 
-	pr_debug("%s\n", __func__);
+	value = gpio_get_value(baseband_power_driver_data->
+				modem.xmm.ipc_ap_wake);
+
+	pr_debug("%s g(%d), wake_st(%d)\n", __func__, value, ipc_ap_wake_state);
 
 	if (ipc_ap_wake_state < IPC_AP_WAKE_IRQ_READY) {
 		pr_err("%s - spurious irq\n", __func__);
 	} else if (ipc_ap_wake_state == IPC_AP_WAKE_IRQ_READY) {
-		value = gpio_get_value(baseband_power_driver_data->
-			modem.xmm.ipc_ap_wake);
 		if (!value) {
 			pr_debug("%s - IPC_AP_WAKE_INIT1"
 				" - got falling edge\n",
@@ -397,8 +398,6 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 				__func__);
 		}
 	} else if (ipc_ap_wake_state == IPC_AP_WAKE_INIT1) {
-		value = gpio_get_value(baseband_power_driver_data->
-			modem.xmm.ipc_ap_wake);
 		if (!value) {
 			pr_debug("%s - IPC_AP_WAKE_INIT2"
 				" - wait for rising edge\n",
@@ -413,8 +412,6 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 			queue_work(workqueue, &init2_work);
 		}
 	} else {
-		value = gpio_get_value(baseband_power_driver_data->
-			modem.xmm.ipc_ap_wake);
 		if (!value) {
 			pr_debug("%s - falling\n", __func__);
 			/* [ver < 1130] gpio protocol falling edge */
@@ -827,7 +824,9 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 	if (modem_flash && modem_pm) {
 		pr_debug("%s: request_irq IPC_AP_WAKE_IRQ\n", __func__);
 		ipc_ap_wake_state = IPC_AP_WAKE_UNINIT;
-		err = request_irq(gpio_to_irq(data->modem.xmm.ipc_ap_wake),
+		err = request_threaded_irq(
+			gpio_to_irq(data->modem.xmm.ipc_ap_wake),
+			NULL,
 			baseband_xmm_power_ipc_ap_wake_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			"IPC_AP_WAKE_IRQ",
