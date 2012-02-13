@@ -13,6 +13,7 @@
 
 #include "pm-irq.h"
 #include "ril.h"
+#include "ril_sim.h"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -45,8 +46,7 @@ static struct gpio ril_gpios_nakasi3g[] = {
 
 irqreturn_t ril_ipc_sim_det_irq(int irq, void *dev_id)
 {
-	// TODO: implement SIM hot-plug here
-	return IRQ_HANDLED;
+	return sim_interrupt_handle(irq, dev_id);
 }
 
 //**** sysfs callback functions
@@ -198,9 +198,19 @@ static int __init ril_init(void)
 		goto failed3;
 	}
 
+	/* init SIM plug functions */
+	err = sim_hot_plug_init(workqueue);
+	if (err < 0) {
+		pr_err("%s - init SIM hotplug failed\n",
+			__func__);
+		goto failed4;
+	}
+
 	RIL_INFO("RIL init successfully\n");
 	return 0;
 
+failed4:
+	destroy_workqueue(workqueue);
 failed3:
 	free_irq(gpio_to_irq(SIM_CARD_DET), NULL);
 failed2:
@@ -229,6 +239,9 @@ static void __exit ril_exit(void)
 
 	/* delete device file(s) */
 	remove_ril_files();
+
+	/* unregister SIM hot plug */
+	sim_hot_plug_exit();
 
 	/* destroy workqueue */
 	destroy_workqueue(workqueue);
