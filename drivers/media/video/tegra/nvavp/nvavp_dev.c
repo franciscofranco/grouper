@@ -729,7 +729,7 @@ static int nvavp_init(struct nvavp_info *nvavp)
 	/* vaddr is same as paddr */
 	/* Find nvmem carveout */
 	if (!pfn_valid(__phys_to_pfn(0x8e000000))) {
-		nvavp->os_info->phys = 0x8e000000;
+		nvavp->os_info.phys = 0x8e000000;
 	} else if (!pfn_valid(__phys_to_pfn(0x9e000000))) {
 		nvavp->os_info.phys = 0x9e000000;
 	} else if (!pfn_valid(__phys_to_pfn(0xbe000000))) {
