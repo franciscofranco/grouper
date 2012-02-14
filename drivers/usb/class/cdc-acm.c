@@ -1381,11 +1381,12 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 static int acm_resume(struct usb_interface *intf)
 {
 	struct acm *acm = usb_get_intfdata(intf);
-	struct acm_wb *wb;
 	int rv = 0;
 	int cnt;
 #ifdef CONFIG_PM
 	struct urb *res;
+#else
+	struct acm_wb *wb;
 #endif
 
 	spin_lock_irq(&acm->read_lock);
