@@ -49,8 +49,6 @@
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
 
-static bool is_cardhu_machine = false;
-
 static struct regulator_consumer_supply tps6591x_vdd1_supply_skubit0_0[] = {
 	REGULATOR_SUPPLY("vdd_core", NULL),
 	REGULATOR_SUPPLY("en_vddio_ddr_1v2", NULL),
@@ -448,7 +446,6 @@ int __init cardhu_regulator_init(void)
 		pr_info("Registering the device TPS62361\n");
 		i2c_register_board_info(4, tps62361_boardinfo, 1);
 	}
-	is_cardhu_machine = true;
 	return 0;
 }
 
@@ -1023,7 +1020,7 @@ int __init cardhu_fixed_regulator_init(void)
 	struct platform_device **fixed_reg_devs;
 	int    nfixreg_devs;
 
-	if (!is_cardhu_machine)
+	if (!machine_is_cardhu())
 		return 0;
 
 	tegra_get_board_info(&board_info);
