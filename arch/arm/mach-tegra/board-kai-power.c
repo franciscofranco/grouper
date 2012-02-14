@@ -317,6 +317,9 @@ static struct max77663_platform_data max7763_pdata = {
 	.rtc_i2c_addr	= 0x68,
 
 	.use_power_off	= true,
+	.has_stat_led	= 1,
+	.stat_led_gpio	= MAX77663_GPIO7,
+	.stat_led_active_low = 1,
 };
 
 static struct i2c_board_info __initdata max77663_regulators[] = {
