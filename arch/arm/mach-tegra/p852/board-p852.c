@@ -678,8 +678,6 @@ void __init p852_common_init(void)
 	p852_sdhci_init();
 
 	p852_gpio_init();
-
-	p852_power_off_init();
 }
 
 void __init tegra_p852_init(void)
