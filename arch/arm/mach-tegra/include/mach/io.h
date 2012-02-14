@@ -72,7 +72,7 @@
 
 #define IO_HOST1X_PHYS	0x54000000
 #define IO_HOST1X_VIRT	0xFE700000
-#define IO_HOST1X_SIZE	SZ_4M
+#define IO_HOST1X_SIZE	SZ_8M
 
 #define IO_TO_VIRT_BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define IO_TO_VIRT_XLATE(p, pst, vst)	(((p) - (pst) + (vst)))
