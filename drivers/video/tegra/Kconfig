@@ -121,5 +121,12 @@ config TEGRA_NVHDCP
 	  Say Y here to support NVHDCP upstream and downstream protocols, this
 	  requires a correctly fused chip to negotiate keys.
 
+config TEGRA_HDMI_74MHZ_LIMIT
+	bool "Support only up to 74.25 MHz HDMI pixel frequency"
+	default n
+	help
+	  Say Y here to make kernel report only low bandwidth modes.
+	  Useful only for boards which can't deliver 148.50 MHz.
+
 endif
 
