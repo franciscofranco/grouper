@@ -271,6 +271,7 @@ static struct tps6586x_platform_data tps_platform = {
 	.num_subdevs	= ARRAY_SIZE(tps_devs),
 	.subdevs	= tps_devs,
 	.gpio_base	= HARMONY_GPIO_TPS6586X(0),
+	.use_power_off	= true,
 };
 
 static struct i2c_board_info __initdata harmony_regulators[] = {

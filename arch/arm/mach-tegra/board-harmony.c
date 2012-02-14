@@ -32,7 +32,6 @@
 #include <linux/i2c-tegra.h>
 #include <linux/memblock.h>
 #include <linux/delay.h>
-#include <linux/mfd/tps6586x.h>
 
 #include <sound/wm8903.h>
 
@@ -461,22 +460,6 @@ static int __init harmony_wifi_init(void)
  */
 subsys_initcall_sync(harmony_wifi_init);
 
-static void harmony_power_off(void)
-{
-	int ret;
-
-	ret = tps6586x_power_off();
-	if (ret)
-		pr_err("harmony: failed to power off\n");
-
-	while (1);
-}
-
-static void __init harmony_power_off_init(void)
-{
-	pm_power_off = harmony_power_off;
-}
-
 static void __init tegra_harmony_init(void)
 {
 	tegra_clk_init_from_table(harmony_clk_init_table);
@@ -502,7 +485,6 @@ static void __init tegra_harmony_init(void)
 	harmony_kbc_init();
 #endif
 	harmony_pcie_init();
-	harmony_power_off_init();
 }
 
 void __init tegra_harmony_reserve(void)
