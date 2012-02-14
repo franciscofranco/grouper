@@ -41,6 +41,9 @@
 #define MAX77663_GPIO_BASE	TEGRA_NR_GPIOS
 #define MAX77663_GPIO_END	(MAX77663_GPIO_BASE + MAX77663_GPIO_NR)
 
+/* CAMERA RELATED GPIOs on KAI */
+#define CAM2_RST_GPIO		TEGRA_GPIO_PBB4
+#define CAM2_POWER_DWN_GPIO	TEGRA_GPIO_PBB6
 /* Audio-related GPIOs */
 #define TEGRA_GPIO_CDC_IRQ		TEGRA_GPIO_PW3
 #define TEGRA_GPIO_SPKR_EN		-1
@@ -63,6 +66,7 @@ int kai_suspend_init(void);
 int kai_sdhci_init(void);
 int kai_pinmux_init(void);
 int kai_panel_init(void);
+int kai_sensors_init(void);
 int kai_keys_init(void);
 int kai_pins_state_init(void);
 int kai_power_off_init(void);

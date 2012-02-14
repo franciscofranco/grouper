@@ -686,6 +686,7 @@ static void __init tegra_kai_init(void)
 	kai_keys_init();
 	kai_panel_init();
 	kai_bt_st();
+	kai_sensors_init();
 	kai_pins_state_init();
 	tegra_release_bootloader_fb();
 #ifdef CONFIG_TEGRA_WDT_RECOVERY
