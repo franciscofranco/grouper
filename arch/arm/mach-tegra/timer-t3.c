@@ -221,7 +221,7 @@ unsigned long tegra3_lp2_timer_remain(void)
 
 void __init tegra3_init_timer(u32 *offset, int *irq)
 {
-	unsigned long rate = clk_measure_input_freq();
+	unsigned long rate = tegra_clk_measure_input_freq();
 
 	switch (rate) {
 	case 12000000:

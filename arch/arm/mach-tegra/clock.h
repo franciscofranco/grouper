@@ -231,7 +231,7 @@ void tegra_soc_init_clocks(void);
 void tegra_init_max_rate(struct clk *c, unsigned long max_rate);
 void clk_init(struct clk *clk);
 struct clk *tegra_get_clock_by_name(const char *name);
-unsigned long clk_measure_input_freq(void);
+unsigned long tegra_clk_measure_input_freq(void);
 int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
 void clk_set_cansleep(struct clk *c);

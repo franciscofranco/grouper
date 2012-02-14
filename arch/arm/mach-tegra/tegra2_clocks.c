@@ -59,13 +59,6 @@
 #define OSC_CTRL_OSC_FREQ_26MHZ		(3<<30)
 #define OSC_CTRL_MASK			(0x3f2 | OSC_CTRL_OSC_FREQ_MASK)
 
-#define OSC_FREQ_DET			0x58
-#define OSC_FREQ_DET_TRIG		(1<<31)
-
-#define OSC_FREQ_DET_STATUS		0x5C
-#define OSC_FREQ_DET_BUSY		(1<<31)
-#define OSC_FREQ_DET_CNT_MASK		0xFFFF
-
 #define PERIPH_CLK_SOURCE_I2S1		0x100
 #define PERIPH_CLK_SOURCE_EMC		0x19c
 #define PERIPH_CLK_SOURCE_OSC		0x1fc
@@ -190,27 +183,6 @@ static int tegra_periph_clk_enable_refcount[3 * 32];
 #define chipid_readl() \
 	__raw_readl((u32)misc_gp_hidrev_base + MISC_GP_HIDREV)
 
-unsigned long clk_measure_input_freq(void)
-{
-	u32 clock_autodetect;
-	clk_writel(OSC_FREQ_DET_TRIG | 1, OSC_FREQ_DET);
-	do {} while (clk_readl(OSC_FREQ_DET_STATUS) & OSC_FREQ_DET_BUSY);
-	clock_autodetect = clk_readl(OSC_FREQ_DET_STATUS);
-	if (clock_autodetect >= 732 - 3 && clock_autodetect <= 732 + 3) {
-		return 12000000;
-	} else if (clock_autodetect >= 794 - 3 && clock_autodetect <= 794 + 3) {
-		return 13000000;
-	} else if (clock_autodetect >= 1172 - 3 && clock_autodetect <= 1172 + 3) {
-		return 19200000;
-	} else if (clock_autodetect >= 1587 - 3 && clock_autodetect <= 1587 + 3) {
-		return 26000000;
-	} else {
-		pr_err("%s: Unexpected clock autodetect value %d", __func__, clock_autodetect);
-		BUG();
-		return 0;
-	}
-}
-
 static int clk_div71_get_divider(unsigned long parent_rate, unsigned long rate)
 {
 	s64 divider_u71 = parent_rate * 2;
@@ -253,7 +225,7 @@ static unsigned long tegra2_clk_m_autodetect_rate(struct clk *c)
 {
 	u32 auto_clock_control = clk_readl(OSC_CTRL) & ~OSC_CTRL_OSC_FREQ_MASK;
 
-	c->rate = clk_measure_input_freq();
+	c->rate = tegra_clk_measure_input_freq();
 	switch (c->rate) {
 	case 12000000:
 		auto_clock_control |= OSC_CTRL_OSC_FREQ_12MHZ;

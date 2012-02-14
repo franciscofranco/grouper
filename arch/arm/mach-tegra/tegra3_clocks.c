@@ -100,13 +100,6 @@
 #define OSC_CTRL_PLL_REF_DIV_2		(1<<26)
 #define OSC_CTRL_PLL_REF_DIV_4		(2<<26)
 
-#define OSC_FREQ_DET			0x58
-#define OSC_FREQ_DET_TRIG		(1<<31)
-
-#define OSC_FREQ_DET_STATUS		0x5C
-#define OSC_FREQ_DET_BUSY		(1<<31)
-#define OSC_FREQ_DET_CNT_MASK		0xFFFF
-
 #define PERIPH_CLK_SOURCE_I2S1		0x100
 #define PERIPH_CLK_SOURCE_EMC		0x19c
 #define PERIPH_CLK_SOURCE_OSC		0x1fc
@@ -405,33 +398,6 @@ static inline u32 periph_clk_to_reg(
 	return reg;
 }
 
-unsigned long clk_measure_input_freq(void)
-{
-	u32 clock_autodetect;
-	clk_writel(OSC_FREQ_DET_TRIG | 1, OSC_FREQ_DET);
-	do {} while (clk_readl(OSC_FREQ_DET_STATUS) & OSC_FREQ_DET_BUSY);
-	clock_autodetect = clk_readl(OSC_FREQ_DET_STATUS);
-	if (clock_autodetect >= 732 - 3 && clock_autodetect <= 732 + 3) {
-		return 12000000;
-	} else if (clock_autodetect >= 794 - 3 && clock_autodetect <= 794 + 3) {
-		return 13000000;
-	} else if (clock_autodetect >= 1172 - 3 && clock_autodetect <= 1172 + 3) {
-		return 19200000;
-	} else if (clock_autodetect >= 1587 - 3 && clock_autodetect <= 1587 + 3) {
-		return 26000000;
-	} else if (clock_autodetect >= 1025 - 3 && clock_autodetect <= 1025 + 3) {
-		return 16800000;
-	} else if (clock_autodetect >= 2344 - 3 && clock_autodetect <= 2344 + 3) {
-		return 38400000;
-	} else if (clock_autodetect >= 2928 - 3 && clock_autodetect <= 2928 + 3) {
-		return 48000000;
-	} else {
-		pr_err("%s: Unexpected clock autodetect value %d", __func__, clock_autodetect);
-		BUG();
-		return 0;
-	}
-}
-
 static int clk_div_x1_get_divider(unsigned long parent_rate, unsigned long rate,
 			u32 max_x, u32 flags, u32 round_mode)
 {
@@ -498,7 +464,7 @@ static unsigned long tegra3_clk_m_autodetect_rate(struct clk *c)
 	u32 auto_clock_control = osc_ctrl & ~OSC_CTRL_OSC_FREQ_MASK;
 	u32 pll_ref_div = osc_ctrl & OSC_CTRL_PLL_REF_DIV_MASK;
 
-	c->rate = clk_measure_input_freq();
+	c->rate = tegra_clk_measure_input_freq();
 	switch (c->rate) {
 	case 12000000:
 		auto_clock_control |= OSC_CTRL_OSC_FREQ_12MHZ;
