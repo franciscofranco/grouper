@@ -41,3 +41,11 @@ config TSL2583
 	help
 	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
 	 Access ALS data via iio, sysfs.
+
+config SENSORS_LTR558
+	tristate "LTR558 Ambient light and proximity sensor"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for ambient light sensing and
+	  proximity ir sensing from Lite On Technology LTR558.
