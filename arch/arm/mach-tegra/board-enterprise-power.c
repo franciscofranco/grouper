@@ -33,6 +33,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/gpio-regulator.h>
 
+#include <asm/mach-types.h>
+
 #include <mach/edp.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -50,8 +52,6 @@
 
 #define PMC_DPD_PADS_ORIDE		0x01c
 #define PMC_DPD_PADS_ORIDE_BLINK	(1 << 20)
-
-static bool is_enterprise_machine = false;
 
 /************************ TPS80031 based regulator ****************/
 static struct regulator_consumer_supply tps80031_vio_supply[] = {
@@ -562,7 +562,7 @@ static int __init enterprise_regulators_fixed_gpio_init(void)
 {
 	int ret;
 
-	if (!is_enterprise_machine)
+	if (!machine_is_tegra_enterprise())
 		return 0;
 
 	ret = enterprise_fixed_regulator_init();
@@ -602,8 +602,6 @@ int __init enterprise_regulator_init(void)
 	}
 
 	i2c_register_board_info(4, enterprise_regulators, 1);
-	is_enterprise_machine = true;
-
 	return 0;
 }
 
