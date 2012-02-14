@@ -681,7 +681,6 @@ static void __init tegra_kai_init(void)
 	kai_sdhci_init();
 	kai_regulator_init();
 	kai_suspend_init();
-	kai_power_off_init();
 	kai_touch_init();
 	kai_keys_init();
 	kai_panel_init();

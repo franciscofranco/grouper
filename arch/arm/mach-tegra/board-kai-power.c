@@ -317,6 +317,8 @@ static struct max77663_platform_data max7763_pdata = {
 	.sub_devices	= max77663_subdevs,
 
 	.rtc_i2c_addr	= 0x68,
+
+	.use_power_off	= true,
 };
 
 static struct i2c_board_info __initdata max77663_regulators[] = {
@@ -623,25 +625,6 @@ static struct tegra_suspend_platform_data kai_suspend_data = {
 int __init kai_suspend_init(void)
 {
 	tegra_init_suspend(&kai_suspend_data);
-	return 0;
-}
-
-static void kai_power_off(void)
-{
-	int ret;
-	pr_err("kai: Powering off the device\n");
-	ret = max77663_power_off();
-	if (ret)
-		pr_err("kai: failed to power off\n");
-
-	while (1)
-		;
-}
-
-int __init kai_power_off_init(void)
-{
-	pm_power_off = kai_power_off;
-
 	return 0;
 }
 
