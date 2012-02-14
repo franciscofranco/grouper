@@ -62,6 +62,7 @@
 #include "board-whistler-baseband.h"
 
 #define SZ_3M (SZ_1M + SZ_2M)
+#define SZ_152M (SZ_128M + SZ_16M + SZ_8M)
 #define USB1_VBUS_GPIO TCA6416_GPIO_BASE
 
 static struct plat_serial8250_port debug_uartb_platform_data[] = {
@@ -584,7 +585,7 @@ void __init tegra_whistler_reserve(void)
 	if (memblock_reserve(0x0, 4096) < 0)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
-	tegra_reserve(SZ_160M, SZ_3M, SZ_1M);
+	tegra_reserve(SZ_152M, SZ_3M, SZ_1M);
 	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
