@@ -33,7 +33,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/suspend.h>
-#include <linux/earlysuspend.h>
 #include <linux/slab.h>
 #include <linux/serial_reg.h>
 #include <linux/seq_file.h>
@@ -1278,35 +1277,3 @@ static int tegra_debug_uart_syscore_init(void)
 	return 0;
 }
 arch_initcall(tegra_debug_uart_syscore_init);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static struct clk *clk_wake;
-
-static void pm_early_suspend(struct early_suspend *h)
-{
-	if (clk_wake)
-		clk_disable(clk_wake);
-	pm_qos_update_request(&awake_cpu_freq_req, PM_QOS_DEFAULT_VALUE);
-}
-
-static void pm_late_resume(struct early_suspend *h)
-{
-	if (clk_wake)
-		clk_enable(clk_wake);
-	pm_qos_update_request(&awake_cpu_freq_req, (s32)AWAKE_CPU_FREQ_MIN);
-}
-
-static struct early_suspend pm_early_suspender = {
-		.suspend = pm_early_suspend,
-		.resume = pm_late_resume,
-};
-
-static int pm_init_wake_behavior(void)
-{
-	clk_wake = tegra_get_clock_by_name("wake.sclk");
-	register_early_suspend(&pm_early_suspender);
-	return 0;
-}
-
-late_initcall(pm_init_wake_behavior);
-#endif
