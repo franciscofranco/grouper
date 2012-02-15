@@ -118,6 +118,8 @@ struct tegra_nor_info {
 	struct map_info map;
 	struct completion dma_complete;
 	void __iomem *base;
+	void *dma_virt_buffer;
+	dma_addr_t dma_phys_buffer;
 	u32 init_config;
 	u32 timing0_default, timing1_default;
 	u32 timing0_read, timing1_read;
@@ -154,7 +156,8 @@ static void tegra_flash_dma(struct map_info *map,
 {
 	u32 snor_config, dma_config = 0;
 	int dma_transfer_count = 0, word32_count = 0;
-	u32 nor_address, ahb_address, current_transfer;
+	u32 nor_address, current_transfer = 0;
+	u32 copy_to = (u32)to;
 	struct tegra_nor_info *c =
 	    container_of(map, struct tegra_nor_info, map);
 	unsigned int bytes_remaining = len;
@@ -164,16 +167,6 @@ static void tegra_flash_dma(struct map_info *map,
 	snor_tegra_writel(c, c->timing1_read, TEGRA_SNOR_TIMING1_REG);
 
 	if (len > 32) {
-
-		if (to >= high_memory)
-			goto out_copy;
-
-		ahb_address = dma_map_single(c->dev, to, len, DMA_FROM_DEVICE);
-		if (dma_mapping_error(c->dev, ahb_address)) {
-			dev_err(c->dev,
-				"Couldn't DMA map a %d byte buffer\n", len);
-			goto out_copy;
-		}
 		word32_count = len >> 2;
 		bytes_remaining = len & 0x00000003;
 		/*
@@ -196,7 +189,7 @@ static void tegra_flash_dma(struct map_info *map,
 		     word32_count -= current_transfer,
 		     dma_transfer_count += current_transfer,
 		     nor_address += (current_transfer * 4),
-		     ahb_address += (current_transfer * 4)) {
+		     copy_to += (current_transfer * 4)) {
 
 			current_transfer =
 			    (word32_count > TEGRA_SNOR_DMA_LIMIT_WORDS)
@@ -210,7 +203,7 @@ static void tegra_flash_dma(struct map_info *map,
 			/* Num of AHB (32-bit) words to transferred minus 1 */
 			dma_config |=
 			    TEGRA_SNOR_DMA_CFG_WRD_CNT(current_transfer - 1);
-			snor_tegra_writel(c, ahb_address,
+			snor_tegra_writel(c, c->dma_phys_buffer,
 					  TEGRA_SNOR_AHB_ADDR_PTR_REG);
 			snor_tegra_writel(c, nor_address,
 					  TEGRA_SNOR_NOR_ADDR_PTR_REG);
@@ -224,15 +217,17 @@ static void tegra_flash_dma(struct map_info *map,
 				bytes_remaining += (word32_count << 2);
 				break;
 			}
+			memcpy((char *)(copy_to), (char *)(c->dma_virt_buffer),
+				(current_transfer << 2));
+
 		}
-		dma_unmap_single(c->dev, ahb_address, len, DMA_FROM_DEVICE);
 	}
 	/* Put the controller back into slave mode. */
 	snor_config = snor_tegra_readl(c, TEGRA_SNOR_CONFIG_REG);
 	snor_config &= ~TEGRA_SNOR_CONFIG_MST_ENB;
 	snor_config |= TEGRA_SNOR_CONFIG_DEVICE_MODE(0);
 	snor_tegra_writel(c, snor_config, TEGRA_SNOR_CONFIG_REG);
-out_copy:
+
 	memcpy_fromio(((char *)to + (dma_transfer_count << 2)),
 		      ((char *)(map->virt + from) + (dma_transfer_count << 2)),
 		      bytes_remaining);
@@ -313,7 +308,7 @@ static int tegra_nor_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	/* Get NOR flash aperture & map the same */
+	/* Get NOR controller & map the same */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "no mem resource?\n");
@@ -401,11 +396,20 @@ static int tegra_nor_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to request irq %i\n", irq);
 		goto out_clk_disable;
 	}
+	info->dma_virt_buffer = dma_alloc_coherent(dev,
+							TEGRA_SNOR_DMA_LIMIT,
+							&info->dma_phys_buffer,
+							GFP_KERNEL);
+	if (info->dma_virt_buffer == NULL) {
+		dev_err(&pdev->dev, "Could not allocate buffer for DMA");
+		err = -ENOMEM;
+		goto out_clk_disable;
+	}
 
 	info->mtd = do_map_probe(plat->flash.map_name, &info->map);
 	if (!info->mtd) {
 		err = -EIO;
-		goto out_clk_disable;
+		goto out_dma_free_coherent;
 	}
 	info->mtd->owner = THIS_MODULE;
 	info->parts = NULL;
@@ -423,6 +427,9 @@ static int tegra_nor_probe(struct platform_device *pdev)
 
 	return 0;
 
+out_dma_free_coherent:
+	dma_free_coherent(dev, TEGRA_SNOR_DMA_LIMIT,
+				info->dma_virt_buffer, info->dma_phys_buffer);
 out_clk_disable:
 	clk_disable(info->clk);
 out_clk_put:
@@ -439,6 +446,8 @@ static int tegra_nor_remove(struct platform_device *pdev)
 	mtd_device_unregister(info->mtd);
 	if (info->parts)
 		kfree(info->parts);
+	dma_free_coherent(&pdev->dev, TEGRA_SNOR_DMA_LIMIT,
+				info->dma_virt_buffer, info->dma_phys_buffer);
 	map_destroy(info->mtd);
 	clk_disable(info->clk);
 	clk_put(info->clk);
