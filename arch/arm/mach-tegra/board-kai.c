@@ -38,6 +38,8 @@
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
 #include <linux/regulator/consumer.h>
+#include <linux/smb349-charger.h>
+#include <linux/max17048_battery.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -245,6 +247,19 @@ static struct tegra_i2c_platform_data kai_i2c5_platform_data = {
 	.arb_recovery = arb_lost_recovery,
 };
 
+struct max17048_platform_data max17048_pdata = {
+	.charger_online = smb349_charger_type,
+	.battery_online = smb349_battery_online,
+	.charging_status = smb349_charging_status,
+};
+
+static struct i2c_board_info kai_i2c4_max17048_board_info[] = {
+	{
+		I2C_BOARD_INFO("max17048", 0x36),
+		.platform_data = &max17048_pdata,
+	},
+};
+
 static struct i2c_board_info kai_i2c4_smb349_board_info[] = {
 	{
 		I2C_BOARD_INFO("smb349", 0x1B),
@@ -286,6 +301,9 @@ static void kai_i2c_init(void)
 		i2c_register_board_info(4, &rt5640_board_info, 1);
 	else
 		i2c_register_board_info(4, &rt5639_board_info, 1);
+
+	i2c_register_board_info(4, kai_i2c4_max17048_board_info,
+		ARRAY_SIZE(kai_i2c4_max17048_board_info));
 }
 
 static struct platform_device *kai_uart_devices[] __initdata = {
