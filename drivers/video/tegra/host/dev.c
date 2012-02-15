@@ -35,7 +35,7 @@
 #include <linux/hrtimer.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/nvhost.h>
-#include <linux/pm_runtime.h>
+
 #include <linux/io.h>
 
 #include <linux/nvhost.h>
@@ -984,24 +984,20 @@ static int __devinit nvhost_probe(struct platform_device *pdev)
 	if (err)
 		goto fail;
 
-	pm_runtime_enable(&hostdev.dev);
 	err = nvhost_module_init(&hostdev);
 	if (err)
 		goto fail;
 
 	for (i = 0; i < host->nb_channels; i++) {
 		struct nvhost_channel *ch = &host->channels[i];
-		pm_runtime_enable(&ch->dev->dev);
 		nvhost_module_init(ch->dev);
 	}
 
 	platform_set_drvdata(pdev, host);
 
-	for (i = 0; i < host->dev->num_clks; i++)
-		clk_enable(host->dev->clk[i]);
+	clk_enable(host->dev->clk[0]);
 	nvhost_syncpt_reset(&host->syncpt);
-	for (i = 0; i < host->dev->num_clks; i++)
-		clk_disable(host->dev->clk[i]);
+	clk_disable(host->dev->clk[0]);
 
 	nvhost_debug_init(host);
 
@@ -1042,25 +1038,7 @@ static int nvhost_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int nvhost_resume(struct platform_device *pdev)
 {
-	int i;
-	struct nvhost_master *host = platform_get_drvdata(pdev);
-
 	dev_info(&pdev->dev, "resuming\n");
-
-	for (i = 0; i < host->dev->num_clks; i++)
-		clk_enable(host->dev->clk[i]);
-	if (host->dev->finalize_poweron)
-		host->dev->finalize_poweron(host->dev);
-	for (i = 0; i < host->dev->num_clks; i++)
-		clk_disable(host->dev->clk[i]);
-
-	/* enable runtime pm for host1x */
-	nvhost_module_resume(host->dev);
-
-	/* enable runtime pm for clients */
-	for (i = 0; i < host->nb_channels; i++)
-		nvhost_module_resume(host->channels[i].dev);
-
 	return 0;
 }
 

@@ -29,14 +29,13 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <mach/powergate.h>
 #include <mach/clk.h>
 #include <mach/hardware.h>
 
-#define ACM_SUSPEND_WAIT_FOR_IDLE_TIMEOUT	(2 * HZ)
-#define POWERGATE_DELAY 			10
-#define MAX_DEVID_LENGTH			16
+#define ACM_SUSPEND_WAIT_FOR_IDLE_TIMEOUT (2 * HZ)
+#define POWERGATE_DELAY 10
+#define MAX_DEVID_LENGTH 16
 
 DEFINE_MUTEX(client_list_lock);
 
@@ -99,61 +98,85 @@ void nvhost_module_reset(struct nvhost_device *dev)
 		__func__, dev->name);
 }
 
+static void to_state_clockgated_locked(struct nvhost_device *dev)
+{
+	if (dev->powerstate == NVHOST_POWER_STATE_RUNNING) {
+		int i;
+		for (i = 0; i < dev->num_clks; i++)
+			clk_disable(dev->clk[i]);
+		if (dev->dev.parent)
+			nvhost_module_idle(to_nvhost_device(dev->dev.parent));
+	} else if (dev->powerstate == NVHOST_POWER_STATE_POWERGATED
+			&& dev->can_powergate) {
+		do_unpowergate_locked(dev->powergate_ids[0]);
+		do_unpowergate_locked(dev->powergate_ids[1]);
+	}
+	dev->powerstate = NVHOST_POWER_STATE_CLOCKGATED;
+}
+
+static void to_state_running_locked(struct nvhost_device *dev)
+{
+	int prev_state = dev->powerstate;
+	if (dev->powerstate == NVHOST_POWER_STATE_POWERGATED)
+		to_state_clockgated_locked(dev);
+	if (dev->powerstate == NVHOST_POWER_STATE_CLOCKGATED) {
+		int i;
+
+		if (dev->dev.parent)
+			nvhost_module_busy(to_nvhost_device(dev->dev.parent));
+
+		for (i = 0; i < dev->num_clks; i++) {
+			int err = clk_enable(dev->clk[i]);
+			BUG_ON(err);
+		}
+
+		if (prev_state == NVHOST_POWER_STATE_POWERGATED
+				&& dev->finalize_poweron)
+			dev->finalize_poweron(dev);
+	}
+	dev->powerstate = NVHOST_POWER_STATE_RUNNING;
+}
+
 /* This gets called from powergate_handler() and from module suspend.
  * Module suspend is done for all modules, runtime power gating only
  * for modules with can_powergate set.
  */
-static int to_state_powergated_locked(struct nvhost_device *dev,
-	bool system_suspend)
+static int to_state_powergated_locked(struct nvhost_device *dev)
 {
-	int err = 0, i = 0;
+	int err = 0;
 
-	if (dev->prepare_poweroff && dev->powered) {
-		struct nvhost_device *device;
-		struct device *parent = dev->dev.parent;
-		if (parent)
-			device = to_nvhost_device(parent);
-
-		if (system_suspend) {
-			/* enable parent clock
-			 * host1x does not have parent */
-			if (parent) {
-				for (i = 0; i < device->num_clks; i++)
-					clk_enable(device->clk[i]);
-			}
-
-			/* enable module clock */
-			for (i = 0; i < dev->num_clks; i++)
-				clk_enable(dev->clk[i]);
-		} else
-			pm_runtime_get_sync(&dev->dev);
-
+	if (dev->prepare_poweroff
+			&& dev->powerstate != NVHOST_POWER_STATE_POWERGATED) {
+		/* Clock needs to be on in prepare_poweroff */
+		to_state_running_locked(dev);
 		err = dev->prepare_poweroff(dev);
 		if (err)
 			return err;
-
-		if (system_suspend) {
-			/* disable module clock */
-			for (i = 0; i < dev->num_clks; i++)
-				clk_disable(dev->clk[i]);
-
-			/* disable parent clock
-			 * host1x does not have parent */
-			if (parent) {
-				for (i = 0; i < device->num_clks; i++)
-					clk_disable(device->clk[i]);
-			}
-		} else
-			pm_runtime_put_sync_suspend(&dev->dev);
 	}
+
+	if (dev->powerstate == NVHOST_POWER_STATE_RUNNING)
+		to_state_clockgated_locked(dev);
 
 	if (dev->can_powergate) {
 		do_powergate_locked(dev->powergate_ids[0]);
 		do_powergate_locked(dev->powergate_ids[1]);
-		dev->powered = false;
 	}
 
+	dev->powerstate = NVHOST_POWER_STATE_POWERGATED;
 	return 0;
+}
+
+static void schedule_powergating_locked(struct nvhost_device *dev)
+{
+	if (dev->can_powergate)
+		schedule_delayed_work(&dev->powerstate_down,
+				msecs_to_jiffies(dev->powergate_delay));
+}
+
+static void schedule_clockgating_locked(struct nvhost_device *dev)
+{
+	schedule_delayed_work(&dev->powerstate_down,
+			msecs_to_jiffies(dev->clockgate_delay));
 }
 
 void nvhost_module_busy(struct nvhost_device *dev)
@@ -162,50 +185,52 @@ void nvhost_module_busy(struct nvhost_device *dev)
 		dev->busy(dev);
 
 	mutex_lock(&dev->lock);
+	cancel_delayed_work(&dev->powerstate_down);
 
-	if (dev->can_powergate) {
-		/* cancel power-gate handler */
-		cancel_delayed_work_sync(&dev->powerstate_down);
-
-		/* unpowergate the module if it was power gated */
-		if (!dev->powered) {
-			do_unpowergate_locked(dev->powergate_ids[0]);
-			do_unpowergate_locked(dev->powergate_ids[1]);
-			dev->powered = true;
-		}
-	}
-
-	pm_runtime_get_sync(&dev->dev);
-
+	dev->refcount++;
+	if (dev->refcount > 0 && !nvhost_module_powered(dev))
+		to_state_running_locked(dev);
 	mutex_unlock(&dev->lock);
 }
 
-static bool is_module_idle(struct nvhost_device *dev, bool system_suspend)
+static void powerstate_down_handler(struct work_struct *work)
 {
-	/* for system suspend, pm core holds a reference on runtime pm.
-	 * this is for kernels >= 3.x, it is not there for kernels < 3.x.
-	 * for more details refer the LKML thread:
-	 * https://lkml.org/lkml/2011/6/25/93
-	 * https://lkml.org/lkml/2011/6/25/94
-	 * https://lkml.org/lkml/2011/6/25/95 */
-	if (system_suspend)
-		return atomic_read(&dev->dev.power.usage_count) == 1;
-	else
-		return atomic_read(&dev->dev.power.usage_count) == 0;
+	struct nvhost_device *dev;
+
+	dev = container_of(to_delayed_work(work),
+			struct nvhost_device,
+			powerstate_down);
+
+	mutex_lock(&dev->lock);
+	if (dev->refcount == 0) {
+		switch (dev->powerstate) {
+		case NVHOST_POWER_STATE_RUNNING:
+			to_state_clockgated_locked(dev);
+			schedule_powergating_locked(dev);
+			break;
+		case NVHOST_POWER_STATE_CLOCKGATED:
+			if (to_state_powergated_locked(dev))
+				schedule_powergating_locked(dev);
+			break;
+		default:
+			break;
+		}
+	}
+	mutex_unlock(&dev->lock);
 }
+
 
 void nvhost_module_idle_mult(struct nvhost_device *dev, int refs)
 {
 	bool kick = false;
-	int i;
 
 	mutex_lock(&dev->lock);
-	for (i = 0; i < refs; i++)
-		pm_runtime_put_sync(&dev->dev);
-
-	if (is_module_idle(dev, false))
+	dev->refcount -= refs;
+	if (dev->refcount == 0) {
+		if (nvhost_module_powered(dev))
+			schedule_clockgating_locked(dev);
 		kick = true;
-
+	}
 	mutex_unlock(&dev->lock);
 
 	if (kick) {
@@ -214,19 +239,6 @@ void nvhost_module_idle_mult(struct nvhost_device *dev, int refs)
 		if (dev->idle)
 			dev->idle(dev);
 	}
-}
-
-static void powerstate_down_handler(struct work_struct *work)
-{
-	struct nvhost_device *dev;
-
-	dev = container_of(to_delayed_work(work), struct nvhost_device,
-			powerstate_down);
-
-	mutex_lock(&dev->lock);
-	if (dev->can_powergate)
-		to_state_powergated_locked(dev, false);
-	mutex_unlock(&dev->lock);
 }
 
 int nvhost_module_get_rate(struct nvhost_device *dev, unsigned long *rate,
@@ -243,6 +255,7 @@ int nvhost_module_get_rate(struct nvhost_device *dev, unsigned long *rate,
 	*rate = clk_get_rate(c);
 	nvhost_module_idle(dev);
 	return 0;
+
 }
 
 static int nvhost_module_update_rate(struct nvhost_device *dev, int index)
@@ -280,6 +293,7 @@ int nvhost_module_set_rate(struct nvhost_device *dev, void *priv,
 	ret = nvhost_module_update_rate(dev, index);
 	mutex_unlock(&client_list_lock);
 	return ret;
+
 }
 
 int nvhost_module_add_client(struct nvhost_device *dev, void *priv)
@@ -352,23 +366,29 @@ int nvhost_module_init(struct nvhost_device *dev)
 
 	mutex_init(&dev->lock);
 	init_waitqueue_head(&dev->idle_wq);
+	INIT_DELAYED_WORK(&dev->powerstate_down, powerstate_down_handler);
 
 	/* power gate units that we can power gate */
 	if (dev->can_powergate) {
 		do_powergate_locked(dev->powergate_ids[0]);
 		do_powergate_locked(dev->powergate_ids[1]);
-		INIT_DELAYED_WORK(&dev->powerstate_down, powerstate_down_handler);
-		dev->powered = false;
+		dev->powerstate = NVHOST_POWER_STATE_POWERGATED;
 	} else {
 		do_unpowergate_locked(dev->powergate_ids[0]);
 		do_unpowergate_locked(dev->powergate_ids[1]);
-		dev->powered = true;
+		dev->powerstate = NVHOST_POWER_STATE_CLOCKGATED;
 	}
 
-	/* enable runtime pm */
-	nvhost_module_resume(dev);
-
 	return 0;
+}
+
+static int is_module_idle(struct nvhost_device *dev)
+{
+	int count;
+	mutex_lock(&dev->lock);
+	count = dev->refcount;
+	mutex_unlock(&dev->lock);
+	return (count == 0);
 }
 
 static void debug_not_idle(struct nvhost_master *host)
@@ -381,8 +401,8 @@ static void debug_not_idle(struct nvhost_master *host)
 		mutex_lock(&dev->lock);
 		if (dev->name)
 			dev_warn(&host->pdev->dev,
-				"tegra_grhost: %s: refcnt %d\n", dev->name,
-				atomic_read(&dev->dev.power.usage_count));
+					"tegra_grhost: %s: refcnt %d\n",
+					dev->name, dev->refcount);
 		mutex_unlock(&dev->lock);
 	}
 
@@ -404,10 +424,10 @@ int nvhost_module_suspend(struct nvhost_device *dev, bool system_suspend)
 	int ret;
 	struct nvhost_master *host = nvhost_get_host(dev);
 
-	if (system_suspend && !is_module_idle(dev, system_suspend))
+	if (system_suspend && !is_module_idle(dev))
 		debug_not_idle(host);
 
-	ret = wait_event_timeout(dev->idle_wq, is_module_idle(dev, system_suspend),
+	ret = wait_event_timeout(dev->idle_wq, is_module_idle(dev),
 			ACM_SUSPEND_WAIT_FOR_IDLE_TIMEOUT);
 	if (ret == 0) {
 		dev_info(&dev->dev, "%s prevented suspend\n",
@@ -416,19 +436,15 @@ int nvhost_module_suspend(struct nvhost_device *dev, bool system_suspend)
 	}
 
 	if (system_suspend)
-		dev_info(&dev->dev, "tegra_grhost: entered idle\n");
+		dev_dbg(&dev->dev, "tegra_grhost: entered idle\n");
 
 	mutex_lock(&dev->lock);
-	if (dev->can_powergate)
-		cancel_delayed_work_sync(&dev->powerstate_down);
-	to_state_powergated_locked(dev, system_suspend);
+	cancel_delayed_work(&dev->powerstate_down);
+	to_state_powergated_locked(dev);
 	mutex_unlock(&dev->lock);
 
 	if (dev->suspend)
 		dev->suspend(dev);
-
-	if (system_suspend)
-		pm_runtime_set_suspended(&dev->dev);
 
 	return 0;
 }
@@ -443,10 +459,6 @@ void nvhost_module_deinit(struct nvhost_device *dev)
 	nvhost_module_suspend(dev, false);
 	for (i = 0; i < dev->num_clks; i++)
 		clk_put(dev->clk[i]);
+	dev->powerstate = NVHOST_POWER_STATE_DEINIT;
 }
 
-void nvhost_module_resume(struct nvhost_device *dev)
-{
-	pm_runtime_set_autosuspend_delay(&dev->dev, dev->clockgate_delay);
-	pm_runtime_use_autosuspend(&dev->dev);
-}

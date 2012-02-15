@@ -28,13 +28,12 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/nvhost.h>
-#include <linux/pm_runtime.h>
 
 /* Sets clocks and powergating state for a module */
 int nvhost_module_init(struct nvhost_device *ndev);
 void nvhost_module_deinit(struct nvhost_device *dev);
 int nvhost_module_suspend(struct nvhost_device *dev, bool system_suspend);
-void nvhost_module_resume(struct nvhost_device *dev);
+
 void nvhost_module_reset(struct nvhost_device *dev);
 void nvhost_module_busy(struct nvhost_device *dev);
 void nvhost_module_idle_mult(struct nvhost_device *dev, int refs);
@@ -51,12 +50,13 @@ int nvhost_module_set_rate(struct nvhost_device *dev, void *priv,
 
 static inline bool nvhost_module_powered(struct nvhost_device *dev)
 {
-	return !pm_runtime_suspended(&dev->dev);
+	return dev->powerstate == NVHOST_POWER_STATE_RUNNING;
 }
 
 static inline void nvhost_module_idle(struct nvhost_device *dev)
 {
 	nvhost_module_idle_mult(dev, 1);
 }
+
 
 #endif

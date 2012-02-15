@@ -151,7 +151,7 @@ int nvhost_channel_suspend(struct nvhost_channel *ch)
 	BUG_ON(!channel_cdma_op(ch).stop);
 
 	if (ch->refcount) {
-		ret = nvhost_module_suspend(ch->dev, true);
+		ret = nvhost_module_suspend(ch->dev, false);
 		if (!ret)
 			channel_cdma_op(ch).stop(&ch->cdma);
 	}
