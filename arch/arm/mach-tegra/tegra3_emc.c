@@ -30,6 +30,7 @@
 #include <linux/seq_file.h>
 
 #include <asm/cputime.h>
+#include <asm/cacheflush.h>
 
 #include <mach/iomap.h>
 
@@ -302,6 +303,17 @@ static inline void set_mc_arbiter_limits(void)
 	}
 }
 
+static inline void disable_early_ack(u32 mc_override)
+{
+	static u32 override_val;
+
+	override_val = mc_override & (~MC_EMEM_ARB_OVERRIDE_EACK_MASK);
+	mc_writel(override_val, MC_EMEM_ARB_OVERRIDE);
+	__cpuc_flush_dcache_area(&override_val, sizeof(override_val));
+	outer_clean_range(__pa(&override_val), __pa(&override_val + 1));
+	override_val |= mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK;
+}
+
 static inline bool dqs_preset(const struct tegra_emc_table *next_timing,
 			      const struct tegra_emc_table *last_timing)
 {
@@ -457,6 +469,7 @@ static noinline void emc_set_clock(const struct tegra_emc_table *next_timing,
 	int i, dll_change, pre_wait;
 	bool dyn_sref_enabled, vref_cal_toggle, qrst_used, zcal_long;
 
+	u32 mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
 	u32 emc_cfg_reg = emc_readl(EMC_CFG);
 	u32 emc_dbg_reg = emc_readl(EMC_DBG);
 
@@ -482,6 +495,8 @@ static noinline void emc_set_clock(const struct tegra_emc_table *next_timing,
 
 	/* 2.25 update MC arbiter settings */
 	set_mc_arbiter_limits();
+	if (mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK)
+		disable_early_ack(mc_override);
 
 	/* 2.5 check dq/dqs vref delay */
 	if (dqs_preset(next_timing, last_timing)) {
@@ -600,6 +615,9 @@ static noinline void emc_set_clock(const struct tegra_emc_table *next_timing,
 	/* 18. update restored timing */
 	udelay(2);
 	emc_timing_update();
+
+	/* 18.a restore early ACK */
+	mc_writel(mc_override, MC_EMEM_ARB_OVERRIDE);
 }
 
 static inline void emc_get_timing(struct tegra_emc_table *timing)

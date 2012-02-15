@@ -273,6 +273,7 @@ enum {
 #define MC_EMEM_ARB_RING1_THROTTLE		0xe0
 #define MC_EMEM_ARB_RING3_THROTTLE		0xe4
 #define MC_EMEM_ARB_OVERRIDE			0xe8
+#define MC_EMEM_ARB_OVERRIDE_EACK_MASK		(0x3 << 0)
 #define MC_TIMING_CONTROL			0xfc
 #define MC_RESERVED_RSV				0x3fc
 
