@@ -57,7 +57,6 @@
 
 #define TSENSOR_OFFSET	(4000 + 5000)
 
-#ifdef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 static int tsensor_get_temp(void *vdata, long *milli_temp)
 {
 	struct tegra_tsensor_data *data = vdata;
@@ -186,8 +185,3 @@ labelSkipPowerOff:
 labelEnd:
 	return;
 }
-#else
-void __init tegra3_tsensor_init(struct tegra_tsensor_pmu_data *data)
-{
-}
-#endif

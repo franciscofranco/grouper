@@ -1192,11 +1192,6 @@ static struct tegra_tsensor_pmu_data  tpdata = {
 	.pmu_i2c_addr = 0x2D,
 };
 
-void __init cardhu_tsensor_init(void)
-{
-	tegra3_tsensor_init(&tpdata);
-}
-
 #ifdef CONFIG_TEGRA_EDP_LIMITS
 
 int __init cardhu_edp_init(void)

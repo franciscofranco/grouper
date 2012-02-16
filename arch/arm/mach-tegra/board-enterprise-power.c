@@ -574,11 +574,6 @@ static int __init enterprise_regulators_fixed_gpio_init(void)
 }
 subsys_initcall_sync(enterprise_regulators_fixed_gpio_init);
 
-void __init enterprise_tsensor_init(void)
-{
-	tegra3_tsensor_init(NULL);
-}
-
 int __init enterprise_regulator_init(void)
 {
 	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);

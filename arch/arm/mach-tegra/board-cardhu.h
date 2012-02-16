@@ -213,7 +213,6 @@ int cardhu_pm298_gpio_switch_regulator_init(void);
 int cardhu_pm298_regulator_init(void);
 int cardhu_pm299_gpio_switch_regulator_init(void);
 int cardhu_pm299_regulator_init(void);
-void __init cardhu_tsensor_init(void);
 
 #define MPU_TYPE_MPU3050	1
 #define MPU_TYPE_MPU6050	2

@@ -51,7 +51,6 @@
 #include "board-enterprise.h"
 #include "board.h"
 
-#ifndef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 static int nct_get_temp(void *_data, long *temp)
 {
 	struct nct1008_data *data = _data;
@@ -111,16 +110,13 @@ static void nct1008_probe_callback(struct nct1008_data *data)
 
 	tegra_thermal_set_device(thermal_device);
 }
-#endif
 
 static struct nct1008_platform_data enterprise_nct1008_pdata = {
 	.supported_hwrev = true,
 	.ext_range = true,
 	.conv_rate = 0x08,
 	.offset = 8, /* 4 * 2C. Bug 844025 - 1C for device accuracies */
-#ifndef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 	.probe_callback = nct1008_probe_callback,
-#endif
 };
 
 static struct i2c_board_info enterprise_i2c4_nct1008_board_info[] = {

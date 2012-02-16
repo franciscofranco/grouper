@@ -50,7 +50,6 @@ int enterprise_regulator_init(void);
 int enterprise_modem_init(void);
 int enterprise_suspend_init(void);
 int enterprise_edp_init(void);
-void __init enterprise_tsensor_init(void);
 void enterprise_bpc_mgmt_init(void);
 
 /* Invensense MPU Definitions */
