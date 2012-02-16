@@ -1313,6 +1313,8 @@ static irqreturn_t pci_tegra_msi_isr(int irq, void *arg)
 		while (reg != 0x00000000) {
 			offset = find_first_bit((unsigned long int *)&reg, 32);
 			index = i * 32 + offset;
+			/* clear the interrupt */
+			afi_writel(1ul << index, AFI_MSI_VEC0_0 + i * 4);
 			if (index < MSI_MAP_SIZE) {
 				if (msi_map[index].used)
 					generic_handle_irq(msi_map[index].irq);
@@ -1323,8 +1325,6 @@ static irqreturn_t pci_tegra_msi_isr(int irq, void *arg)
 				/* just clear it*/
 				printk(KERN_INFO "unexpected MSI (2)\n");
 			}
-			/* clear the interrupt */
-			afi_writel(1ul << index, AFI_MSI_VEC0_0 + i * 4);
 			/* see if there's any more pending in this vector */
 			reg = afi_readl(AFI_MSI_VEC0_0 + i * 4);
 		}
