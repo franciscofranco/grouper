@@ -126,7 +126,6 @@ struct tegra_dma_channel {
 	void  __iomem		*addr;
 	int			mode;
 	int			irq;
-	int			req_transfer_count;
 };
 
 #define  NV_DMA_MAX_CHANNELS  32
@@ -185,6 +184,15 @@ int tegra_dma_cancel(struct tegra_dma_channel *ch)
 }
 EXPORT_SYMBOL(tegra_dma_cancel);
 
+static inline unsigned int get_req_xfer_word_count(
+	struct tegra_dma_channel *ch, struct tegra_dma_req *req)
+{
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
+		return req->size >> 3;
+	else
+		return req->size >> 2;
+}
+
 static unsigned int get_channel_status(struct tegra_dma_channel *ch,
 			struct tegra_dma_req *req, bool is_stop_dma)
 {
@@ -227,11 +235,8 @@ static unsigned int dma_active_count(struct tegra_dma_channel *ch,
 
 	unsigned int bytes_transferred;
 
-	to_transfer = (status & STA_COUNT_MASK) >> STA_COUNT_SHIFT;
-	req_transfer_count = ch->req_transfer_count;
-	req_transfer_count += 1;
-	to_transfer += 1;
-
+	to_transfer = ((status & STA_COUNT_MASK) >> STA_COUNT_SHIFT) + 1;
+	req_transfer_count = get_req_xfer_word_count(ch, req);
 	bytes_transferred = req_transfer_count;
 
 	if (status & STA_BUSY)
@@ -502,6 +507,7 @@ static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	u32 apb_ptr;
 	u32 ahb_ptr;
 	u32 csr;
+	unsigned int req_transfer_count;
 
 	if (req->to_memory) {
 		apb_ptr = req->source_addr;
@@ -513,13 +519,11 @@ static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	writel(apb_ptr, ch->addr + APB_DMA_CHAN_APB_PTR);
 	writel(ahb_ptr, ch->addr + APB_DMA_CHAN_AHB_PTR);
 
-	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
-		ch->req_transfer_count = (req->size >> 3) - 1;
-	else
-		ch->req_transfer_count = (req->size >> 2) - 1;
+	req_transfer_count = get_req_xfer_word_count(ch, req);
+
 	csr = readl(ch->addr + APB_DMA_CHAN_CSR);
 	csr &= ~CSR_WCOUNT_MASK;
-	csr |= ch->req_transfer_count << CSR_WCOUNT_SHIFT;
+	csr |= (req_transfer_count - 1) << CSR_WCOUNT_SHIFT;
 	writel(csr, ch->addr + APB_DMA_CHAN_CSR);
 
 	req->status = TEGRA_DMA_REQ_INFLIGHT;
@@ -534,6 +538,7 @@ static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 	int ahb_bus_width;
 	int apb_bus_width;
 	int index;
+	unsigned int req_transfer_count;
 
 	u32 ahb_seq;
 	u32 apb_seq;
@@ -596,24 +601,18 @@ static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 
 	csr |= req->req_sel << CSR_REQ_SEL_SHIFT;
 
-	ch->req_transfer_count = (req->size >> 2) - 1;
+	req_transfer_count = get_req_xfer_word_count(ch, req);
 
-	/*
-	 * One shot mode is always single buffered.  Continuous mode could
+	/* One shot mode is always single buffered.  Continuous mode could
 	 * support either.
 	 */
-	if (ch->mode & TEGRA_DMA_MODE_ONESHOT) {
+	if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
 		csr |= CSR_ONCE;
-	} else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE) {
+
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
 		ahb_seq |= AHB_SEQ_DBL_BUF;
-		/*
-		 * We want an interrupt halfway through, then on the
-		 * completion.  The double buffer means 2 interrupts
-		 * pass before the DMA HW latches a new AHB_PTR etc.
-		 */
-		ch->req_transfer_count = (req->size >> 3) - 1;
-	}
-	csr |= ch->req_transfer_count << CSR_WCOUNT_SHIFT;
+
+	csr |= (req_transfer_count - 1) << CSR_WCOUNT_SHIFT;
 
 	if (req->to_memory) {
 		apb_ptr = req->source_addr;
@@ -740,12 +739,8 @@ static bool handle_continuous_dbl_dma(struct tegra_dma_channel *ch,
 
 		/* Out of sync - Release current buffer */
 		if (!is_dma_ping_complete) {
-			int bytes_transferred;
-			bytes_transferred = ch->req_transfer_count;
-			bytes_transferred += 1;
-			bytes_transferred <<= 3;
 			req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
-			req->bytes_transferred = bytes_transferred;
+			req->bytes_transferred = req->size;
 			req->status = TEGRA_DMA_REQ_SUCCESS;
 			tegra_dma_stop(ch);
 
