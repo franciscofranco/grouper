@@ -1358,7 +1358,12 @@ static int max77663_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max77663_chip *chip = i2c_get_clientdata(client);
+	struct max77663_platform_data *pdata = chip->pdata;
 	int ret;
+
+	/* PMU_STAT_LED */
+	if (pdata->has_stat_led)
+		max77663_gpio_dir_input(&chip->gpio, pdata->stat_led_gpio);
 
 	if (client->irq)
 		disable_irq(client->irq);
@@ -1374,6 +1379,7 @@ static int max77663_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max77663_chip *chip = i2c_get_clientdata(client);
+	struct max77663_platform_data *pdata = chip->pdata;
 	int ret;
 
 	ret = max77663_sleep(chip, false);
@@ -1384,6 +1390,12 @@ static int max77663_resume(struct device *dev)
 
 	if (client->irq)
 		enable_irq(client->irq);
+
+	/* PMU_STAT_LED */
+	if (pdata->has_stat_led) {
+		max77663_gpio_dir_output(&chip->gpio, MAX77663_GPIO7,
+			pdata->stat_led_active_low ? 0 : 1);
+	}
 
 	return 0;
 }
