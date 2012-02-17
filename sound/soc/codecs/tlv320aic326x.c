@@ -4307,10 +4307,6 @@ static int __devexit aic3262_spi_remove(struct spi_device *spi)
 
 }
 
-static const struct spi_device_id tlv320aic3262_id[] = {
-	{"aic3262-codec", 0},
-	{}
-};
 static struct spi_driver aic3262_spi_driver = {
 	.driver = {
 		.name	= "aic3262-codec",
@@ -4319,7 +4315,6 @@ static struct spi_driver aic3262_spi_driver = {
 	},
 	.probe		= aic3262_spi_probe,
 	.remove		= __devexit_p(aic3262_spi_remove),
-	.id_table = tlv320aic3262_id,
 };
 #endif
 static int __init tlv320aic3262_modinit(void)
