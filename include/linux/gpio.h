@@ -17,6 +17,9 @@
 /* Gpio pin is open drain */
 #define GPIOF_OPEN_DRAIN	(1 << 2)
 
+/* Gpio pin is open source */
+#define GPIOF_OPEN_SOURCE	(1 << 3)
+
 #ifdef CONFIG_GENERIC_GPIO
 #include <asm/gpio.h>
 
