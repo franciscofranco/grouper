@@ -654,7 +654,7 @@ int __init kai_panel_init(void)
 	gpio_direction_output(kai_lvds_rst, 1);
 	tegra_gpio_enable(kai_lvds_rst);
 
-	if (board_info.fab & BOARD_FAB_A00) {
+	if (board_info.fab == BOARD_FAB_A00) {
 		gpio_request(kai_lvds_rs_a00, "lvds_rs");
 		gpio_direction_output(kai_lvds_rs_a00, 0);
 		tegra_gpio_enable(kai_lvds_rs_a00);
