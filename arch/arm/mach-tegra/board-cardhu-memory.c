@@ -4828,6 +4828,45 @@ static const struct tegra_emc_table cardhu_emc_tables_edb8132b2ma[] = {
 	},
 };
 
+static const u32 pm269_bit_swap_map[32] = {
+      /* DDR bit #    SoC bit # */
+	[0]  = 0x1 << 1,
+	[1]  = 0x1 << 2,
+	[2]  = 0x1 << 3,
+	[3]  = 0x1 << 0,
+	[4]  = 0x1 << 7,
+	[5]  = 0x1 << 5,
+	[6]  = 0x1 << 6,
+	[7]  = 0x1 << 4,
+
+	[8]  = 0x1 << 13,
+	[9]  = 0x1 << 9,
+	[10] = 0x1 << 8,
+	[11] = 0x1 << 12,
+	[12] = 0x1 << 11,
+	[13] = 0x1 << 10,
+	[14] = 0x1 << 14,
+	[15] = 0x1 << 15,
+
+	[16] = 0x1 << 20,
+	[17] = 0x1 << 23,
+	[18] = 0x1 << 16,
+	[19] = 0x1 << 19,
+	[20] = 0x1 << 18,
+	[21] = 0x1 << 21,
+	[22] = 0x1 << 22,
+	[23] = 0x1 << 17,
+
+	[24] = 0x1 << 27,
+	[25] = 0x1 << 30,
+	[26] = 0x1 << 31,
+	[27] = 0x1 << 28,
+	[28] = 0x1 << 26,
+	[29] = 0x1 << 25,
+	[30] = 0x1 << 24,
+	[31] = 0x1 << 29,
+};
+
 int cardhu_emc_init(void)
 {
 	struct board_info board;
@@ -4836,6 +4875,9 @@ int cardhu_emc_init(void)
 
 	switch (board.board_id) {
 	case BOARD_PM269:
+		tegra_init_dram_bit_map(pm269_bit_swap_map,
+				ARRAY_SIZE(pm269_bit_swap_map));
+		/* fall through */
 	case BOARD_E1257:
 		if (MEMORY_TYPE(board.sku) == SKU_MEMORY_ELPIDA)
 			tegra_init_emc(cardhu_emc_tables_edb8132b2ma,

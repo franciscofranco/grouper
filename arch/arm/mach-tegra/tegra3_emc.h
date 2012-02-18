@@ -54,6 +54,7 @@ struct clk;
 
 void tegra_init_emc(const struct tegra_emc_table *table, int table_size);
 
+void tegra_init_dram_bit_map(const u32 *bit_map, int map_size);
 void tegra_emc_dram_type_init(struct clk *c);
 int tegra_emc_get_dram_type(void);
 int tegra_emc_get_dram_temperature(void);
@@ -158,7 +159,8 @@ enum {
 #define EMC_MRR_MA_SHIFT			16
 #define EMC_MRR_MA_MASK				(0xFF << EMC_MRR_MA_SHIFT)
 #define EMC_MRR_DATA_MASK			((0x1 << EMC_MRR_MA_SHIFT) - 1)
-#define LPDDR2_MR4_TEMP_MASK			0x7
+#define LPDDR2_MR4_TEMP_SHIFT			0
+#define LPDDR2_MR4_TEMP_MASK			(0x7 << LPDDR2_MR4_TEMP_SHIFT)
 
 #define EMC_XM2DQSPADCTRL3			0xf8
 #define EMC_XM2DQSPADCTRL3_VREF_ENABLE		(0x1 << 5)
