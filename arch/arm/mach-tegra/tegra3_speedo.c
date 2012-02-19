@@ -56,30 +56,30 @@ static const u32 core_process_speedos[][CORE_PROCESS_CORNERS_NUM] = {
 	{180}, /* [0]: soc_speedo_id 0: any A01 */
 
 /* T30 family */
-	{180}, /* [1]: soc_speedo_id 1: AP30 */
-	{207}, /* [2]: soc_speedo_id 2: T30  */
-	{192}, /* [3]: soc_speedo_id 2: T30S */
+	{170}, /* [1]: soc_speedo_id 1: AP30 */
+	{195}, /* [2]: soc_speedo_id 2: T30  */
+	{180}, /* [3]: soc_speedo_id 2: T30S */
 
 /* Characterization SKUs */
 	{168}, /* [4]: soc_speedo_id 1: AP30 char */
 	{192}, /* [5]: soc_speedo_id 2: T30  char */
-	{184}, /* [6]: soc_speedo_id 2: T30S char */
+	{180}, /* [6]: soc_speedo_id 2: T30S char */
 
 /* T33 family */
-	{180}, /* [7]: soc_speedo_id = 1 - AP33 */
-	{208}, /* [8]: soc_speedo_id = 2 - T33  */
-	{192}, /* [9]: soc_speedo_id = 2 - T33S */
+	{170}, /* [7]: soc_speedo_id = 1 - AP33 */
+	{195}, /* [8]: soc_speedo_id = 2 - T33  */
+	{180}, /* [9]: soc_speedo_id = 2 - T33S/AP37 */
 
 /* T30 'L' family */
-	{192}, /* [10]: soc_speedo_id 1: T30L */
-	{192}, /* [11]: soc_speedo_id 1: T30SL */
+	{180}, /* [10]: soc_speedo_id 1: T30L */
+	{180}, /* [11]: soc_speedo_id 1: T30SL */
 
 /* T30 Automotives */
 	{185}, /* [12]: soc_speedo_id = 3 - Automotives */
 	{185}, /* [13]: soc_speedo_id = 3 - Automotives */
 
 /* T37 Family*/
-	{215}, /* [14]: soc_speedo_id 2: T37 */
+	{210}, /* [14]: soc_speedo_id 2: T37 */
 };
 
 /* Maximum speedo levels for each CPU process corner */
@@ -88,9 +88,9 @@ static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
 	{306, 338, 360, 376, UINT_MAX}, /* [0]: cpu_speedo_id 0: any A01 */
 
 /* T30 family */
-	{305, 336, 358, 375, UINT_MAX}, /* [1]: cpu_speedo_id 1: AP30 */
-	{336, 336, 358, 375, UINT_MAX}, /* [2]: cpu_speedo_id 2: T30  */
-	{336, 336, 359, 375, UINT_MAX}, /* [3]: cpu_speedo_id 3: T30S */
+	{295, 336, 358, 375, UINT_MAX}, /* [1]: cpu_speedo_id 1: AP30 */
+	{325, 325, 358, 375, UINT_MAX}, /* [2]: cpu_speedo_id 2: T30  */
+	{325, 325, 358, 375, UINT_MAX}, /* [3]: cpu_speedo_id 3: T30S */
 
 /* Characterization SKUs */
 	{292, 324, 348, 364, UINT_MAX}, /* [4]: cpu_speedo_id 1: AP30char */
@@ -98,13 +98,13 @@ static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
 	{324, 324, 348, 364, UINT_MAX}, /* [6]: cpu_speedo_id 3: T30Schar */
 
 /* T33 family */
-	{305, 336, 358, 375, UINT_MAX},      /* [7]: cpu_speedo_id: 4: AP33 */
-	{373, 373, 373, 373, 397, UINT_MAX}, /* [8]: cpu_speedo_id: 5: T33  */
-	{380, 380, 380, 380, 397, UINT_MAX}, /* [9]: cpu_speedo_id: 6: T33S */
+	{295, 336, 358, 375, UINT_MAX},      /* [7]: cpu_speedo_id: 4: AP33 */
+	{358, 358, 358, 358, 397, UINT_MAX}, /* [8]: cpu_speedo_id: 5: T33  */
+	{364, 364, 364, 364, 397, UINT_MAX}, /* [9]: cpu_speedo_id: 6/12: T33S/AP37 */
 
 /* T30 'L' family */
-	{305, 336, 358, 375, 391, UINT_MAX}, /* [10]: cpu_speedo_id 7: T30L  */
-	{305, 336, 358, 375, 391, UINT_MAX}, /* [11]: cpu_speedo_id 8: T30SL */
+	{295, 336, 358, 375, 391, UINT_MAX}, /* [10]: cpu_speedo_id 7: T30L  */
+	{295, 336, 358, 375, 391, UINT_MAX}, /* [11]: cpu_speedo_id 8: T30SL */
 
 /* T30 Automotives */
 	/* threshold_index 12: cpu_speedo_id 9 & 10
@@ -114,7 +114,7 @@ static const u32 cpu_process_speedos[][CPU_PROCESS_CORNERS_NUM] = {
 	{300, 311, 410, 431, UINT_MAX}, /* [13]: cpu_speedo_id 11: T30 auto */
 
 /* T37 family */
-	{373, 373, 373, 373, 397, UINT_MAX}, /* [14]: cpu_speedo_id 13: T37 */
+	{358, 358, 358, 358, 397, UINT_MAX}, /* [14]: cpu_speedo_id 13: T37 */
 };
 
 /*
