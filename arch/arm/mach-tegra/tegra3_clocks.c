@@ -2100,6 +2100,10 @@ static void tegra3_periph_clk_init(struct clk *c)
 	}
 
 	c->state = ON;
+
+	if (c->flags & PERIPH_NO_ENB)
+		return;
+
 	if (!(clk_readl(PERIPH_CLK_TO_ENB_REG(c)) & PERIPH_CLK_TO_BIT(c)))
 		c->state = OFF;
 	if (!(c->flags & PERIPH_NO_RESET))
@@ -2111,6 +2115,9 @@ static int tegra3_periph_clk_enable(struct clk *c)
 {
 	unsigned long flags;
 	pr_debug("%s on clock %s\n", __func__, c->name);
+
+	if (c->flags & PERIPH_NO_ENB)
+		return 0;
 
 	spin_lock_irqsave(&periph_refcount_lock, flags);
 
@@ -2136,6 +2143,9 @@ static void tegra3_periph_clk_disable(struct clk *c)
 	unsigned long val, flags;
 	pr_debug("%s on clock %s\n", __func__, c->name);
 
+	if (c->flags & PERIPH_NO_ENB)
+		return;
+
 	spin_lock_irqsave(&periph_refcount_lock, flags);
 
 	if (c->refcnt)
@@ -2159,6 +2169,9 @@ static void tegra3_periph_clk_reset(struct clk *c, bool assert)
 	unsigned long val;
 	pr_debug("%s %s on clock %s\n", __func__,
 		 assert ? "assert" : "deassert", c->name);
+
+	if (c->flags & PERIPH_NO_ENB)
+		return;
 
 	if (!(c->flags & PERIPH_NO_RESET)) {
 		if (assert) {
