@@ -104,6 +104,7 @@ static struct work_struct autopm_resume_work;
 static bool wakeup_pending;
 static bool modem_sleep_flag;
 static spinlock_t xmm_lock;
+static DEFINE_MUTEX(xmm_onoff_mutex);
 
 static void baseband_xmm_power_L2_resume(void);
 static int baseband_xmm_power_driver_handle_resume(
@@ -253,11 +254,14 @@ static ssize_t baseband_xmm_onoff(struct device *dev,
 	int size;
 	struct platform_device *device = to_platform_device(dev);
 
+	mutex_lock(&xmm_onoff_mutex);
+
 	pr_debug("%s\n", __func__);
 
 	/* check input */
 	if (buf == NULL) {
 		pr_err("%s: buf NULL\n", __func__);
+		mutex_unlock(&xmm_onoff_mutex);
 		return -EINVAL;
 	}
 	pr_debug("%s: count=%d\n", __func__, count);
@@ -266,6 +270,7 @@ static ssize_t baseband_xmm_onoff(struct device *dev,
 	size = sscanf(buf, "%d", &power_onoff);
 	if (size != 1) {
 		pr_err("%s: size=%d -EINVAL\n", __func__, size);
+		mutex_unlock(&xmm_onoff_mutex);
 		return -EINVAL;
 	}
 	pr_debug("%s power_onoff=%d\n", __func__, power_onoff);
@@ -274,6 +279,9 @@ static ssize_t baseband_xmm_onoff(struct device *dev,
 		baseband_xmm_power_off(device);
 	else if (power_onoff == 1)
 		baseband_xmm_power_on(device);
+
+	mutex_unlock(&xmm_onoff_mutex);
+
 	return count;
 }
 
