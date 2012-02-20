@@ -150,14 +150,6 @@ static int tegra_pcm_open(struct snd_pcm_substream *substream)
 	dmap = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (dmap) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			setup_dma_tx_request(&prtd->dma_req[0], dmap);
-			setup_dma_tx_request(&prtd->dma_req[1], dmap);
-		} else {
-			setup_dma_rx_request(&prtd->dma_req[0], dmap);
-			setup_dma_rx_request(&prtd->dma_req[1], dmap);
-		}
-
 		prtd->dma_req[0].dev = prtd;
 		prtd->dma_req[1].dev = prtd;
 
@@ -215,9 +207,21 @@ static int tegra_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct tegra_runtime_data *prtd = runtime->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct tegra_pcm_dma_params * dmap;
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
+	dmap = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	if (dmap) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			setup_dma_tx_request(&prtd->dma_req[0], dmap);
+			setup_dma_tx_request(&prtd->dma_req[1], dmap);
+		} else {
+			setup_dma_rx_request(&prtd->dma_req[0], dmap);
+			setup_dma_rx_request(&prtd->dma_req[1], dmap);
+		}
+	}
 	prtd->dma_req[0].size = params_period_bytes(params);
 	prtd->dma_req[1].size = prtd->dma_req[0].size;
 
