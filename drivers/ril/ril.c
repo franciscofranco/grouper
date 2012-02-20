@@ -199,7 +199,7 @@ static int __init ril_init(void)
 	}
 
 	/* init SIM plug functions */
-	err = sim_hot_plug_init(workqueue);
+	err = sim_hot_plug_init(dev, workqueue);
 	if (err < 0) {
 		pr_err("%s - init SIM hotplug failed\n",
 			__func__);
