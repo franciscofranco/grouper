@@ -310,6 +310,9 @@ static int max8907c_i2c_probe(struct i2c_client *i2c,
 
 	ret = max8097c_add_subdevs(max8907c, pdata);
 
+	if (pdata->use_power_off && !pm_power_off)
+		pm_power_off = max8907c_power_off;
+
 	if (pdata->max8907c_setup)
 		return pdata->max8907c_setup();
 
