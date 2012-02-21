@@ -814,7 +814,7 @@ static int nvavp_set_clock_ioctl(struct file *filp, unsigned int cmd,
 	if (copy_from_user(&config, (void __user *)arg, sizeof(struct nvavp_clock_args)))
 		return -EFAULT;
 
-	dev_dbg(&nvavp->nvhost_dev->dev, "%s: clk_id=%d, clk_rate=%lu\n",
+	dev_dbg(&nvavp->nvhost_dev->dev, "%s: clk_id=%d, clk_rate=%u\n",
 			__func__, config.id, config.rate);
 
 	if (config.id == NVAVP_MODULE_ID_AVP)
