@@ -1352,6 +1352,14 @@ static int can_pullup(struct fsl_udc *udc)
 	return udc->driver && udc->softconnect && udc->vbus_active;
 }
 
+static int fsl_set_selfpowered(struct usb_gadget * gadget, int is_on)
+{
+	struct fsl_udc *udc;
+	udc = container_of(gadget, struct fsl_udc, gadget);
+	udc->selfpowered = (is_on != 0);
+	return 0;
+}
+
 /* Notify controller that VBUS is powered, Called by whatever
    detects VBUS sessions */
 static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
@@ -1477,7 +1485,7 @@ static struct usb_gadget_ops fsl_gadget_ops = {
 #ifndef CONFIG_USB_ANDROID
 	.wakeup = fsl_wakeup,
 #endif
-/*	.set_selfpowered = fsl_set_selfpowered,	*/ /* Always selfpowered */
+	.set_selfpowered = fsl_set_selfpowered,
 	.vbus_session = fsl_vbus_session,
 	.vbus_draw = fsl_vbus_draw,
 	.pullup = fsl_pullup,
@@ -1571,7 +1579,8 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 
 	if ((request_type & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* Get device status */
-		tmp = 1 << USB_DEVICE_SELF_POWERED;
+		if (udc->selfpowered)
+			tmp = 1 << USB_DEVICE_SELF_POWERED;
 		tmp |= udc->remote_wakeup << USB_DEVICE_REMOTE_WAKEUP;
 	} else if ((request_type & USB_RECIP_MASK) == USB_RECIP_INTERFACE) {
 		/* Get interface status */

@@ -620,6 +620,7 @@ struct fsl_udc {
 	unsigned stopped:1;
 	unsigned remote_wakeup:1;
 	unsigned big_endian_desc:1;
+	unsigned selfpowered:1;
 
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
 	struct fsl_req *status_req;	/* ep0 status request */
