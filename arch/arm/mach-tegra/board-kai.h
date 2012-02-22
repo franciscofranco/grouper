@@ -50,6 +50,11 @@
 #define TEGRA_GPIO_HP_DET		TEGRA_GPIO_PW2
 #define TEGRA_GPIO_INT_MIC_EN		TEGRA_GPIO_PK3
 #define TEGRA_GPIO_EXT_MIC_EN		TEGRA_GPIO_PK4
+/* Tegra Modem related GPIOs */
+#define TEGRA_GPIO_W_DISABLE		TEGRA_GPIO_PDD7
+#define TEGRA_GPIO_MODEM_RSVD1		TEGRA_GPIO_PV0
+#define TEGRA_GPIO_MODEM_RSVD2		TEGRA_GPIO_PH7
+
 
 /*****************Interrupt tables ******************/
 /* External peripheral act as interrupt controller */

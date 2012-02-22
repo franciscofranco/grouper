@@ -668,8 +668,43 @@ static void kai_usb_init(void)
 	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
 	platform_device_register(&tegra_ehci2_device);
 }
+
+static void kai_modem_init(void)
+{
+	int ret;
+
+	tegra_gpio_enable(TEGRA_GPIO_W_DISABLE);
+	tegra_gpio_enable(TEGRA_GPIO_MODEM_RSVD1);
+	tegra_gpio_enable(TEGRA_GPIO_MODEM_RSVD2);
+
+	ret = gpio_request(TEGRA_GPIO_W_DISABLE, "w_disable_gpio");
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %d\n",
+			__func__, TEGRA_GPIO_W_DISABLE);
+	else
+		gpio_direction_output(TEGRA_GPIO_W_DISABLE, 1);
+
+
+	ret = gpio_request(TEGRA_GPIO_MODEM_RSVD1, "Port_V_PIN_0");
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %d\n",
+			__func__, TEGRA_GPIO_MODEM_RSVD1);
+	else
+		gpio_direction_input(TEGRA_GPIO_MODEM_RSVD1);
+
+
+	ret = gpio_request(TEGRA_GPIO_MODEM_RSVD2, "Port_H_PIN_7");
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %d\n",
+			__func__, TEGRA_GPIO_MODEM_RSVD2);
+	else
+		gpio_direction_output(TEGRA_GPIO_MODEM_RSVD2, 1);
+
+}
+
 #else
 static void kai_usb_init(void) { }
+static void kai_modem_init(void) { }
 #endif
 
 static void kai_audio_init(void)
@@ -710,6 +745,7 @@ static void __init tegra_kai_init(void)
 	kai_sensors_init();
 	kai_pins_state_init();
 	tegra_release_bootloader_fb();
+	kai_modem_init();
 #ifdef CONFIG_TEGRA_WDT_RECOVERY
 	tegra_wdt_recovery_init();
 #endif
