@@ -429,6 +429,10 @@ static void spi_tegra_copy_client_txbuf_to_spi_txbuf(
 		struct spi_tegra_data *tspi, struct spi_transfer *t)
 {
 	unsigned len;
+
+	/* Make the dma buffer to read by cpu */
+	dma_sync_single_for_cpu(&tspi->pdev->dev, tspi->tx_buf_phys,
+				tspi->dma_buf_size, DMA_FROM_DEVICE);
 	if (tspi->is_packed) {
 		len = tspi->curr_dma_words * tspi->bytes_per_word;
 		memcpy(tspi->tx_buf, t->tx_buf + tspi->cur_pos, len);
@@ -448,12 +452,20 @@ static void spi_tegra_copy_client_txbuf_to_spi_txbuf(
 		}
 	}
 	tspi->cur_tx_pos += tspi->curr_dma_words * tspi->bytes_per_word;
+	/* Make the dma buffer to read by dma */
+	dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
+				tspi->dma_buf_size, DMA_TO_DEVICE);
 }
 
 static void spi_tegra_copy_spi_rxbuf_to_client_rxbuf(
 		struct spi_tegra_data *tspi, struct spi_transfer *t)
 {
 	unsigned len;
+
+	/* Make the dma buffer to read by cpu */
+	dma_sync_single_for_cpu(&tspi->pdev->dev, tspi->rx_buf_phys,
+		tspi->dma_buf_size, DMA_FROM_DEVICE);
+
 	if (tspi->is_packed) {
 		len = tspi->curr_dma_words * tspi->bytes_per_word;
 		memcpy(t->rx_buf + tspi->cur_rx_pos, tspi->rx_buf, len);
@@ -475,6 +487,10 @@ static void spi_tegra_copy_spi_rxbuf_to_client_rxbuf(
 		}
 	}
 	tspi->cur_rx_pos += tspi->curr_dma_words * tspi->bytes_per_word;
+
+	/* Make the dma buffer to read by dma */
+	dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
+		tspi->dma_buf_size, DMA_TO_DEVICE);
 }
 
 static int spi_tegra_start_dma_based_transfer(
@@ -487,6 +503,13 @@ static int spi_tegra_start_dma_based_transfer(
 
 	INIT_COMPLETION(tspi->rx_dma_complete);
 	INIT_COMPLETION(tspi->tx_dma_complete);
+
+	/* Make sure that Rx and Tx fifo are empty */
+	test_val = spi_tegra_readl(tspi, SLINK_STATUS);
+	if (((test_val >> 20) & 0xF) != 0xA)
+		dev_err(&tspi->pdev->dev,
+			"The Rx and Tx fifo are not empty status 0x%08lx\n",
+				test_val);
 
 	val = SLINK_DMA_BLOCK_SIZE(tspi->curr_dma_words - 1);
 	val |= tspi->packed_size;
@@ -515,6 +538,9 @@ static int spi_tegra_start_dma_based_transfer(
 	if (tspi->cur_direction & DATA_DIR_TX) {
 		spi_tegra_copy_client_txbuf_to_spi_txbuf(tspi, t);
 		wmb();
+		/* Make the dma buffer to read by dma */
+		dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
+				tspi->dma_buf_size, DMA_TO_DEVICE);
 		tspi->tx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->tx_dma, &tspi->tx_dma_req);
 		if (ret < 0) {
@@ -530,6 +556,9 @@ static int spi_tegra_start_dma_based_transfer(
 	}
 
 	if (tspi->cur_direction & DATA_DIR_RX) {
+		/* Make the dma buffer to read by dma */
+		dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
+				tspi->dma_buf_size, DMA_TO_DEVICE);
 		tspi->rx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->rx_dma, &tspi->rx_dma_req);
 		if (ret < 0) {
@@ -1301,6 +1330,10 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		goto fail_rx_buf_alloc;
 	}
 
+	/* Make the dma buffer to read by dma */
+	dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
+				tspi->dma_buf_size, DMA_TO_DEVICE);
+
 	memset(&tspi->rx_dma_req, 0, sizeof(struct tegra_dma_req));
 	tspi->rx_dma_req.complete = tegra_spi_rx_dma_complete;
 	tspi->rx_dma_req.to_memory = 1;
@@ -1329,6 +1362,10 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_tx_buf_alloc;
 	}
+
+	/* Make the dma buffer to read by dma */
+	dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
+				tspi->dma_buf_size, DMA_TO_DEVICE);
 
 	memset(&tspi->tx_dma_req, 0, sizeof(struct tegra_dma_req));
 	tspi->tx_dma_req.complete = tegra_spi_tx_dma_complete;
