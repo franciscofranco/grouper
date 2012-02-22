@@ -82,11 +82,11 @@ struct tegra_dsi_cmd {
 	union {
 		u16 data_len;
 		u16 delay_ms;
-		struct{
+		struct {
 			u8 data0;
 			u8 data1;
-		}sp;
-	}sp_len_dly;
+		} sp;
+	} sp_len_dly;
 	u8	*pdata;
 };
 
@@ -111,13 +111,21 @@ struct tegra_dsi_cmd {
 struct dsi_phy_timing_ns {
 	u16		t_hsdexit_ns;
 	u16		t_hstrail_ns;
-	u16		t_hsprepr_ns;
 	u16		t_datzero_ns;
+	u16		t_hsprepare_ns;
 
 	u16		t_clktrail_ns;
 	u16		t_clkpost_ns;
 	u16		t_clkzero_ns;
 	u16		t_tlpx_ns;
+
+	u16		t_clkprepare_ns;
+	u16		t_clkpre_ns;
+	u16		t_wakeup_ns;
+
+	u16		t_taget_ns;
+	u16		t_tasure_ns;
+	u16		t_tago_ns;
 };
 
 struct tegra_dsi_out {
@@ -132,16 +140,16 @@ struct tegra_dsi_out {
 
 	bool		panel_has_frame_buffer;	/* required*/
 
-	struct tegra_dsi_cmd*	dsi_init_cmd;		/* required */
+	struct tegra_dsi_cmd	*dsi_init_cmd;		/* required */
 	u16		n_init_cmd;			/* required */
 
-	struct tegra_dsi_cmd*	dsi_early_suspend_cmd;
+	struct tegra_dsi_cmd	*dsi_early_suspend_cmd;
 	u16		n_early_suspend_cmd;
 
-	struct tegra_dsi_cmd*	dsi_late_resume_cmd;
+	struct tegra_dsi_cmd	*dsi_late_resume_cmd;
 	u16		n_late_resume_cmd;
 
-	struct tegra_dsi_cmd*	dsi_suspend_cmd;	/* required */
+	struct tegra_dsi_cmd	*dsi_suspend_cmd;	/* required */
 	u16		n_suspend_cmd;			/* required */
 
 	u8		video_data_type;		/* required */
