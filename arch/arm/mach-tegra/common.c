@@ -45,6 +45,7 @@
 #include "fuse.h"
 #include "pm.h"
 #include "reset.h"
+#include "devices.h"
 
 #define MC_SECURITY_CFG2	0x7c
 
@@ -444,6 +445,7 @@ void __init tegra_init_early(void)
 	tegra_init_power();
 	tegra_init_cache(true);
 	tegra_init_ahb_gizmo_settings();
+	tegra_init_debug_uart_rate();
 }
 
 static int __init tegra_lp0_vec_arg(char *options)

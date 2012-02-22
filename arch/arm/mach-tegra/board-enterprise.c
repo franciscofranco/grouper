@@ -395,8 +395,6 @@ static void __init uart_debug_init(void)
 	unsigned long rate;
 	struct clk *c;
 
-	tegra_init_debug_uart_rate();
-
 	/* UARTD is the debug port. */
 	pr_info("Selecting UARTD as the debug console\n");
 	enterprise_uart_devices[3] = &debug_uartd_device;

@@ -332,7 +332,6 @@ static void __init uart_debug_init(void)
 	if (debug_port_id < 0)
 		debug_port_id = 3;
 
-	tegra_init_debug_uart_rate();
 	switch (debug_port_id) {
 	case 0:
 		/* UARTA is the debug port. */
