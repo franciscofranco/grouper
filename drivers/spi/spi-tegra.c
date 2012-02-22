@@ -412,7 +412,7 @@ static unsigned int spi_tegra_read_rx_fifo_to_client_rxbuf(
 
 		bits_per_word = t->bits_per_word ? t->bits_per_word :
 						tspi->cur_spi->bits_per_word;
-		rx_mask = (1 << bits_per_word) -1;
+		rx_mask = (1 << bits_per_word) - 1;
 		for (count = 0; count < rx_full_count; ++count) {
 			x = spi_tegra_readl(tspi, SLINK_RX_FIFO);
 			x &= rx_mask;
@@ -478,7 +478,7 @@ static void spi_tegra_copy_spi_rxbuf_to_client_rxbuf(
 
 		bits_per_word = t->bits_per_word ? t->bits_per_word :
 						tspi->cur_spi->bits_per_word;
-		rx_mask = (1 << bits_per_word) -1;
+		rx_mask = (1 << bits_per_word) - 1;
 		for (count = 0; count < tspi->curr_dma_words; ++count) {
 			x = tspi->rx_buf[count];
 			x &= rx_mask;
@@ -544,8 +544,8 @@ static int spi_tegra_start_dma_based_transfer(
 		tspi->tx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->tx_dma, &tspi->tx_dma_req);
 		if (ret < 0) {
-			dev_err(&tspi->pdev->dev, "Error in starting tx dma "
-						" error = %d\n", ret);
+			dev_err(&tspi->pdev->dev,
+				"Error in starting tx dma error = %d\n", ret);
 			return ret;
 		}
 
@@ -562,8 +562,8 @@ static int spi_tegra_start_dma_based_transfer(
 		tspi->rx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->rx_dma, &tspi->rx_dma_req);
 		if (ret < 0) {
-			dev_err(&tspi->pdev->dev, "Error in starting rx dma "
-						" error = %d\n", ret);
+			dev_err(&tspi->pdev->dev,
+				"Error in starting rx dma error = %d\n", ret);
 			if (tspi->cur_direction & DATA_DIR_TX)
 				tegra_dma_dequeue_req(tspi->tx_dma,
 							&tspi->tx_dma_req);
@@ -652,8 +652,8 @@ static void set_best_clk_source(struct spi_tegra_data *tspi,
 		ret = clk_set_parent(tspi->clk,
 			tspi->parent_clk_list[count].parent_clk);
 		if (ret < 0) {
-			dev_warn(&tspi->pdev->dev, "Error in setting parent "
-				" clk src %s\n",
+			dev_warn(&tspi->pdev->dev,
+				"Error in setting parent clk src %s\n",
 				tspi->parent_clk_list[count].name);
 			continue;
 		}
@@ -1057,8 +1057,8 @@ static void handle_cpu_based_xfer(void *context_data)
 		goto exit;
 	}
 
-	dev_vdbg(&tspi->pdev->dev, " Current direction %x\n",
-						tspi->cur_direction);
+	dev_vdbg(&tspi->pdev->dev, "Current direction %x\n",
+					tspi->cur_direction);
 	if (tspi->cur_direction & DATA_DIR_RX)
 		spi_tegra_read_rx_fifo_to_client_rxbuf(tspi, t);
 
@@ -1069,8 +1069,9 @@ static void handle_cpu_based_xfer(void *context_data)
 	else
 		WARN_ON(1);
 
-	dev_vdbg(&tspi->pdev->dev, "current position %d and length of the "
-				"transfer %d\n", tspi->cur_pos, t->len);
+	dev_vdbg(&tspi->pdev->dev,
+		"current position %d and length of the transfer %d\n",
+			tspi->cur_pos, t->len);
 	if (tspi->cur_pos == t->len) {
 		spi_tegra_curr_transfer_complete(tspi,
 			tspi->tx_status || tspi->rx_status, t->len, &flags);
@@ -1108,9 +1109,9 @@ static irqreturn_t spi_tegra_isr_thread(int irq, void *context_data)
 				&tspi->tx_dma_complete, SLINK_DMA_TIMEOUT);
 			if (wait_status <= 0) {
 				tegra_dma_dequeue_req(tspi->tx_dma,
-								&tspi->tx_dma_req);
-				dev_err(&tspi->pdev->dev, "Error in Dma Tx "
-							"transfer\n");
+							&tspi->tx_dma_req);
+				dev_err(&tspi->pdev->dev,
+					"Error in Dma Tx transfer\n");
 				err += 1;
 			}
 		}
@@ -1126,8 +1127,8 @@ static irqreturn_t spi_tegra_isr_thread(int irq, void *context_data)
 			if (wait_status <= 0) {
 				tegra_dma_dequeue_req(tspi->rx_dma,
 							&tspi->rx_dma_req);
-				dev_err(&tspi->pdev->dev, "Error in Dma Rx "
-							"transfer\n");
+				dev_err(&tspi->pdev->dev,
+					"Error in Dma Rx transfer\n");
 				err += 2;
 			}
 		}
@@ -1521,8 +1522,8 @@ static int spi_tegra_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	if (tspi->is_transfer_in_progress) {
-		dev_err(&pdev->dev, "Spi transfer is in progress "
-			"Avoiding suspend\n");
+		dev_err(&pdev->dev,
+			"Spi transfer is in progress Avoiding suspend\n");
 		tspi->is_suspended = false;
 		spin_unlock_irqrestore(&tspi->lock, flags);
 		return -EBUSY;
