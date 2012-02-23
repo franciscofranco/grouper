@@ -890,3 +890,10 @@ config ARCH_HAS_BARRIERS
 	help
 	  This option allows the use of custom mandatory barriers
 	  included via the mach/barriers.h file.
+
+config ARM_SAVE_DEBUG_CONTEXT
+	bool "Save CPU debug state across suspend/resume"
+	depends on PM_SLEEP && CPU_V7
+	help
+	  This option enables save/restore of the ARM debug registers
+	  across CPU powerdown.
