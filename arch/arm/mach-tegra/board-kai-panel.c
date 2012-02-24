@@ -602,9 +602,6 @@ static struct platform_device *kai_gfx_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_NVMAP)
 	&kai_nvmap_device,
 #endif
-#ifdef CONFIG_TEGRA_GRHOST
-	&tegra_grhost_device,
-#endif
 	&tegra_pwfm0_device,
 	&kai_backlight_device,
 };

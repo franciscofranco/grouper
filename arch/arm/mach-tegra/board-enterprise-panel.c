@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-enterprise-panel.c
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -693,9 +693,6 @@ static struct platform_device enterprise_nvmap_device = {
 static struct platform_device *enterprise_gfx_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_NVMAP)
 	&enterprise_nvmap_device,
-#endif
-#ifdef CONFIG_TEGRA_GRHOST
-	&tegra_grhost_device,
 #endif
 	&tegra_pwfm0_device,
 };

@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-cardhu-panel.c
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1097,9 +1097,6 @@ static struct platform_device *cardhu_gfx_devices[] __initdata = {
 #if defined(CONFIG_ION_TEGRA)
 	&tegra_ion_device,
 #endif
-#ifdef CONFIG_TEGRA_GRHOST
-	&tegra_grhost_device,
-#endif
 	&tegra_pwfm0_device,
 	&cardhu_backlight_device,
 };
@@ -1113,8 +1110,6 @@ struct early_suspend cardhu_panel_early_suspender;
 
 static void cardhu_panel_early_suspend(struct early_suspend *h)
 {
-	unsigned i;
-
 	/* power down LCD, add use a black screen for HDMI */
 	if (num_registered_fb > 0)
 		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);

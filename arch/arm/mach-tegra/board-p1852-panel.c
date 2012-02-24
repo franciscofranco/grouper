@@ -104,7 +104,6 @@ static struct nvmap_platform_data p1852_nvmap_data = {
 
 static struct platform_device *p1852_gfx_devices[] __initdata = {
 	&tegra_nvmap_device,
-	&tegra_grhost_device
 };
 
 int __init p1852_panel_init(void)
