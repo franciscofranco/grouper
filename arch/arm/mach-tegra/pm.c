@@ -43,6 +43,7 @@
 #include <linux/memblock.h>
 #include <linux/console.h>
 #include <linux/pm_qos_params.h>
+#include <linux/tegra_audio.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu_pm.h>
@@ -837,11 +838,23 @@ static void tegra_suspend_check_pwr_stats(void)
 int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 {
 	int err = 0;
+	u32 scratch37 = 0xDEADBEEF;
 
 	if (WARN_ON(mode <= TEGRA_SUSPEND_NONE ||
 		mode >= TEGRA_MAX_SUSPEND_MODE)) {
 		err = -ENXIO;
 		goto fail;
+	}
+
+	if (tegra_is_voice_call_active()) {
+		u32 reg;
+
+		/* backup the current value of scratch37 */
+		scratch37 = readl(pmc + PMC_SCRATCH37);
+
+		/* If voice call is active, set a flag in PMC_SCRATCH37 */
+		reg = TEGRA_POWER_LP1_AUDIO;
+		pmc_32kwritel(reg, PMC_SCRATCH37);
 	}
 
 	if ((mode == TEGRA_SUSPEND_LP0) && !tegra_pm_irq_lp0_allowed()) {
@@ -898,6 +911,10 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 		tegra_lp0_resume_mc();
 	} else if (mode == TEGRA_SUSPEND_LP1)
 		*iram_cpu_lp1_mask = 0;
+
+	/* if scratch37 was clobbered during LP1, restore it */
+	if (scratch37 != 0xDEADBEEF)
+		pmc_32kwritel(scratch37, PMC_SCRATCH37);
 
 	restore_cpu_complex(flags);
 
