@@ -192,7 +192,7 @@ struct spi_board_info rm31080a_spi_board[1] = {
 	 .modalias = "rm_ts_spidev",
 	 .bus_num = 0,
 	 .chip_select = 0,
-	 .max_speed_hz = 18 * 1000 * 1000,
+	 .max_speed_hz = 13 * 1000 * 1000,
 	 .mode = SPI_MODE_0,
 	 .platform_data = &rm31080ts_data,
 	 },
