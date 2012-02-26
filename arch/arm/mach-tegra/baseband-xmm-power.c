@@ -561,7 +561,7 @@ static void baseband_xmm_power_L2_resume(void)
 {
 	struct baseband_power_platform_data *data = baseband_power_driver_data;
 	int value;
-	int delay = 10000; /* maxmum delay in msec */
+	int delay = 1000; /* maxmum delay in msec */
 
 	pr_debug("%s\n", __func__);
 
@@ -942,7 +942,7 @@ static int baseband_xmm_power_driver_handle_resume(
 			struct baseband_power_platform_data *data)
 {
 	int value;
-	int delay = 10000; /* maxmum delay in msec */
+	int delay = 1000; /* maxmum delay in msec */
 	unsigned long flags;
 
 	pr_debug("%s\n", __func__);
@@ -1013,9 +1013,9 @@ static int baseband_xmm_power_suspend_noirq(struct device *dev)
 	pr_debug("%s\n", __func__);
 	spin_lock_irqsave(&xmm_lock, flags);
 	if (wakeup_pending) {
-		pr_info("%s:**Abort Suspend: reason CP WAKEUP**\n", __func__);
 		wakeup_pending = false;
 		spin_unlock_irqrestore(&xmm_lock, flags);
+		pr_info("%s:**Abort Suspend: reason CP WAKEUP**\n", __func__);
 		return -EBUSY;
 	}
 	spin_unlock_irqrestore(&xmm_lock, flags);
