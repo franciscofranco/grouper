@@ -139,7 +139,7 @@ static struct tegra_dma_channel dma_channels[NV_DMA_MAX_CHANNELS];
 
 static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
-static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
+static bool tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
 
 void tegra_dma_flush(struct tegra_dma_channel *ch)
@@ -184,6 +184,23 @@ int tegra_dma_cancel(struct tegra_dma_channel *ch)
 }
 EXPORT_SYMBOL(tegra_dma_cancel);
 
+static void pause_dma(bool wait_for_burst_complete)
+{
+	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
+
+	spin_lock(&enable_lock);
+	writel(0, addr + APB_DMA_GEN);
+	if (wait_for_burst_complete)
+		udelay(20);
+}
+
+static void resume_dma(void)
+{
+	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
+	writel(GEN_ENABLE, addr + APB_DMA_GEN);
+	spin_unlock(&enable_lock);
+}
+
 static inline unsigned int get_req_xfer_word_count(
 	struct tegra_dma_channel *ch, struct tegra_dma_req *req)
 {
@@ -196,7 +213,6 @@ static inline unsigned int get_req_xfer_word_count(
 static unsigned int get_channel_status(struct tegra_dma_channel *ch,
 			struct tegra_dma_req *req, bool is_stop_dma)
 {
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 	unsigned int status;
 
 	if (is_stop_dma) {
@@ -208,13 +224,10 @@ static unsigned int get_channel_status(struct tegra_dma_channel *ch,
 		 *  - Stop the dma channel
 		 *  - Globally re-enable DMA to resume other transfers
 		 */
-		spin_lock(&enable_lock);
-		writel(0, addr + APB_DMA_GEN);
-		udelay(20);
+		pause_dma(true);
 		status = readl(ch->addr + APB_DMA_CHAN_STA);
 		tegra_dma_stop(ch);
-		writel(GEN_ENABLE, addr + APB_DMA_GEN);
-		spin_unlock(&enable_lock);
+		resume_dma();
 		if (status & STA_ISE_EOC) {
 			pr_err("Got Dma Int here clearing");
 			writel(status, ch->addr + APB_DMA_CHAN_STA);
@@ -403,40 +416,35 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 
 	list_add_tail(&req->node, &ch->list);
 
-	if (start_dma)
+	if (start_dma) {
 		tegra_dma_update_hw(ch, req);
-	/*
-	 * Check to see if this request needs to be pushed immediately.
-	 * For continuous single-buffer DMA:
-	 * The first buffer is always in-flight.  The 2nd buffer should
-	 * also be in-flight.  The 3rd buffer becomes in-flight when the
-	 * first is completed in the interrupt.
-	 */
-	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE) {
+	} else {
 		struct tegra_dma_req *first_req, *second_req;
 		first_req = list_entry(ch->list.next,
 					typeof(*first_req), node);
 		second_req = list_entry(first_req->node.next,
 					typeof(*second_req), node);
-		if (second_req == req) {
-			unsigned long status =
-				readl(ch->addr + APB_DMA_CHAN_STA);
-			if (!(status & STA_ISE_EOC))
-				tegra_dma_update_hw_partial(ch, req);
-			/* Handle the case where the IRQ fired while we're
-			 * writing the interrupts.
-			 */
-			if (status & STA_ISE_EOC) {
-				/* Interrupt fired, let the IRQ stop/restart
-				 * the DMA with this buffer in a clean way.
-				 */
-				req->status = TEGRA_DMA_REQ_SUCCESS;
-			}
-		}
+
+		/*
+		 * Check to see if this request needs to be configured
+		 * immediately
+		 */
+		if (second_req != req)
+			goto end;
+
+		if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
+			goto end;
+
+		if ((ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE) &&
+		    (req->buffer_status != TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL))
+			goto end;
+
+		/* Need to configure the new request now */
+		tegra_dma_update_hw_partial(ch, req);
 	}
 
+end:
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
-
 	return 0;
 }
 EXPORT_SYMBOL(tegra_dma_enqueue_req);
@@ -501,13 +509,15 @@ void tegra_dma_free_channel(struct tegra_dma_channel *ch)
 }
 EXPORT_SYMBOL(tegra_dma_free_channel);
 
-static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
+static bool tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req)
 {
 	u32 apb_ptr;
 	u32 ahb_ptr;
 	u32 csr;
+	unsigned long status;
 	unsigned int req_transfer_count;
+	bool configure = false;
 
 	if (req->to_memory) {
 		apb_ptr = req->source_addr;
@@ -516,18 +526,44 @@ static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 		apb_ptr = req->dest_addr;
 		ahb_ptr = req->source_addr;
 	}
+
+	/*
+	 * The dma controller reloads the new configuration for next transfer
+	 * after last burst of current transfer completes.
+	 * If there is no IEC status then this make sure that last burst
+	 * has not be completed.
+	 * If there is already IEC status then interrupt handle need to
+	 * load new configuration after aborting current dma.
+	 */
+	pause_dma(false);
+	status  = readl(ch->addr + APB_DMA_CHAN_STA);
+
+	/*
+	 * If interrupt is pending then do nothing as the ISR will handle
+	 * the programing for new request.
+	 */
+	if (status & STA_ISE_EOC) {
+		pr_warn("%s(): "
+			"Skipping new configuration as interrupt is pending\n",
+				__func__);
+		goto exit_config;
+	}
+
+	/* Safe to program new configuration */
 	writel(apb_ptr, ch->addr + APB_DMA_CHAN_APB_PTR);
 	writel(ahb_ptr, ch->addr + APB_DMA_CHAN_AHB_PTR);
 
 	req_transfer_count = get_req_xfer_word_count(ch, req);
-
 	csr = readl(ch->addr + APB_DMA_CHAN_CSR);
 	csr &= ~CSR_WCOUNT_MASK;
 	csr |= (req_transfer_count - 1) << CSR_WCOUNT_SHIFT;
 	writel(csr, ch->addr + APB_DMA_CHAN_CSR);
-
 	req->status = TEGRA_DMA_REQ_INFLIGHT;
-	return;
+	configure = true;
+
+exit_config:
+	resume_dma();
+	return configure;
 }
 
 static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
