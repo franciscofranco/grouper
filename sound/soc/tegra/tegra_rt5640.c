@@ -400,7 +400,7 @@ static int tegra_rt5640_event_ext_mic(struct snd_soc_dapm_widget *w,
 		return 0;
 
 	gpio_set_value_cansleep(pdata->gpio_ext_mic_en,
-				SND_SOC_DAPM_EVENT_ON(event));
+				!SND_SOC_DAPM_EVENT_ON(event));
 
 	return 0;
 }
