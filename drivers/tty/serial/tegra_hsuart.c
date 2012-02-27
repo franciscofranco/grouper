@@ -263,6 +263,8 @@ static void tegra_start_tx(struct uart_port *u)
 static int tegra_start_dma_rx(struct tegra_uart_port *t)
 {
 	wmb();
+	dma_sync_single_for_device(t->uport.dev, t->rx_dma_req.dest_addr,
+			t->rx_dma_req.size, DMA_TO_DEVICE);
 	if (tegra_dma_enqueue_req(t->rx_dma, &t->rx_dma_req)) {
 		dev_err(t->uport.dev, "Could not enqueue Rx DMA req\n");
 		return -EINVAL;
@@ -308,6 +310,8 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req)
 		req->status);
 	if (req->bytes_transferred) {
 		t->uport.icount.rx += req->bytes_transferred;
+		dma_sync_single_for_cpu(t->uport.dev, req->dest_addr,
+				req->size, DMA_FROM_DEVICE);
 		copied = tty_insert_flip_string(tty,
 			((unsigned char *)(req->virt_addr)),
 			req->bytes_transferred);
@@ -317,6 +321,8 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req)
 				"to tty layer Req %d and coped %d\n",
 				req->bytes_transferred, copied);
 		}
+		dma_sync_single_for_device(t->uport.dev, req->dest_addr,
+				req->size, DMA_TO_DEVICE);
 	}
 
 	do_handle_rx_pio(t);
