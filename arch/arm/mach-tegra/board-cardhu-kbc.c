@@ -147,21 +147,21 @@ static struct platform_device cardhu_keys_e1198_device = {
 };
 
 static struct gpio_keys_button cardhu_keys_e1291[] = {
-	[0] = GPIO_KEY(KEY_MENU, PR0, 0),
-	[1] = GPIO_KEY(KEY_BACK, PR1, 0),
+	[0] = GPIO_KEY(KEY_VOLUMEDOWN, PR0, 0),
+	[1] = GPIO_KEY(KEY_VOLUMEUP, PR1, 0),
 	[2] = GPIO_KEY(KEY_HOME, PR2, 0),
 	[3] = GPIO_KEY(KEY_SEARCH, PQ3, 0),
-	[4] = GPIO_KEY(KEY_VOLUMEUP, PQ0, 0),
-	[5] = GPIO_KEY(KEY_VOLUMEDOWN, PQ1, 0),
+	[4] = GPIO_KEY(KEY_BACK, PQ0, 0),
+	[5] = GPIO_KEY(KEY_MENU, PQ1, 0),
 };
 
 static struct gpio_keys_button cardhu_keys_e1291_a04[] = {
-	[0] = GPIO_KEY(KEY_MENU, PR0, 0),
-	[1] = GPIO_KEY(KEY_BACK, PR1, 0),
+	[0] = GPIO_KEY(KEY_VOLUMEDOWN, PR0, 0),
+	[1] = GPIO_KEY(KEY_VOLUMEUP, PR1, 0),
 	[2] = GPIO_KEY(KEY_HOME, PQ2, 0),
 	[3] = GPIO_KEY(KEY_SEARCH, PQ3, 0),
-	[4] = GPIO_KEY(KEY_VOLUMEUP, PQ0, 0),
-	[5] = GPIO_KEY(KEY_VOLUMEDOWN, PQ1, 0),
+	[4] = GPIO_KEY(KEY_BACK, PQ0, 0),
+	[5] = GPIO_KEY(KEY_MENU, PQ1, 0),
 };
 
 static struct gpio_keys_platform_data cardhu_keys_e1291_platform_data = {
