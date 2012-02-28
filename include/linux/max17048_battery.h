@@ -10,6 +10,22 @@
 
 #ifndef __MAX17048_BATTERY_H_
 #define __MAX17048_BATTERY_H_
+#include <linux/smb349-charger.h>
+
+struct max17048_battery_model {
+	uint8_t rcomp;
+	uint8_t soccheck_A;
+	uint8_t soccheck_B;
+	uint8_t bits;
+	uint8_t alert_threshold;
+	uint8_t one_percent_alerts;
+	uint8_t alert_on_reset;
+	uint16_t rcomp_seg;
+	uint16_t hibernate;
+	uint16_t vreset;
+	uint16_t valert;
+	uint16_t ocvtest;
+};
 
 struct max17048_platform_data {
 	int (*battery_online)(void);

@@ -248,16 +248,25 @@ static struct tegra_i2c_platform_data kai_i2c5_platform_data = {
 	.arb_recovery = arb_lost_recovery,
 };
 
-struct max17048_platform_data max17048_pdata = {
-	.charger_online = smb349_charger_type,
-	.battery_online = smb349_battery_online,
-	.charging_status = smb349_charging_status,
+struct max17048_battery_model max17048_mdata = {
+	.rcomp          = 170,
+	.soccheck_A     = 252,
+	.soccheck_B     = 254,
+	.bits           = 19,
+	.alert_threshold = 0x00,
+	.one_percent_alerts = 0x40,
+	.alert_on_reset = 0x40,
+	.rcomp_seg      = 0x0800,
+	.hibernate      = 0x3080,
+	.vreset         = 0x9696,
+	.valert         = 0xD4AA,
+	.ocvtest        = 55600,
 };
 
 static struct i2c_board_info kai_i2c4_max17048_board_info[] = {
 	{
 		I2C_BOARD_INFO("max17048", 0x36),
-		.platform_data = &max17048_pdata,
+		.platform_data = &max17048_mdata,
 	},
 };
 
