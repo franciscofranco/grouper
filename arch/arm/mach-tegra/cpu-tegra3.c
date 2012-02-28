@@ -317,6 +317,14 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 
 	if (suspend && (hp_state != TEGRA_HP_DISABLED)) {
 		hp_state = TEGRA_HP_IDLE;
+
+		/* Switch to G-mode if suspend rate is high enough */
+		if (is_lp_cluster() && (cpu_freq >= idle_bottom_freq)) {
+			if (!clk_set_parent(cpu_clk, cpu_g_clk)) {
+				hp_stats_update(CONFIG_NR_CPUS, false);
+				hp_stats_update(0, true);
+			}
+		}
 		return;
 	}
 
