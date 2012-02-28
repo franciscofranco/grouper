@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/cpu-tegra.h
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,6 +74,13 @@ static inline bool tegra_cpu_edp_favor_up(unsigned int n, int mp_overhead)
 { return true; }
 static inline bool tegra_cpu_edp_favor_down(unsigned int n, int mp_overhead)
 { return false; }
+#endif
+
+#ifdef CONFIG_CPU_FREQ
+int tegra_suspended_target(unsigned int target_freq);
+#else
+static inline int tegra_suspended_target(unsigned int target_freq)
+{ return -ENOSYS; }
 #endif
 
 #endif /* __MACH_TEGRA_CPU_TEGRA_H */
