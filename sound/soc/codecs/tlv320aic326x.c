@@ -827,6 +827,8 @@ static const struct aic3262_rate_divs aic3262_divs[] = {
 		{{0, 60, 1}, {0, 61, 1} } },
 	{24000000, 48000, 1, 4, 960, 128, 4, 4, 128, 4, 4, 4,
 		{{0, 60, 1}, {0, 61, 1} } },
+	{26000000, 48000, 2, 7, 5618, 128, 8, 2, 128, 8, 2, 4,
+		{{0, 60, 1}, {0, 61, 1} } },
 #endif
 
 	/*96k rate */
@@ -1478,6 +1480,7 @@ static int aic3262_multi_i2s_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	case AIC3262_FREQ_12000000:
 	case AIC3262_FREQ_12288000:
 	case AIC3262_FREQ_24000000:
+	case AIC3262_FREQ_26000000:
 		aic3262->sysclk = freq;
 		return 0;
 		break;

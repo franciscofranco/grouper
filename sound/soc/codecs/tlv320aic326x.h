@@ -64,6 +64,7 @@ page, so fix that before commenting this line*/
 #define AIC3262_FREQ_12000000 12000000
 #define AIC3262_FREQ_12288000 12288000
 #define AIC3262_FREQ_24000000 24000000
+#define AIC3262_FREQ_26000000 26000000
 
 /* Macro for enabling the Multi_I2S Support in Driver */
 #define AIC3262_MULTI_I2S	1
