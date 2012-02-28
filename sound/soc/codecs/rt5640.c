@@ -419,6 +419,41 @@ static int rt5640_readable_register(
 	}
 }
 
+int rt5640_headset_detect(struct snd_soc_codec *codec, int jack_insert)
+{
+	int jack_type;
+
+	if (jack_insert) {
+		snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
+			RT5640_PWR_LDO2, RT5640_PWR_LDO2);
+		snd_soc_update_bits(codec, RT5640_PWR_ANLG2,
+			RT5640_PWR_MB1, RT5640_PWR_MB1);
+		snd_soc_update_bits(codec, RT5640_MICBIAS,
+			RT5640_MIC1_OVCD_MASK | RT5640_MIC1_OVTH_MASK |
+			RT5640_PWR_CLK25M_MASK | RT5640_PWR_MB_MASK,
+			RT5640_MIC1_OVCD_EN | RT5640_MIC1_OVTH_600UA |
+			RT5640_PWR_MB_PU | RT5640_PWR_CLK25M_PU);
+		snd_soc_update_bits(codec, RT5640_DUMMY1,
+			0x1, 0x1);
+		msleep(50);
+		if (snd_soc_read(codec, RT5640_IRQ_CTRL2) & 0x8)
+			jack_type = RT5640_HEADPHO_DET;
+		else
+			jack_type = RT5640_HEADSET_DET;
+		snd_soc_update_bits(codec, RT5640_IRQ_CTRL2,
+			RT5640_MB1_OC_CLR, 0);
+	} else {
+		snd_soc_update_bits(codec, RT5640_MICBIAS,
+			RT5640_MIC1_OVCD_MASK,
+			RT5640_MIC1_OVCD_DIS);
+
+		jack_type = RT5640_NO_JACK;
+	}
+
+	return jack_type;
+}
+EXPORT_SYMBOL(rt5640_headset_detect);
+
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);

@@ -2025,6 +2025,12 @@ enum {
 /* Debug String Length */
 #define RT5639_REG_DISP_LEN 10
 
+#define RT5639_NO_JACK		BIT(0)
+#define RT5639_HEADSET_DET	BIT(1)
+#define RT5639_HEADPHO_DET	BIT(2)
+
+int rt5639_headset_detect(struct snd_soc_codec *codec, int jack_insert);
+
 /* System Clock Source */
 enum {
 	RT5639_SCLK_S_MCLK,

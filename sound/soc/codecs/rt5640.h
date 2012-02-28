@@ -2019,7 +2019,11 @@ enum {
 #define RT5640_EQ_PST_VOL_MASK		(0xffff)
 #define RT5640_EQ_PST_VOL_SFT			0
 
+#define RT5640_NO_JACK		BIT(0)
+#define RT5640_HEADSET_DET	BIT(1)
+#define RT5640_HEADPHO_DET	BIT(2)
 
+int rt5640_headset_detect(struct snd_soc_codec *codec, int jack_insert);
 
 /* System Clock Source */
 #define RT5640_SCLK_S_MCLK 0
