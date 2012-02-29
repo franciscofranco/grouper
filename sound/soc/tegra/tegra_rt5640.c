@@ -45,6 +45,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include "../codecs/rt5639.h"
 #include "../codecs/rt5640.h"
 
 #include "tegra_pcm.h"
@@ -277,13 +278,39 @@ static int tegra_rt5640_jack_notifier(struct notifier_block *self,
 	struct snd_soc_card *card = codec->card;
 	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
 	enum headset_state state = BIT_NO_HEADSET;
+	unsigned char status_jack;
 
 	if (jack == &tegra_rt5640_hp_jack) {
-		machine->jack_status &= ~SND_JACK_HEADPHONE;
-		machine->jack_status |= (action & SND_JACK_HEADPHONE);
-	} else {
-		machine->jack_status &= ~SND_JACK_MICROPHONE;
-		machine->jack_status |= (action & SND_JACK_MICROPHONE);
+		if (action) {
+			if (!strncmp(machine->pdata->codec_name, "rt5639", 6))
+				status_jack = rt5639_headset_detect(codec, 1);
+			else if (!strncmp(machine->pdata->codec_name, "rt5640",
+									    6))
+				status_jack = rt5640_headset_detect(codec, 1);
+
+			machine->jack_status &= ~SND_JACK_HEADPHONE;
+			machine->jack_status &= ~SND_JACK_MICROPHONE;
+			if (status_jack == RT5639_HEADPHO_DET ||
+			    status_jack == RT5640_HEADPHO_DET)
+					machine->jack_status |=
+							SND_JACK_HEADPHONE;
+			else if (status_jack == RT5639_HEADSET_DET ||
+				 status_jack == RT5640_HEADSET_DET) {
+					machine->jack_status |=
+							SND_JACK_HEADPHONE;
+					machine->jack_status |=
+							SND_JACK_MICROPHONE;
+			}
+		} else {
+			if (!strncmp(machine->pdata->codec_name, "rt5639", 6))
+				rt5639_headset_detect(codec, 0);
+			else if (!strncmp(machine->pdata->codec_name, "rt5640",
+									    6))
+				rt5640_headset_detect(codec, 0);
+
+			machine->jack_status &= ~SND_JACK_HEADPHONE;
+			machine->jack_status &= ~SND_JACK_MICROPHONE;
+		}
 	}
 
 	switch (machine->jack_status) {
@@ -315,12 +342,6 @@ static struct snd_soc_jack_pin tegra_rt5640_hp_jack_pins[] = {
 	},
 };
 
-static struct snd_soc_jack_pin tegra_rt5640_mic_jack_pins[] = {
-	{
-		.pin = "Mic Jack",
-		.mask = SND_JACK_MICROPHONE,
-	},
-};
 #endif
 
 static int tegra_rt5640_event_int_spk(struct snd_soc_dapm_widget *w,
