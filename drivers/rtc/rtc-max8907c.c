@@ -61,8 +61,10 @@ static int tm_calc(struct rtc_time *tm, u8 *buf, int len)
 			+ (buf[RTC_YEAR1] >> 4) * 10
 			+ (buf[RTC_YEAR1] & 0xf);
 	tm->tm_year -= 1900;
+	/* RTC month index issue in max8907c
+	    : January index is 1 but kernel assumes it as 0 */
 	tm->tm_mon = ((buf[RTC_MONTH] >> 4) & 0x01) * 10
-			+ (buf[RTC_MONTH] & 0x0f);
+			+ (buf[RTC_MONTH] & 0x0f) - 1;
 	tm->tm_mday = ((buf[RTC_DATE] >> 4) & 0x03) * 10
 			+ (buf[RTC_DATE] & 0x0f);
 	tm->tm_wday = buf[RTC_WEEKDAY] & 0x07;
@@ -98,10 +100,13 @@ static int data_calc(u8 *buf, struct rtc_time *tm, int len)
 	low = low - high * 10;
 	high = high - (high / 10) * 10;
 	buf[RTC_YEAR1] = (high << 4) + low;
-	high = tm->tm_mon / 10;
-	low = tm->tm_mon;
-	low = low - high * 10;
+
+	/* RTC month index issue in max8907c
+	    : January index is 1 but kernel assumes it as 0 */
+	high = (tm->tm_mon + 1) / 10;
+	low = (tm->tm_mon + 1) % 10;
 	buf[RTC_MONTH] = (high << 4) + low;
+
 	high = tm->tm_mday / 10;
 	low = tm->tm_mday;
 	low = low - high * 10;
