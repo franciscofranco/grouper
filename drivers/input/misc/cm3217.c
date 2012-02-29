@@ -55,6 +55,7 @@ struct cm3217_info {
 	struct workqueue_struct *lp_wq;
 
 	int als_enable;
+	int als_enabled_before_suspend;
 	uint16_t *adc_table;
 	uint16_t cali_table[10];
 	int irq;
@@ -871,6 +872,7 @@ static void cm3217_early_suspend(struct early_suspend *h)
 
 	D("[LS][CM3217] %s\n", __func__);
 
+	lpi->als_enabled_before_suspend = lpi->als_enable;
 	if (lpi->als_enable)
 		lightsensor_disable(lpi);
 }
@@ -881,7 +883,7 @@ static void cm3217_late_resume(struct early_suspend *h)
 
 	D("[LS][CM3217] %s\n", __func__);
 
-	if (!lpi->als_enable)
+	if (lpi->als_enabled_before_suspend)
 		lightsensor_enable(lpi);
 }
 
@@ -1021,6 +1023,7 @@ static int cm3217_probe(struct i2c_client *client,
 	register_early_suspend(&lpi->early_suspend);
 
 	lpi->als_enable = 0;
+	lpi->als_enabled_before_suspend = 0;
 	D("[CM3217] %s: Probe success!\n", __func__);
 
 	return ret;
