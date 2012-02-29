@@ -24,25 +24,55 @@
 #define TEGRA_DTV_IOCTL_STOP            _IO(TEGRA_DTV_MAGIC, 1)
 
 struct tegra_dtv_hw_config {
-	int clk_edge;
-	int byte_swz_enabled;
-	int bit_swz_enabled;
+	int clk_edge; /*< clock edge to be used to sample DTV input signals */
+	int byte_swz_enabled; /*< byte order during deserialization */
+	int bit_swz_enabled;  /*< bit order during deserialization */
 
-	int protocol_sel;
-	int clk_mode;
-	int fec_size;
-	int body_size;
-	int body_valid_sel;
-	int start_sel;
-	int err_pol;
-	int psync_pol;
-	int valid_pol;
+	int protocol_sel;   /*< VD pin configuration. */
+	int clk_mode;       /*< input clock characteristics */
+	int fec_size;       /*< FEC size */
+	int body_size;      /*< BODY size */
+	int body_valid_sel; /*< VALID signal gate */
+	int start_sel;      /*< START of the package */
+	int err_pol;        /*< ERROR pin polarity */
+	int psync_pol;      /*< PSYNC pin polarity */
+	int valid_pol;      /*< VALID pin polarity */
 };
 
 #define TEGRA_DTV_IOCTL_SET_HW_CONFIG  _IOW(TEGRA_DTV_MAGIC, 2,		\
 					   const struct tegra_dtv_hw_config *)
 #define TEGRA_DTV_IOCTL_GET_HW_CONFIG  _IOR(TEGRA_DTV_MAGIC, 3,		\
 					   struct tegra_dtv_hw_config *)
+
+/**
+ * clock edge settings for clk_edge
+ *
+ * RISE_EDGE: sample input signal at rising edge
+ * FALL_EDGE: sample input signal at falling edge
+ */
+enum {
+	TEGRA_DTV_CLK_RISE_EDGE = 0,
+	TEGRA_DTV_CLK_FALL_EDGE,
+};
+
+/**
+ * swizzle settings for byte_swz and bit_swz
+ *
+ * ENABLE: enable swizzle during deserialization
+ * DISABLE: disable swizzle during deserialization
+ *
+ * If swizzling is enabled then deserialized data will be re-ordered to
+ * fit the required format for tegra.
+ *
+ * For example, if raw BGR data is inputed into DTV interface, the data
+ * could be swizzled into RGB.
+ *
+ * For TS/MPEG-2 stream, please disable this feature.
+ */
+enum {
+	TEGRA_DTV_SWZ_DISABLE = 0,
+	TEGRA_DTV_SWZ_ENABLE,
+};
 
 /* for selecting the pin configuration for VD(valid).
  * NONE : ERROR is tied to 0, PSYNC is tied to 0
