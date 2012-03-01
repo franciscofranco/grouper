@@ -115,6 +115,7 @@ struct tps6591x {
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
 	int			irq_base;
+	int			irq_main;
 	u32			irq_en;
 	u8			mask_cache[3];
 	u8			mask_reg[3];
@@ -509,6 +510,17 @@ static int tps6591x_irq_set_type(struct irq_data *irq_data, unsigned int type)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tps6591x_irq_set_wake(struct irq_data *irq_data, unsigned int on)
+{
+	struct tps6591x *tps6591x = irq_data_get_irq_chip_data(irq_data);
+	return irq_set_irq_wake(tps6591x->irq_main, on);
+}
+#else
+#define tps6591x_irq_set_wake NULL
+#endif
+
+
 static irqreturn_t tps6591x_irq(int irq, void *data)
 {
 	struct tps6591x *tps6591x = data;
@@ -580,6 +592,7 @@ static int __devinit tps6591x_irq_init(struct tps6591x *tps6591x, int irq,
 		tps6591x_write(tps6591x->dev, TPS6591X_INT_STS + 2*i, 0xff);
 
 	tps6591x->irq_base = irq_base;
+	tps6591x->irq_main = irq;
 
 	tps6591x->irq_chip.name = "tps6591x";
 	tps6591x->irq_chip.irq_mask = tps6591x_irq_mask;
@@ -587,6 +600,7 @@ static int __devinit tps6591x_irq_init(struct tps6591x *tps6591x, int irq,
 	tps6591x->irq_chip.irq_bus_lock = tps6591x_irq_lock;
 	tps6591x->irq_chip.irq_bus_sync_unlock = tps6591x_irq_sync_unlock;
 	tps6591x->irq_chip.irq_set_type = tps6591x_irq_set_type;
+	tps6591x->irq_chip.irq_set_wake = tps6591x_irq_set_wake;
 
 	for (i = 0; i < ARRAY_SIZE(tps6591x_irqs); i++) {
 		int __irq = i + tps6591x->irq_base;
