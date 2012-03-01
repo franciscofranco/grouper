@@ -55,6 +55,9 @@
 #define TEGRA_GPIO_MODEM_RSVD1		TEGRA_GPIO_PV0
 #define TEGRA_GPIO_MODEM_RSVD2		TEGRA_GPIO_PH7
 
+/* Stat LED GPIO */
+#define TEGRA_GPIO_STAT_LED		(MAX77663_GPIO_BASE + MAX77663_GPIO7)
+
 
 /*****************Interrupt tables ******************/
 /* External peripheral act as interrupt controller */

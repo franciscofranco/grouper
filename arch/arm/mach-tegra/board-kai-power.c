@@ -299,7 +299,7 @@ static struct max77663_gpio_config max77663_gpio_cfgs[] = {
 		.gpio = MAX77663_GPIO7,
 		.dir = GPIO_DIR_OUT,
 		.dout = GPIO_DOUT_LOW,
-		.out_drv = GPIO_OUT_DRV_PUSH_PULL,
+		.out_drv = GPIO_OUT_DRV_OPEN_DRAIN,
 		.alternate = GPIO_ALT_DISABLE,
 	},
 };

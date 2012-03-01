@@ -40,6 +40,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/smb349-charger.h>
 #include <linux/max17048_battery.h>
+#include <linux/leds.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -529,6 +530,30 @@ static struct platform_device kai_audio_device = {
 	},
 };
 
+static struct gpio_led kai_led_info[] = {
+	{
+		.name			= "statled",
+		.default_trigger	= "default-on",
+		.gpio			= TEGRA_GPIO_STAT_LED,
+		.active_low		= 1,
+		.retain_state_suspended	= 0,
+		.default_state		= LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data kai_leds_pdata = {
+	.leds		= kai_led_info,
+	.num_leds	= ARRAY_SIZE(kai_led_info),
+};
+
+static struct platform_device kai_leds_gpio_device = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &kai_leds_pdata,
+	},
+};
+
 static struct platform_device *kai_devices[] __initdata = {
 	&tegra_pmu_device,
 	&tegra_rtc_device,
@@ -556,6 +581,7 @@ static struct platform_device *kai_devices[] __initdata = {
 	&bluetooth_dit_device,
 	&tegra_pcm_device,
 	&kai_audio_device,
+	&kai_leds_gpio_device,
 	&tegra_hda_device,
 #if defined(CONFIG_CRYPTO_DEV_TEGRA_AES)
 	&tegra_aes_device,
