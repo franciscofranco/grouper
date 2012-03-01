@@ -56,7 +56,7 @@ ENDPROC(v7_flush_icache_all)
 	cmp	r1, #2				@ see what cache we have at this level
 	blt	1004f				@ skip if no cache, or just i-cache
 #ifdef CONFIG_PREEMPT
-	save_and_disable_irqs r9		@ make cssr&csidr read atomic
+	save_and_disable_irqs_notrace r9	@ make cssr&csidr read atomic
 #endif
 	mcr	p15, 2, r10, c0, c0, 0		@ select current cache level in cssr
 	isb					@ isb to sych the new cssr&csidr
