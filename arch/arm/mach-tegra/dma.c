@@ -127,6 +127,8 @@ struct tegra_dma_channel {
 	void  __iomem		*addr;
 	int			mode;
 	int			irq;
+	dma_callback		callback;
+	struct tegra_dma_req	*cb_req;
 };
 
 #define  NV_DMA_MAX_CHANNELS  32
@@ -717,13 +719,12 @@ static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 	req->status = TEGRA_DMA_REQ_INFLIGHT;
 }
 
-static bool handle_oneshot_dma(struct tegra_dma_channel *ch,
-		unsigned long *irq_flags)
+static void handle_oneshot_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
 
 	if (list_empty(&ch->list))
-		return true;
+		return;
 
 	req = list_entry(ch->list.next, typeof(*req), node);
 	if (req) {
@@ -731,36 +732,28 @@ static bool handle_oneshot_dma(struct tegra_dma_channel *ch,
 		req->bytes_transferred = req->size;
 		req->status = TEGRA_DMA_REQ_SUCCESS;
 
-		spin_unlock_irqrestore(&ch->lock, *irq_flags);
-		/* Callback should be called without any lock */
-		pr_debug("%s: transferred %d bytes\n", __func__,
-			req->bytes_transferred);
-		req->complete(req);
-		spin_lock_irqsave(&ch->lock, *irq_flags);
+		ch->callback = req->complete;
+		ch->cb_req = req;
 	}
 
 	if (!list_empty(&ch->list)) {
 		req = list_entry(ch->list.next, typeof(*req), node);
-		/* the complete function we just called may have enqueued
-		   another req, in which case dma has already started */
-		if (req->status != TEGRA_DMA_REQ_INFLIGHT)
-			tegra_dma_update_hw(ch, req);
+		tegra_dma_update_hw(ch, req);
 	}
-	return true;
+	return;
 }
 
-static bool handle_continuous_dbl_dma(struct tegra_dma_channel *ch,
-		unsigned long *irq_flags)
+static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
 	struct tegra_dma_req *next_req;
 
 	if (list_empty(&ch->list))
-		return true;
+		return;
 
 	req = list_entry(ch->list.next, typeof(*req), node);
 	if (!req)
-		return true;
+		return;
 
 	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_EMPTY) {
 		bool is_dma_ping_complete;
@@ -786,10 +779,9 @@ static bool handle_continuous_dbl_dma(struct tegra_dma_channel *ch,
 
 			list_del(&req->node);
 
-			/* DMA lock is NOT held when callbak is called */
-			spin_unlock_irqrestore(&ch->lock, *irq_flags);
-			req->complete(req);
-			return false;
+			ch->callback = req->complete;
+			ch->cb_req = req;
+			return;
 		}
 		/* Load the next request into the hardware, if available */
 		if (!list_is_last(&req->node, &ch->list)) {
@@ -799,11 +791,10 @@ static bool handle_continuous_dbl_dma(struct tegra_dma_channel *ch,
 		}
 		req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL;
 		req->bytes_transferred = req->size >> 1;
-		/* DMA lock is NOT held when callback is called */
-		spin_unlock_irqrestore(&ch->lock, *irq_flags);
-		if (likely(req->threshold))
-			req->threshold(req);
-		return false;
+
+		ch->callback = req->threshold;
+		ch->cb_req = req;
+		return;
 	}
 
 	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL) {
@@ -832,19 +823,17 @@ static bool handle_continuous_dbl_dma(struct tegra_dma_channel *ch,
 
 		list_del(&req->node);
 
-		/* DMA lock is NOT held when callbak is called */
-		spin_unlock_irqrestore(&ch->lock, *irq_flags);
-		req->complete(req);
-		return false;
+		ch->callback = req->complete;
+		ch->cb_req = req;
+		return;
 	}
 	tegra_dma_stop(ch);
 	/* Dma should be stop much earlier */
 	BUG();
-	return true;
+	return;
 }
 
-static bool handle_continuous_sngl_dma(struct tegra_dma_channel *ch,
-		unsigned long *irq_flags)
+static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
 	struct tegra_dma_req *next_req;
@@ -853,14 +842,14 @@ static bool handle_continuous_sngl_dma(struct tegra_dma_channel *ch,
 	if (list_empty(&ch->list)) {
 		tegra_dma_stop(ch);
 		pr_err("%s: No requests in the list.\n", __func__);
-		return true;
+		return;
 	}
 	req = list_entry(ch->list.next, typeof(*req), node);
 	if (!req || (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_FULL)) {
 		tegra_dma_stop(ch);
 		pr_err("%s: DMA complete irq without corresponding req\n",
 				__func__);
-		return true;
+		return;
 	}
 
 	/* Handle the case when buffer is completely full */
@@ -888,9 +877,10 @@ static bool handle_continuous_sngl_dma(struct tegra_dma_channel *ch,
 		}
 	}
 	list_del(&req->node);
-	spin_unlock_irqrestore(&ch->lock, *irq_flags);
-	req->complete(req);
-	return false;
+
+	ch->callback = req->complete;
+	ch->cb_req = req;
+	return;
 }
 
 static irqreturn_t dma_isr(int irq, void *data)
@@ -898,27 +888,45 @@ static irqreturn_t dma_isr(int irq, void *data)
 	struct tegra_dma_channel *ch = data;
 	unsigned long irq_flags;
 	unsigned long status;
-	bool unlock = true;
+	dma_callback callback = NULL;
+	struct tegra_dma_req *cb_req = NULL;
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
+
+	/*
+	 * Calbacks should be set and cleared while holding the spinlock,
+	 * never left set
+	 */
+	if (ch->callback || ch->cb_req)
+		pr_err("%s():"
+			"Channel %d callbacks are not initialized properly\n",
+			__func__, ch->id);
+	BUG_ON(ch->callback || ch->cb_req);
 
 	status = readl(ch->addr + APB_DMA_CHAN_STA);
 	if (status & STA_ISE_EOC) {
 		/* Clear dma int status */
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
 		if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
-			unlock = handle_oneshot_dma(ch, &irq_flags);
+			handle_oneshot_dma(ch);
 		else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
-			unlock = handle_continuous_dbl_dma(ch, &irq_flags);
+			handle_continuous_dbl_dma(ch);
 		else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
-			unlock = handle_continuous_sngl_dma(ch, &irq_flags);
+			handle_continuous_sngl_dma(ch);
 		else
 			pr_err("Bad channel mode for DMA ISR to handle\n");
+		callback = ch->callback;
+		cb_req = ch->cb_req;
+		ch->callback = NULL;
+		ch->cb_req = NULL;
 	} else
 		pr_info("Interrupt is already handled %d\n", ch->id);
 
-	if (unlock)
-		spin_unlock_irqrestore(&ch->lock, irq_flags);
+	spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+	/* Call callback function to notify client if it is there */
+	if (callback)
+		callback(cb_req);
 	return IRQ_HANDLED;
 }
 

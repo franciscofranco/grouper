@@ -86,6 +86,8 @@ enum tegra_dma_req_buff_status {
 	TEGRA_DMA_REQ_BUF_STATUS_FULL,
 };
 
+typedef void (*dma_callback)(struct tegra_dma_req *req);
+
 struct tegra_dma_req {
 	struct list_head node;
 	unsigned int modid;
@@ -99,7 +101,7 @@ struct tegra_dma_req {
 	 * no DMA requests queued up, then it will STOP the DMA. It there are
 	 * more requests in the DMA, then it will queue the next request.
 	 */
-	void (*complete)(struct tegra_dma_req *req);
+	dma_callback complete;
 
 	/*  This is a called from the DMA ISR context when the DMA is still in
 	 *  progress and is actively filling same buffer.
@@ -118,7 +120,7 @@ struct tegra_dma_req {
 	 *	callback to program the next buffer.
 	 *
 	 */
-	void (*threshold)(struct tegra_dma_req *req);
+	dma_callback threshold;
 
 	/* 1 to copy to memory.
 	 * 0 to copy from the memory to device FIFO */
