@@ -4983,10 +4983,182 @@ static struct syscore_ops tegra_clk_syscore_ops = {
 	.resume = tegra_clk_resume,
 };
 
+#ifdef CONFIG_TEGRA_PREINIT_CLOCKS
+
+#define CLK_RSTENB_DEV_V_0_DAM2_BIT	(1 << 14)
+#define CLK_RSTENB_DEV_V_0_DAM1_BIT	(1 << 13)
+#define CLK_RSTENB_DEV_V_0_DAM0_BIT	(1 << 12)
+#define CLK_RSTENB_DEV_V_0_AUDIO_BIT	(1 << 10)
+
+#define CLK_RSTENB_DEV_L_0_HOST1X_BIT	(1 << 28)
+#define CLK_RSTENB_DEV_L_0_DISP1_BIT	(1 << 27)
+
+#define DISP1_CLK_REG_OFFSET		0x138
+#define DISP1_CLK_SRC_SHIFT		29
+#define DISP1_CLK_SRC_MASK		(0x7 << DISP1_CLK_SRC_SHIFT)
+#define DISP1_CLK_SRC_PLLP_OUT0 	0
+#define DISP1_CLK_SRC_PLLM_OUT0 	1
+#define DISP1_CLK_SRC_PLLD_OUT0 	2
+#define DISP1_CLK_SRC_PLLA_OUT0 	3
+#define DISP1_CLK_SRC_PLLC_OUT0 	4
+#define DISP1_CLK_SRC_PLLD2_OUT0	5
+#define DISP1_CLK_SRC_CLKM		6
+#define DISP1_CLK_SRC_DEFAULT (DISP1_CLK_SRC_PLLP_OUT0 << DISP1_CLK_SRC_SHIFT)
+
+#define HOST1X_CLK_REG_OFFSET		0x180
+#define HOST1X_CLK_SRC_SHIFT		30
+#define HOST1X_CLK_SRC_MASK		(0x3 << HOST1X_CLK_SRC_SHIFT)
+#define HOST1X_CLK_SRC_PLLM_OUT0	0
+#define HOST1X_CLK_SRC_PLLC_OUT0	1
+#define HOST1X_CLK_SRC_PLLP_OUT0	2
+#define HOST1X_CLK_SRC_PLLA_OUT0	3
+#define HOST1X_CLK_SRC_DEFAULT (\
+		HOST1X_CLK_SRC_PLLP_OUT0 << HOST1X_CLK_SRC_SHIFT)
+#define HOST1X_CLK_IDLE_DIV_SHIFT	8
+#define HOST1X_CLK_IDLE_DIV_MASK	(0xff << HOST1X_CLK_IDLE_DIV_SHIFT)
+#define HOST1X_CLK_IDLE_DIV_DEFAULT	(0 << HOST1X_CLK_IDLE_DIV_SHIFT)
+#define HOST1X_CLK_DIV_SHIFT		0
+#define HOST1X_CLK_DIV_MASK		(0xff << HOST1X_CLK_DIV_SHIFT)
+#define HOST1X_CLK_DIV_DEFAULT		(3 << HOST1X_CLK_DIV_SHIFT)
+
+#define AUDIO_CLK_REG_OFFSET		0x3d0
+#define DAM0_CLK_REG_OFFSET		0x3d8
+#define DAM1_CLK_REG_OFFSET		0x3dc
+#define DAM2_CLK_REG_OFFSET		0x3e0
+#define AUDIO_CLK_SRC_SHIFT		28
+#define AUDIO_CLK_SRC_MASK		(0x0f << AUDIO_CLK_SRC_SHIFT)
+#define AUDIO_CLK_SRC_PLLA_OUT0 	0x01
+#define AUDIO_CLK_SRC_PLLC_OUT0 	0x05
+#define AUDIO_CLK_SRC_PLLP_OUT0 	0x09
+#define AUDIO_CLK_SRC_CLKM		0x0d
+#define AUDIO_CLK_SRC_DEFAULT (\
+		AUDIO_CLK_SRC_CLKM << AUDIO_CLK_SRC_SHIFT)
+#define AUDIO_CLK_DIV_SHIFT		0
+#define AUDIO_CLK_DIV_MASK		(0xff << AUDIO_CLK_DIV_SHIFT)
+#define AUDIO_CLK_DIV_DEFAULT (\
+		(0 << AUDIO_CLK_DIV_SHIFT))
+
+static void __init clk_setbit(u32 reg, u32 bit)
+{
+	u32 val = clk_readl(reg);
+
+	if ((val & bit) == bit)
+		return;
+	val |= bit;
+	clk_writel(val, reg);
+	udelay(2);
+}
+
+static void __init clk_clrbit(u32 reg, u32 bit)
+{
+	u32 val = clk_readl(reg);
+
+	if ((val & bit) == 0)
+		return;
+	val &= ~bit;
+	clk_writel(val, reg);
+	udelay(2);
+}
+
+static void __init clk_setbits(u32 reg, u32 bits, u32 mask)
+{
+	u32 val = clk_readl(reg);
+
+	if ((val & mask) == bits)
+		return;
+	val &= ~mask;
+	val |= bits;
+	clk_writel(val, reg);
+	udelay(2);
+}
+
+static int __init tegra_soc_preinit_clocks(void)
+{
+	/*
+	 * Make sure host1x clock configuration has:
+	 *	HOST1X_CLK_SRC    : PLLP_OUT0.
+	 *	HOST1X_CLK_DIVISOR: >2 to start from safe enough frequency.
+	 */
+	clk_setbit(RST_DEVICES_L, CLK_RSTENB_DEV_L_0_HOST1X_BIT);
+	clk_setbit(CLK_OUT_ENB_L, CLK_RSTENB_DEV_L_0_HOST1X_BIT);
+	clk_setbits(HOST1X_CLK_REG_OFFSET,
+		    HOST1X_CLK_DIV_DEFAULT, HOST1X_CLK_DIV_MASK);
+	clk_setbits(HOST1X_CLK_REG_OFFSET,
+		    HOST1X_CLK_IDLE_DIV_DEFAULT, HOST1X_CLK_IDLE_DIV_MASK);
+	clk_setbits(HOST1X_CLK_REG_OFFSET,
+		    HOST1X_CLK_SRC_DEFAULT, HOST1X_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_L, CLK_RSTENB_DEV_L_0_HOST1X_BIT);
+
+	/*
+	 *  Make sure disp1 clock configuration ha:
+	 *	DISP1_CLK_SRC:	DISP1_CLK_SRC_PLLP_OUT0
+	 */
+	clk_setbit(RST_DEVICES_L, CLK_RSTENB_DEV_L_0_DISP1_BIT);
+	clk_setbit(CLK_OUT_ENB_L, CLK_RSTENB_DEV_L_0_DISP1_BIT);
+	clk_setbits(DISP1_CLK_REG_OFFSET,
+		    DISP1_CLK_SRC_DEFAULT, DISP1_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_L, CLK_RSTENB_DEV_L_0_DISP1_BIT);
+
+	/*
+	 *  Make sure dam2 clock configuration has:
+	 *	DAM2_CLK_SRC:	AUDIO_CLK_SRC_CLKM
+	 */
+	clk_setbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM2_BIT);
+	clk_setbit(CLK_OUT_ENB_V, CLK_RSTENB_DEV_V_0_DAM2_BIT);
+	clk_setbits(DAM2_CLK_REG_OFFSET,
+		    AUDIO_CLK_DIV_DEFAULT, AUDIO_CLK_DIV_MASK);
+	clk_setbits(DAM2_CLK_REG_OFFSET,
+		    AUDIO_CLK_SRC_DEFAULT, AUDIO_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM2_BIT);
+
+	/*
+	 *  Make sure dam1 clock configuration has:
+	 *	DAM1_CLK_SRC:	AUDIO_CLK_SRC_CLKM
+	 */
+	clk_setbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM1_BIT);
+	clk_setbit(CLK_OUT_ENB_V, CLK_RSTENB_DEV_V_0_DAM1_BIT);
+	clk_setbits(DAM1_CLK_REG_OFFSET,
+		    AUDIO_CLK_DIV_DEFAULT, AUDIO_CLK_DIV_MASK);
+	clk_setbits(DAM1_CLK_REG_OFFSET,
+		    AUDIO_CLK_SRC_DEFAULT, AUDIO_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM1_BIT);
+
+	/*
+	 *  Make sure dam0 clock configuration has:
+	 *	DAM0_CLK_SRC:	AUDIO_CLK_SRC_CLKM
+	 */
+	clk_setbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM0_BIT);
+	clk_setbit(CLK_OUT_ENB_V, CLK_RSTENB_DEV_V_0_DAM0_BIT);
+	clk_setbits(DAM0_CLK_REG_OFFSET,
+		    AUDIO_CLK_DIV_DEFAULT, AUDIO_CLK_DIV_MASK);
+	clk_setbits(DAM0_CLK_REG_OFFSET,
+		    AUDIO_CLK_SRC_DEFAULT, AUDIO_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_DAM0_BIT);
+
+	/*
+	 *  Make sure d_audio clock configuration has:
+	 *	AUDIO_CLK_SRC:	AUDIO_CLK_SRC_CLKM
+	 */
+	clk_setbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_AUDIO_BIT);
+	clk_setbit(CLK_OUT_ENB_V, CLK_RSTENB_DEV_V_0_AUDIO_BIT);
+	clk_setbits(AUDIO_CLK_REG_OFFSET,
+		    AUDIO_CLK_DIV_DEFAULT, AUDIO_CLK_DIV_MASK);
+	clk_setbits(AUDIO_CLK_REG_OFFSET,
+		    AUDIO_CLK_SRC_DEFAULT, AUDIO_CLK_SRC_MASK);
+	clk_clrbit(RST_DEVICES_V, CLK_RSTENB_DEV_V_0_AUDIO_BIT);
+
+	return 0;
+}
+#endif /* CONFIG_TEGRA_PREINIT_CLOCKS */
+
 void __init tegra_soc_init_clocks(void)
 {
 	int i;
 	struct clk *c;
+
+#ifdef CONFIG_TEGRA_PREINIT_CLOCKS
+	tegra_soc_preinit_clocks();
+#endif /* CONFIG_TEGRA_PREINIT_CLOCKS */
 
 	for (i = 0; i < ARRAY_SIZE(tegra_ptr_clks); i++)
 		tegra3_init_one_clock(tegra_ptr_clks[i]);
