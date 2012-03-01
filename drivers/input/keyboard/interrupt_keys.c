@@ -304,11 +304,11 @@ static int interrupt_keys_resume(struct device *dev)
 	struct interrupt_keys_button *button;
 	int i;
 
-	for (i = 0; i < pdata->nbuttons; i++) {
-		button = &pdata->int_buttons[i];
-		if (button->wakeup && device_may_wakeup(&pdev->dev)) {
-			int irq = button->irq;
-			disable_irq_wake(irq);
+	if (device_may_wakeup(&pdev->dev)) {
+		for (i = 0; i < pdata->nbuttons; i++) {
+			button = &pdata->int_buttons[i];
+			if (button->wakeup)
+				disable_irq_wake(button->irq);
 		}
 	}
 	return 0;
