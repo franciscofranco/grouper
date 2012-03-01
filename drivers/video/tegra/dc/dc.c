@@ -1083,13 +1083,19 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 
 	dc = windows[0]->dc;
 
-	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE) {
+		/* Acquire one_shot_lock to avoid race condition between
+		 * cancellation of old delayed work and schedule of new
+		 * delayed work. */
+		mutex_lock(&dc->one_shot_lock);
 		cancel_delayed_work_sync(&dc->one_shot_work);
-
+	}
 	mutex_lock(&dc->lock);
 
 	if (!dc->enabled) {
 		mutex_unlock(&dc->lock);
+		if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+			mutex_unlock(&dc->one_shot_lock);
 		return -EFAULT;
 	}
 
@@ -1282,6 +1288,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
 
 	mutex_unlock(&dc->lock);
+	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+		mutex_unlock(&dc->one_shot_lock);
 
 	return 0;
 }
@@ -2030,14 +2038,17 @@ static void tegra_dc_vblank(struct work_struct *work)
 	}
 }
 
-/* Must acquire dc lock before invoking this function. */
+/* Must acquire dc lock and dc one-shot lock before invoking this function.
+ * Acquire dc one-shot lock first and then dc lock. */
 void tegra_dc_host_trigger(struct tegra_dc *dc)
 {
 	/* We release the lock here to prevent deadlock between
 	 * cancel_delayed_work_sync and one-shot work. */
 	mutex_unlock(&dc->lock);
+
 	cancel_delayed_work_sync(&dc->one_shot_work);
 	mutex_lock(&dc->lock);
+
 	schedule_delayed_work(&dc->one_shot_work,
 				msecs_to_jiffies(dc->one_shot_delay_ms));
 	tegra_dc_program_bandwidth(dc);
@@ -2638,8 +2649,10 @@ void tegra_dc_disable(struct tegra_dc *dc)
 	/* it's important that new underflow work isn't scheduled before the
 	 * lock is acquired. */
 	cancel_delayed_work_sync(&dc->underflow_work);
-	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE) {
+		mutex_lock(&dc->one_shot_lock);
 		cancel_delayed_work_sync(&dc->one_shot_work);
+	}
 
 	mutex_lock(&dc->lock);
 
@@ -2655,6 +2668,8 @@ void tegra_dc_disable(struct tegra_dc *dc)
 #endif
 
 	mutex_unlock(&dc->lock);
+	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+		mutex_unlock(&dc->one_shot_lock);
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -2820,6 +2835,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		dc->enabled = true;
 
 	mutex_init(&dc->lock);
+	mutex_init(&dc->one_shot_lock);
 	init_completion(&dc->frame_end_complete);
 	init_waitqueue_head(&dc->wq);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
