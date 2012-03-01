@@ -25,16 +25,35 @@
 
 #include <linux/regulator/machine.h>
 
+enum charging_states {
+	idle,
+	progress,
+	completed,
+	stopped,
+};
+
+enum charger_type {
+	AC,
+	USB,
+};
+
+typedef void (*charging_callback_t)(enum charging_states state,
+enum charger_type chrg_type, void *args);
+
 struct smb349_charger {
 	struct i2c_client	*client;
 	struct device	*dev;
+	void	*charger_cb_data;
+	enum charging_states state;
+	enum charger_type chrg_type;
+	charging_callback_t	charger_cb;
 };
 
+int smb349_battery_online(void);
 /*
- * Register the callback function for the client.
+ * Register callback function for the client.
+ * Used by fuel-gauge driver to get battery charging properties.
  */
-extern int smb349_battery_online(void);
-extern int smb349_charging_status(void);
-extern int smb349_charger_type(void);
+extern int register_callback(charging_callback_t cb, void *args);
 
 #endif /*__LINUX_SMB349_CHARGER_H */
