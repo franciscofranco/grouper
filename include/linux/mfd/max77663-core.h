@@ -140,9 +140,6 @@ struct max77663_platform_data {
 	unsigned char rtc_i2c_addr;
 
 	bool use_power_off;
-	int has_stat_led;
-	int stat_led_gpio;
-	int stat_led_active_low;
 };
 
 #if defined(CONFIG_MFD_MAX77663)
