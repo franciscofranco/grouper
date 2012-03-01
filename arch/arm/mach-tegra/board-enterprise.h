@@ -34,6 +34,8 @@
 #define BOARD_FAB_A00		0x0
 #define BOARD_FAB_A01		0x1
 #define BOARD_FAB_A02		0x2
+#define BOARD_FAB_A03		0x3
+#define BOARD_FAB_A04		0x4
 
 /* vdd_cpu voltage follower */
 #define BOARD_SKU_VF_BIT	0x0400

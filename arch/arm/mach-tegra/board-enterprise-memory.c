@@ -21,6 +21,7 @@
 
 #include "board-enterprise.h"
 #include "tegra3_emc.h"
+#include "board.h"
 
 
 static const struct tegra_emc_table enterprise_emc_tables_h5tc2g[] = {
@@ -748,7 +749,13 @@ static const struct tegra_emc_table enterprise_emc_tables_h5tc2g[] = {
 
 int enterprise_emc_init(void)
 {
-	tegra_init_emc(enterprise_emc_tables_h5tc2g,
-		ARRAY_SIZE(enterprise_emc_tables_h5tc2g));
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+
+	if (board_info.fab == BOARD_FAB_A02)
+		tegra_init_emc(enterprise_emc_tables_h5tc2g,
+			       ARRAY_SIZE(enterprise_emc_tables_h5tc2g));
+
 	return 0;
 }

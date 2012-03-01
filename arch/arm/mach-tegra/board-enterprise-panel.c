@@ -62,7 +62,8 @@
 #define enterprise_lcd_te		TEGRA_GPIO_PJ1
 
 #ifdef CONFIG_TEGRA_DC
-static struct regulator *enterprise_dsi_reg = NULL;
+static struct regulator *enterprise_dsi_reg;
+static struct regulator *enterprise_lcd_reg;
 
 static struct regulator *enterprise_hdmi_reg;
 static struct regulator *enterprise_hdmi_pll;
@@ -71,7 +72,7 @@ static struct regulator *enterprise_hdmi_vddio;
 
 static atomic_t sd_brightness = ATOMIC_INIT(255);
 
-static tegra_dc_bl_output enterprise_bl_output_measured = {
+static tegra_dc_bl_output enterprise_bl_output_measured_a02 = {
 	1, 5, 9, 10, 11, 12, 12, 13,
 	13, 14, 14, 15, 15, 16, 16, 17,
 	17, 18, 18, 19, 19, 20, 21, 21,
@@ -104,6 +105,42 @@ static tegra_dc_bl_output enterprise_bl_output_measured = {
 	171, 172, 173, 173, 174, 175, 175, 176,
 	176, 178, 178, 179, 180, 181, 182, 182,
 	183, 184, 185, 186, 186, 187, 188, 188
+};
+
+/* TODO: Measure BL response for this table */
+static tegra_dc_bl_output enterprise_bl_output_measured_a03 = {
+	0, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255,
 };
 
 static p_tegra_dc_bl_output bl_output;
@@ -421,6 +458,9 @@ static struct tegra_dc_platform_data enterprise_disp2_pdata = {
 static int enterprise_dsi_panel_enable(void)
 {
 	int ret;
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
 
 	if (enterprise_dsi_reg == NULL) {
 		enterprise_dsi_reg = regulator_get(NULL, "avdd_dsi_csi");
@@ -438,6 +478,26 @@ static int enterprise_dsi_panel_enable(void)
 	}
 
 #if DSI_PANEL_RESET
+
+	if (board_info.fab >= BOARD_FAB_A03) {
+		if (enterprise_lcd_reg == NULL) {
+			enterprise_lcd_reg = regulator_get(NULL, "lcd_vddio_en");
+			if (IS_ERR_OR_NULL(enterprise_lcd_reg)) {
+				pr_err("Could not get regulator lcd_vddio_en\n");
+				ret = PTR_ERR(enterprise_lcd_reg);
+				enterprise_lcd_reg = NULL;
+				return ret;
+			}
+		}
+		if (enterprise_lcd_reg != NULL) {
+			ret = regulator_enable(enterprise_lcd_reg);
+			if (ret < 0) {
+				pr_err("Could not enable lcd_vddio_en\n");
+				return ret;
+			}
+		}
+	}
+
 	if (kernel_1st_panel_init != true) {
 		ret = gpio_request(enterprise_dsi_panel_reset, "panel reset");
 		if (ret < 0)
@@ -462,6 +522,9 @@ static int enterprise_dsi_panel_enable(void)
 
 static int enterprise_dsi_panel_disable(void)
 {
+	if (enterprise_lcd_reg != NULL)
+		regulator_disable(enterprise_lcd_reg);
+
 #if DSI_PANEL_RESET
 	if (kernel_1st_panel_init != true) {
 		tegra_gpio_disable(enterprise_dsi_panel_reset);
@@ -750,11 +813,17 @@ int __init enterprise_panel_init(void)
 {
 	int err;
 	struct resource __maybe_unused *res;
+	struct board_info board_info;
 
-	bl_output = enterprise_bl_output_measured;
+	tegra_get_board_info(&board_info);
 
-	if (WARN_ON(ARRAY_SIZE(enterprise_bl_output_measured) != 256))
-		pr_err("bl_output array does not have 256 elements\n");
+	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a03) != 256);
+	BUILD_BUG_ON(ARRAY_SIZE(enterprise_bl_output_measured_a02) != 256);
+
+	if (board_info.fab >= BOARD_FAB_A03)
+		bl_output = enterprise_bl_output_measured_a03;
+	else
+		bl_output = enterprise_bl_output_measured_a02;
 
 	enterprise_dsi.chip_id = tegra_get_chipid();
 	enterprise_dsi.chip_rev = tegra_get_revision();
