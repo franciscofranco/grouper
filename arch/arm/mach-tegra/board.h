@@ -36,6 +36,7 @@
 #endif
 
 void tegra_assert_system_reset(char mode, const char *cmd);
+void get_mac_addr(struct memory_accessor *, void *);
 
 void __init tegra_init_early(void);
 void __init tegra_mc_init(void);
