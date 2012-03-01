@@ -788,7 +788,7 @@ static int spi_tegra_setup(struct spi_device *spi)
 		val |= cs_bit;
 	else
 		val &= ~cs_bit;
-	tspi->def_command_reg |= val;
+	tspi->def_command_reg = val;
 
 	if (!tspi->is_clkon_always && !tspi->clk_state) {
 		clk_enable(tspi->clk);
