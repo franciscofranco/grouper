@@ -115,6 +115,7 @@ static const unsigned int ahb_addr_wrap_table[8] = {
 static const unsigned int apb_addr_wrap_table[8] = {0, 1, 2, 4, 8, 16, 32, 64};
 
 static const unsigned int bus_width_table[5] = {8, 16, 32, 64, 128};
+static void __iomem *general_dma_addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 
 #define TEGRA_DMA_NAME_SIZE 16
 struct tegra_dma_channel {
@@ -186,18 +187,15 @@ EXPORT_SYMBOL(tegra_dma_cancel);
 
 static void pause_dma(bool wait_for_burst_complete)
 {
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
-
 	spin_lock(&enable_lock);
-	writel(0, addr + APB_DMA_GEN);
+	writel(0, general_dma_addr + APB_DMA_GEN);
 	if (wait_for_burst_complete)
 		udelay(20);
 }
 
 static void resume_dma(void)
 {
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
-	writel(GEN_ENABLE, addr + APB_DMA_GEN);
+	writel(GEN_ENABLE, general_dma_addr + APB_DMA_GEN);
 	spin_unlock(&enable_lock);
 }
 
@@ -929,7 +927,6 @@ int __init tegra_dma_init(void)
 	int ret = 0;
 	int i;
 	unsigned int irq;
-	void __iomem *addr;
 	struct clk *c;
 
 	bitmap_fill(channel_usage, NV_DMA_MAX_CHANNELS);
@@ -955,11 +952,10 @@ int __init tegra_dma_init(void)
 		udelay(10);
 	}
 
-	addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
-	writel(GEN_ENABLE, addr + APB_DMA_GEN);
-	writel(0, addr + APB_DMA_CNTRL);
+	writel(GEN_ENABLE, general_dma_addr + APB_DMA_GEN);
+	writel(0, general_dma_addr + APB_DMA_CNTRL);
 	writel(0xFFFFFFFFul >> (31 - TEGRA_SYSTEM_DMA_CH_MAX),
-			addr + APB_DMA_IRQ_MASK_SET);
+			general_dma_addr + APB_DMA_IRQ_MASK_SET);
 
 	for (i = TEGRA_SYSTEM_DMA_CH_MIN; i <= TEGRA_SYSTEM_DMA_CH_MAX; i++) {
 		struct tegra_dma_channel *ch = &dma_channels[i];
@@ -998,7 +994,7 @@ int __init tegra_dma_init(void)
 
 	return 0;
 fail:
-	writel(0, addr + APB_DMA_GEN);
+	writel(0, general_dma_addr + APB_DMA_GEN);
 	for (i = TEGRA_SYSTEM_DMA_CH_MIN; i <= TEGRA_SYSTEM_DMA_CH_MAX; i++) {
 		struct tegra_dma_channel *ch = &dma_channels[i];
 		if (ch->irq)
@@ -1014,16 +1010,15 @@ static u32 apb_dma[5*TEGRA_SYSTEM_DMA_CH_NR + 3];
 
 static int tegra_dma_suspend(void)
 {
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 	u32 *ctx = apb_dma;
 	int i;
 
-	*ctx++ = readl(addr + APB_DMA_GEN);
-	*ctx++ = readl(addr + APB_DMA_CNTRL);
-	*ctx++ = readl(addr + APB_DMA_IRQ_MASK);
+	*ctx++ = readl(general_dma_addr + APB_DMA_GEN);
+	*ctx++ = readl(general_dma_addr + APB_DMA_CNTRL);
+	*ctx++ = readl(general_dma_addr + APB_DMA_IRQ_MASK);
 
 	for (i = 0; i < TEGRA_SYSTEM_DMA_CH_NR; i++) {
-		addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
+		void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
 				  TEGRA_APB_DMA_CH0_SIZE * i);
 
 		*ctx++ = readl(addr + APB_DMA_CHAN_CSR);
@@ -1038,16 +1033,15 @@ static int tegra_dma_suspend(void)
 
 static void tegra_dma_resume(void)
 {
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 	u32 *ctx = apb_dma;
 	int i;
 
-	writel(*ctx++, addr + APB_DMA_GEN);
-	writel(*ctx++, addr + APB_DMA_CNTRL);
-	writel(*ctx++, addr + APB_DMA_IRQ_MASK);
+	writel(*ctx++, general_dma_addr + APB_DMA_GEN);
+	writel(*ctx++, general_dma_addr + APB_DMA_CNTRL);
+	writel(*ctx++, general_dma_addr + APB_DMA_IRQ_MASK);
 
 	for (i = 0; i < TEGRA_SYSTEM_DMA_CH_NR; i++) {
-		addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
+		void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
 				  TEGRA_APB_DMA_CH0_SIZE * i);
 
 		writel(*ctx++, addr + APB_DMA_CHAN_CSR);
@@ -1080,16 +1074,17 @@ subsys_initcall(tegra_dma_syscore_init);
 static int dbg_dma_show(struct seq_file *s, void *unused)
 {
 	int i;
-	void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 
 	seq_printf(s, "    APBDMA global register\n");
-	seq_printf(s, "DMA_GEN:   0x%08x\n", __raw_readl(addr + APB_DMA_GEN));
-	seq_printf(s, "DMA_CNTRL: 0x%08x\n", __raw_readl(addr + APB_DMA_CNTRL));
+	seq_printf(s, "DMA_GEN:   0x%08x\n",
+			__raw_readl(general_dma_addr + APB_DMA_GEN));
+	seq_printf(s, "DMA_CNTRL: 0x%08x\n",
+			__raw_readl(general_dma_addr + APB_DMA_CNTRL));
 	seq_printf(s, "IRQ_MASK:  0x%08x\n",
-					__raw_readl(addr + APB_DMA_IRQ_MASK));
+			__raw_readl(general_dma_addr + APB_DMA_IRQ_MASK));
 
 	for (i = 0; i < TEGRA_SYSTEM_DMA_CH_NR; i++) {
-		addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
+		void __iomem *addr = IO_ADDRESS(TEGRA_APB_DMA_CH0_BASE +
 				  TEGRA_APB_DMA_CH0_SIZE * i);
 
 		seq_printf(s, "    APBDMA channel %02d register\n", i);
