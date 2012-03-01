@@ -1011,6 +1011,8 @@ static int __devexit tegra_dtv_remove(struct platform_device *pdev)
 	tear_down_dma(dtv_ctx);
 	release_stream_buffer(&dtv_ctx->stream, dtv_ctx->stream.num_bufs);
 
+	clk_put(dtv_ctx->clk);
+
 	misc_deregister(&dtv_ctx->miscdev);
 
 	return 0;
@@ -1019,11 +1021,38 @@ static int __devexit tegra_dtv_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int tegra_dtv_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct tegra_dtv_context *dtv_ctx;
+
+	pr_info("%s: suspend dtv.\n", __func__);
+
+	dtv_ctx = platform_get_drvdata(pdev);
+
+	/* stop xferring */
+	mutex_lock(&dtv_ctx->stream.mtx);
+	if (dtv_ctx->stream.xferring) {
+		stop_xfer_unsafe(&dtv_ctx->stream);
+		/* clean up stop condition */
+		complete(&dtv_ctx->stream.stop_completion);
+		__force_xfer_stop(&dtv_ctx->stream);
+	}
+	/* wakeup any pending process */
+	wakeup_suspend(&dtv_ctx->stream);
+	mutex_unlock(&dtv_ctx->stream.mtx);
+
+	clk_disable(dtv_ctx->clk);
+
 	return 0;
 }
 
 static int tegra_dtv_resume(struct platform_device *pdev)
 {
+	struct tegra_dtv_context *dtv_ctx;
+
+	pr_info("%s: resume dtv.\n", __func__);
+
+	dtv_ctx = platform_get_drvdata(pdev);
+	clk_enable(dtv_ctx->clk);
+
 	return 0;
 }
 #endif /* CONFIG_PM */
