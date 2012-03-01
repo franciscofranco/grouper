@@ -273,6 +273,7 @@ static struct i2c_board_info kai_i2c4_max17048_board_info[] = {
 static struct i2c_board_info kai_i2c4_smb349_board_info[] = {
 	{
 		I2C_BOARD_INFO("smb349", 0x1B),
+		.irq = MAX77663_GPIO_BASE + MAX77663_GPIO1,
 	},
 };
 
