@@ -201,6 +201,25 @@ static void resume_dma(void)
 	spin_unlock(&enable_lock);
 }
 
+static void start_head_req(struct tegra_dma_channel *ch)
+{
+	struct tegra_dma_req *head_req;
+	if (!list_empty(&ch->list)) {
+		head_req = list_entry(ch->list.next, typeof(*head_req), node);
+		tegra_dma_update_hw(ch, head_req);
+	}
+}
+
+static void configure_next_req(struct tegra_dma_channel *ch,
+	struct tegra_dma_req *hreq)
+{
+	struct tegra_dma_req *next_req;
+	if (!list_is_last(&hreq->node, &ch->list)) {
+		next_req = list_entry(hreq->node.next, typeof(*next_req), node);
+		tegra_dma_update_hw_partial(ch, next_req);
+	}
+}
+
 static inline unsigned int get_req_xfer_word_count(
 	struct tegra_dma_channel *ch, struct tegra_dma_req *req)
 {
@@ -723,37 +742,24 @@ static void handle_oneshot_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
 
-	if (list_empty(&ch->list))
-		return;
-
 	req = list_entry(ch->list.next, typeof(*req), node);
-	if (req) {
-		list_del(&req->node);
-		req->bytes_transferred = req->size;
-		req->status = TEGRA_DMA_REQ_SUCCESS;
+	list_del(&req->node);
+	req->bytes_transferred += req->size;
+	req->status = TEGRA_DMA_REQ_SUCCESS;
 
-		ch->callback = req->complete;
-		ch->cb_req = req;
-	}
+	ch->callback = req->complete;
+	ch->cb_req = req;
 
-	if (!list_empty(&ch->list)) {
-		req = list_entry(ch->list.next, typeof(*req), node);
-		tegra_dma_update_hw(ch, req);
-	}
+	start_head_req(ch);
 	return;
 }
 
 static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
-	struct tegra_dma_req *next_req;
-
-	if (list_empty(&ch->list))
-		return;
+	struct tegra_dma_req *nreq;
 
 	req = list_entry(ch->list.next, typeof(*req), node);
-	if (!req)
-		return;
 
 	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_EMPTY) {
 		bool is_dma_ping_complete;
@@ -766,31 +772,33 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 
 		/* Out of sync - Release current buffer */
 		if (!is_dma_ping_complete) {
+			/*
+			 * We should not land here if queue mechanism
+			 * with system latency are properly configured.
+			 */
+			WARN_ON(1);
 			req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
-			req->bytes_transferred = req->size;
+			req->bytes_transferred += req->size;
 			req->status = TEGRA_DMA_REQ_SUCCESS;
 			tegra_dma_stop(ch);
-
-			if (!list_is_last(&req->node, &ch->list)) {
-				next_req = list_entry(req->node.next,
-						typeof(*next_req), node);
-				tegra_dma_update_hw(ch, next_req);
-			}
 
 			list_del(&req->node);
 
 			ch->callback = req->complete;
 			ch->cb_req = req;
+
+			start_head_req(ch);
 			return;
 		}
-		/* Load the next request into the hardware, if available */
-		if (!list_is_last(&req->node, &ch->list)) {
-			next_req = list_entry(req->node.next,
-					typeof(*next_req), node);
-			tegra_dma_update_hw_partial(ch, next_req);
-		}
+
+		/*
+		 * Configure next request so after full buffer transfer,
+		 * it can be start.
+		 */
+		configure_next_req(ch, req);
+
 		req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL;
-		req->bytes_transferred = req->size >> 1;
+		req->bytes_transferred += req->size >> 1;
 
 		ch->callback = req->threshold;
 		ch->cb_req = req;
@@ -798,26 +806,28 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 	}
 
 	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL) {
-		/*
-		 * Callback when the buffer is completely full (i.e on
-		 * the second  interrupt
-		 */
-
+		/* Interrupt for full buffer complete */
 		req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
-		req->bytes_transferred = req->size;
+		req->bytes_transferred += req->size >> 1;
 		req->status = TEGRA_DMA_REQ_SUCCESS;
-		if (list_is_last(&req->node, &ch->list))
+
+		list_del(&req->node);
+		ch->callback = req->complete;
+		ch->cb_req = req;
+
+		if (list_empty(&ch->list)) {
 			tegra_dma_stop(ch);
-		else {
-			/*
-			 * It may be possible that req came after half dma
-			 * complete so it need to start immediately
-			 */
-			next_req = list_entry(req->node.next,
-						typeof(*next_req), node);
-			if (next_req->status != TEGRA_DMA_REQ_INFLIGHT) {
+		} else {
+			/* Check that next req on list should be in flight */
+			nreq = list_entry(ch->list.next, typeof(*nreq), node);
+			if (nreq->status != TEGRA_DMA_REQ_INFLIGHT) {
+				/*
+				 * We should not land here if queue mechanism
+				 * with system latency are properly configured.
+				 */
+				WARN_ON(1);
 				tegra_dma_stop(ch);
-				tegra_dma_update_hw(ch, next_req);
+				start_head_req(ch);
 			}
 		}
 
@@ -836,50 +846,61 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
-	struct tegra_dma_req *next_req;
-	struct tegra_dma_req *next_next_req;
+	struct tegra_dma_req *nreq;
 
-	if (list_empty(&ch->list)) {
-		tegra_dma_stop(ch);
-		pr_err("%s: No requests in the list.\n", __func__);
-		return;
-	}
 	req = list_entry(ch->list.next, typeof(*req), node);
-	if (!req || (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_FULL)) {
+	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_FULL) {
 		tegra_dma_stop(ch);
 		pr_err("%s: DMA complete irq without corresponding req\n",
 				__func__);
+		WARN_ON(1);
 		return;
 	}
 
 	/* Handle the case when buffer is completely full */
-	req->bytes_transferred = req->size;
+	req->bytes_transferred += req->size;
 	req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
 	req->status = TEGRA_DMA_REQ_SUCCESS;
-	if (list_is_last(&req->node, &ch->list)) {
+
+	list_del(&req->node);
+	ch->callback = req->complete;
+	ch->cb_req = req;
+
+	if (list_empty(&ch->list)) {
 		pr_debug("%s: stop\n", __func__);
 		tegra_dma_stop(ch);
 	} else {
-		/*
-		 * The next entry should have already been queued and is now
-		 * in the middle of xfer.  We can then write the next->next one
-		 * if it exists.
-		 */
-		next_req = list_entry(req->node.next, typeof(*next_req), node);
-		if (next_req->status != TEGRA_DMA_REQ_INFLIGHT) {
-			pr_debug("%s: interrupt during enqueue\n", __func__);
+		/* Head req should be in flight */
+		nreq = list_entry(ch->list.next, typeof(*nreq), node);
+		if (nreq->status != TEGRA_DMA_REQ_INFLIGHT) {
 			tegra_dma_stop(ch);
-			tegra_dma_update_hw(ch, next_req);
-		} else if (!list_is_last(&next_req->node, &ch->list)) {
-			next_next_req = list_entry(next_req->node.next,
-						typeof(*next_next_req), node);
-			tegra_dma_update_hw_partial(ch, next_next_req);
+			WARN_ON(1);
+			start_head_req(ch);
+		} else {
+			/* Configure next req */
+			configure_next_req(ch, nreq);
 		}
 	}
-	list_del(&req->node);
+	return;
+}
 
-	ch->callback = req->complete;
-	ch->cb_req = req;
+static void handle_dma_isr_locked(struct tegra_dma_channel *ch)
+{
+	if (list_empty(&ch->list)) {
+		tegra_dma_stop(ch);
+		pr_err("%s: No requests in the list.\n", __func__);
+		WARN_ON(1);
+		return;
+	}
+
+	if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
+		handle_oneshot_dma(ch);
+	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
+		handle_continuous_dbl_dma(ch);
+	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
+		handle_continuous_sngl_dma(ch);
+	else
+		pr_err("Bad channel mode for DMA ISR to handle\n");
 	return;
 }
 
@@ -907,21 +928,14 @@ static irqreturn_t dma_isr(int irq, void *data)
 	if (status & STA_ISE_EOC) {
 		/* Clear dma int status */
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
-		if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
-			handle_oneshot_dma(ch);
-		else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
-			handle_continuous_dbl_dma(ch);
-		else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
-			handle_continuous_sngl_dma(ch);
-		else
-			pr_err("Bad channel mode for DMA ISR to handle\n");
+		handle_dma_isr_locked(ch);
 		callback = ch->callback;
 		cb_req = ch->cb_req;
 		ch->callback = NULL;
 		ch->cb_req = NULL;
-	} else
+	} else {
 		pr_info("Interrupt is already handled %d\n", ch->id);
-
+	}
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 	/* Call callback function to notify client if it is there */
