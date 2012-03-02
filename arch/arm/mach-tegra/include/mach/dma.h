@@ -72,9 +72,33 @@ enum tegra_dma_mode {
 	TEGRA_DMA_MODE_ONESHOT = 8,
 };
 
-enum tegra_dma_req_error {
+/*
+ * tegra_dma_req_status: Dma request status
+ * TEGRA_DMA_REQ_SUCCESS: The request has been successfully completed.
+ *	  	The byte_transferred tells number of bytes transferred.
+ * TEGRA_DMA_REQ_ERROR_ABORTED: The request is aborted by client after
+ *	 	calling tegra_dma_dequeue_req.
+ *		The byte_transferred tells number of bytes transferred
+ *		which may be more than request size due to buffer
+ *		wrap-up in continuous mode.
+ * TEGRA_DMA_REQ_ERROR_STOPPED: Applicable in continuous mode.
+ *		The request is stopped forcefully. This may be becasue of
+ *		- due to non-available of next request.
+ *		- not able to serve current interrupt before next buffer
+ *		  completed by dma. This can happen if buffer req size is
+ *		  not enough and it transfer completes before system actually
+ *		  serve the previous dma interrupts.
+ *		The byte_transferred will not be accurate in this case. It will
+ *		just give an idea that how much approximately have been
+ *		transferred by dma.
+ * TEGRA_DMA_REQ_INFLIGHT: The request is configured in the dma register
+ *		for transfer.
+ */
+
+enum tegra_dma_req_status {
 	TEGRA_DMA_REQ_SUCCESS = 0,
 	TEGRA_DMA_REQ_ERROR_ABORTED,
+	TEGRA_DMA_REQ_ERROR_STOPPED,
 	TEGRA_DMA_REQ_INFLIGHT,
 };
 

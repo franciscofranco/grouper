@@ -237,6 +237,62 @@ static inline unsigned int get_req_xfer_word_count(
 		return req->size >> 2;
 }
 
+static int get_current_xferred_count(struct tegra_dma_channel *ch,
+	struct tegra_dma_req *req, unsigned long status)
+{
+	int req_transfer_count;
+	req_transfer_count = get_req_xfer_word_count(ch, req) << 2;
+	return req_transfer_count - ((status & STA_COUNT_MASK) + 4);
+}
+
+static void tegra_dma_abort_req(struct tegra_dma_channel *ch,
+		struct tegra_dma_req *req, const char *warn_msg)
+{
+	unsigned long status = readl(ch->addr + APB_DMA_CHAN_STA);
+
+	/*
+	 * Check if interrupt is pending.
+	 * This api is called from isr and hence need not to call
+	 * isr handle again, just update the byte_transferred.
+	 */
+	if (status & STA_ISE_EOC)
+		req->bytes_transferred += get_req_xfer_word_count(ch, req) << 2;
+	tegra_dma_stop(ch);
+
+	req->bytes_transferred +=  get_current_xferred_count(ch, req, status);
+	req->status = -TEGRA_DMA_REQ_ERROR_STOPPED;
+	if (warn_msg)
+		WARN(1, KERN_WARNING "%s\n", warn_msg);
+	start_head_req(ch);
+}
+
+static void handle_continuous_head_request(struct tegra_dma_channel *ch,
+		struct tegra_dma_req *last_req)
+{
+	struct tegra_dma_req *hreq = NULL;
+
+	if (list_empty(&ch->list)) {
+		tegra_dma_abort_req(ch, last_req, NULL);
+		return;
+	}
+
+	/*
+	 * Check that head req on list should be in flight.
+	 * If it is not in flight then request came late
+	 * and so need to abort dma and start next request
+	 * immediately.
+	 */
+	hreq = list_entry(ch->list.next, typeof(*hreq), node);
+	if (hreq->status != TEGRA_DMA_REQ_INFLIGHT) {
+		tegra_dma_abort_req(ch, last_req, "Req was not queued on time");
+		return;
+	}
+
+	/* Configure next request in single buffer mode */
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
+		configure_next_req(ch, hreq);
+}
+
 static unsigned int get_channel_status(struct tegra_dma_channel *ch,
 			struct tegra_dma_req *req, bool is_stop_dma)
 {
@@ -807,17 +863,14 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 			 * We should not land here if queue mechanism
 			 * with system latency are properly configured.
 			 */
-			WARN_ON(1);
-			req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
 			req->bytes_transferred += req->size;
-			req->status = TEGRA_DMA_REQ_SUCCESS;
-			tegra_dma_stop(ch);
 
 			list_del(&req->node);
 			ch->callback = req->complete;
 			ch->cb_req = req;
 
-			start_head_req(ch);
+			tegra_dma_abort_req(ch, req,
+				"Dma becomes out of sync for ping-pong buffer");
 			return;
 		}
 
@@ -846,24 +899,10 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 		ch->callback = req->complete;
 		ch->cb_req = req;
 
-		if (list_empty(&ch->list)) {
-			tegra_dma_stop(ch);
-		} else {
-			/* Check that next req on list should be in flight */
-			req = list_entry(ch->list.next, typeof(*req), node);
-			if (req->status != TEGRA_DMA_REQ_INFLIGHT) {
-				/*
-				 * We should not land here if queue mechanism
-				 * with system latency are properly configured.
-				 */
-				WARN_ON(1);
-				tegra_dma_stop(ch);
-				start_head_req(ch);
-			}
-		}
+		handle_continuous_head_request(ch, req);
 		return;
 	}
-	tegra_dma_stop(ch);
+	tegra_dma_abort_req(ch, req, "Dma status is not on sync\n");
 	/* Dma should be stop much earlier */
 	BUG();
 	return;
@@ -872,7 +911,6 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
-	struct tegra_dma_req *nreq;
 
 	req = list_entry(ch->list.next, typeof(*req), node);
 	if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_FULL) {
@@ -892,21 +930,7 @@ static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 	ch->callback = req->complete;
 	ch->cb_req = req;
 
-	if (list_empty(&ch->list)) {
-		pr_debug("%s: stop\n", __func__);
-		tegra_dma_stop(ch);
-	} else {
-		/* Head req should be in flight */
-		nreq = list_entry(ch->list.next, typeof(*nreq), node);
-		if (nreq->status != TEGRA_DMA_REQ_INFLIGHT) {
-			tegra_dma_stop(ch);
-			WARN_ON(1);
-			start_head_req(ch);
-		} else {
-			/* Configure next req */
-			configure_next_req(ch, nreq);
-		}
-	}
+	handle_continuous_head_request(ch, req);
 	return;
 }
 
