@@ -61,6 +61,7 @@
 
 #define   RECOVERY_MODE	BIT(31)
 #define   BOOTLOADER_MODE	BIT(30)
+#define   FORCED_RECOVERY_MODE	BIT(1)
 
 #define AHB_GIZMO_USB		0x1c
 #define AHB_GIZMO_USB2		0x78
@@ -117,16 +118,20 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 	u32 reg;
 
 	reg = readl_relaxed(reset + PMC_SCRATCH0);
-	/* Writing recovery kernel or Bootloader mode in SCRATCH0 31:30 */
+	/* Writing recovery kernel or Bootloader mode in SCRATCH0 31:30:1 */
 	if (cmd) {
 		if (!strcmp(cmd, "recovery"))
 			reg |= RECOVERY_MODE;
 		else if (!strcmp(cmd, "bootloader"))
 			reg |= BOOTLOADER_MODE;
+		else if (!strcmp(cmd, "forced-recovery"))
+			reg |= FORCED_RECOVERY_MODE;
+		else
+			reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE);
 	}
 	else {
-		/* Clearing SCRATCH0 31:30 on default reboot */
-		reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE);
+		/* Clearing SCRATCH0 31:30:1 on default reboot */
+		reg &= ~(BOOTLOADER_MODE | RECOVERY_MODE | FORCED_RECOVERY_MODE);
 	}
 	writel_relaxed(reg, reset + PMC_SCRATCH0);
 	/* use *_related to avoid spinlock since caches are off */
