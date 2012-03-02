@@ -116,6 +116,7 @@ static const unsigned int apb_addr_wrap_table[8] = {0, 1, 2, 4, 8, 16, 32, 64};
 
 static const unsigned int bus_width_table[5] = {8, 16, 32, 64, 128};
 static void __iomem *general_dma_addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
+typedef void (*dma_isr_handler)(struct tegra_dma_channel *ch);
 
 #define TEGRA_DMA_NAME_SIZE 16
 struct tegra_dma_channel {
@@ -129,6 +130,7 @@ struct tegra_dma_channel {
 	int			irq;
 	dma_callback		callback;
 	struct tegra_dma_req	*cb_req;
+	dma_isr_handler		isr_handler;
 };
 
 #define  NV_DMA_MAX_CHANNELS  32
@@ -144,6 +146,9 @@ static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
 static bool tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
+static void handle_oneshot_dma(struct tegra_dma_channel *ch);
+static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch);
+static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch);
 
 void tegra_dma_flush(struct tegra_dma_channel *ch)
 {
@@ -485,6 +490,7 @@ struct tegra_dma_channel *tegra_dma_allocate_channel(int mode,
 	int channel;
 	struct tegra_dma_channel *ch = NULL;
 	va_list args;
+	dma_isr_handler isr_handler = NULL;
 
 	if (WARN_ON(!tegra_dma_initialized))
 		return NULL;
@@ -502,9 +508,23 @@ struct tegra_dma_channel *tegra_dma_allocate_channel(int mode,
 			goto out;
 		}
 	}
+
+	if (mode & TEGRA_DMA_MODE_ONESHOT)
+		isr_handler = handle_oneshot_dma;
+	else if (mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
+		isr_handler = handle_continuous_dbl_dma;
+	else if (mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
+		isr_handler = handle_continuous_sngl_dma;
+	else
+		pr_err("Bad channel mode for DMA ISR handler\n");
+
+	if (!isr_handler)
+		goto out;
+
 	__set_bit(channel, channel_usage);
 	ch = &dma_channels[channel];
 	ch->mode = mode;
+	ch->isr_handler = isr_handler;
 	va_start(args, namefmt);
 	vsnprintf(ch->client_name, sizeof(ch->client_name),
 		namefmt, args);
@@ -524,6 +544,7 @@ void tegra_dma_free_channel(struct tegra_dma_channel *ch)
 	mutex_lock(&tegra_dma_lock);
 	__clear_bit(ch->id, channel_usage);
 	memset(ch->client_name, 0, sizeof(ch->client_name));
+	ch->isr_handler = NULL;
 	mutex_unlock(&tegra_dma_lock);
 }
 EXPORT_SYMBOL(tegra_dma_free_channel);
@@ -886,6 +907,9 @@ static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 
 static void handle_dma_isr_locked(struct tegra_dma_channel *ch)
 {
+	/* There should be proper isr handler */
+	BUG_ON(!ch->isr_handler);
+
 	if (list_empty(&ch->list)) {
 		tegra_dma_stop(ch);
 		pr_err("%s: No requests in the list.\n", __func__);
@@ -893,15 +917,7 @@ static void handle_dma_isr_locked(struct tegra_dma_channel *ch)
 		return;
 	}
 
-	if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
-		handle_oneshot_dma(ch);
-	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
-		handle_continuous_dbl_dma(ch);
-	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
-		handle_continuous_sngl_dma(ch);
-	else
-		pr_err("Bad channel mode for DMA ISR to handle\n");
-	return;
+	ch->isr_handler(ch);
 }
 
 static irqreturn_t dma_isr(int irq, void *data)
@@ -983,6 +999,7 @@ int __init tegra_dma_init(void)
 		struct tegra_dma_channel *ch = &dma_channels[i];
 
 		ch->id = i;
+		ch->isr_handler = NULL;
 		snprintf(ch->name, TEGRA_DMA_NAME_SIZE, "dma_channel_%d", i);
 
 		memset(ch->client_name, 0, sizeof(ch->client_name));
