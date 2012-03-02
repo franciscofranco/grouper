@@ -735,7 +735,7 @@ static void dtv_debugfs_exit(struct tegra_dtv_context *dtv_ctx)
 	debugfs_remove(dtv_ctx->d);
 }
 #else
-static int dtv_debugfs_init(struct tegra_dtv_context *dtv_ctx) { return 0 }
+static int dtv_debugfs_init(struct tegra_dtv_context *dtv_ctx) { return 0; }
 static void dtv_debugfs_exit(struct tegra_dtv_context *dtv_ctx) {};
 #endif
 
