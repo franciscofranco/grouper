@@ -87,6 +87,32 @@ module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
 static unsigned int cpu_user_cap;
 
+static inline void _cpu_user_cap_set_locked(void)
+{
+#ifndef CONFIG_TEGRA_CPU_CAP_EXACT_FREQ
+	if (cpu_user_cap != 0) {
+		int i;
+		for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			if (freq_table[i].frequency > cpu_user_cap)
+				break;
+		}
+		i = (i == 0) ? 0 : i - 1;
+		cpu_user_cap = freq_table[i].frequency;
+	}
+#endif
+	tegra_cpu_set_speed_cap(NULL);
+}
+
+void tegra_cpu_user_cap_set(unsigned int speed_khz)
+{
+	mutex_lock(&tegra_cpu_lock);
+
+	cpu_user_cap = speed_khz;
+	_cpu_user_cap_set_locked();
+
+	mutex_unlock(&tegra_cpu_lock);
+}
+
 static int cpu_user_cap_set(const char *arg, const struct kernel_param *kp)
 {
 	int ret;
@@ -94,21 +120,8 @@ static int cpu_user_cap_set(const char *arg, const struct kernel_param *kp)
 	mutex_lock(&tegra_cpu_lock);
 
 	ret = param_set_uint(arg, kp);
-	if (ret == 0) {
-#ifndef CONFIG_TEGRA_CPU_CAP_EXACT_FREQ
-		if (cpu_user_cap != 0) {
-			int i;
-			for (i = 0; freq_table[i].frequency !=
-				CPUFREQ_TABLE_END; i++) {
-				if (freq_table[i].frequency > cpu_user_cap)
-					break;
-			}
-			i = (i == 0) ? 0 : i - 1;
-			cpu_user_cap = freq_table[i].frequency;
-		}
-#endif
-		tegra_cpu_set_speed_cap(NULL);
-	}
+	if (ret == 0)
+		_cpu_user_cap_set_locked();
 
 	mutex_unlock(&tegra_cpu_lock);
 	return ret;
