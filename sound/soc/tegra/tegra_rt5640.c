@@ -267,7 +267,7 @@ enum headset_state {
 };
 
 static struct switch_dev tegra_rt5640_headset_switch = {
-	.name = "h2w1",
+	.name = "h2w",
 };
 
 static int tegra_rt5640_jack_notifier(struct notifier_block *self,
