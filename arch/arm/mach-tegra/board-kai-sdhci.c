@@ -39,6 +39,8 @@
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
+static int kai_wifi_power(int power_on);
+static int kai_wifi_set_carddetect(int val);
 
 static int kai_wifi_status_register(
 		void (*callback)(int card_present, void *dev_id),
@@ -56,6 +58,8 @@ static struct wl12xx_platform_data kai_wlan_data __initdata = {
 	.irq = TEGRA_GPIO_TO_IRQ(KAI_WLAN_IRQ),
 	.board_ref_clock = WL12XX_REFCLOCK_26,
 	.board_tcxo_clock = 1,
+	.set_power = kai_wifi_power,
+	.set_carddetect = kai_wifi_set_carddetect,
 };
 
 static struct resource sdhci_resource0[] = {
@@ -195,7 +199,7 @@ static struct platform_device tegra_sdhci_device3 = {
 	},
 };
 
-int kai_wifi_set_carddetect(int val)
+static int kai_wifi_set_carddetect(int val)
 {
 	pr_debug("%s: %d\n", __func__, val);
 	if (wifi_status_cb)
@@ -204,9 +208,8 @@ int kai_wifi_set_carddetect(int val)
 	pr_warning("%s: Nobody to notify\n", __func__);
 	return 0;
 }
-EXPORT_SYMBOL(kai_wifi_set_carddetect);
 
-int kai_wifi_power(int power_on)
+static int kai_wifi_power(int power_on)
 {
 	pr_err("Powering %s wifi\n", (power_on ? "on" : "off"));
 
@@ -223,7 +226,6 @@ int kai_wifi_power(int power_on)
 
 	return 0;
 }
-EXPORT_SYMBOL(kai_wifi_power);
 
 static int __init kai_wifi_init(void)
 {
