@@ -95,9 +95,7 @@
 /* register definitions */
 #define AFI_OFFSET							0x3800
 #define PADS_OFFSET							0x3000
-#define RP0_OFFSET							0x0000
-#define RP1_OFFSET							0x1000
-#define RP2_OFFSET							0x4000
+#define RP_OFFSET							0x1000
 
 #define AFI_AXI_BAR0_SZ							0x00
 #define AFI_AXI_BAR1_SZ							0x04
@@ -206,7 +204,11 @@
 
 /* PMC access is required for PCIE xclk (un)clamping */
 #define PMC_SCRATCH42						0x144
-#define PMC_SCRATCH42_PCX_CLAMP					(1 << 0)
+#define PMC_SCRATCH42_PCX_CLAMP				(1 << 0)
+
+#define NV_PCIE2_RP_PRIV_MISC					0x00000FE0
+#define PCIE2_RP_PRIV_MISC_CTLR_CLK_CLAMP_ENABLE		1 << 23
+#define PCIE2_RP_PRIV_MISC_TMS_CLK_CLAMP_ENABLE		1 << 31
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 /*
@@ -363,6 +365,20 @@ static inline void pads_writel(u32 value, unsigned long offset)
 static inline u32 pads_readl(unsigned long offset)
 {
 	return readl(offset + PADS_OFFSET + tegra_pcie.regs);
+}
+
+static inline void rp_writel(u32 value, unsigned long offset, int rp)
+{
+	BUG_ON(rp != 0 && rp != 1 && rp != 2);
+	offset += rp * (0x1UL << (rp - 1)) * RP_OFFSET;
+	writel(value, offset + tegra_pcie.regs);
+}
+
+static inline unsigned int rp_readl(unsigned long offset, int rp)
+{
+	BUG_ON(rp != 0 && rp != 1 && rp != 2);
+	offset += rp * (0x1UL << (rp - 1)) * RP_OFFSET;
+	return readl(offset + tegra_pcie.regs);
 }
 
 static struct tegra_pcie_port *bus_to_port(int bus)
@@ -591,6 +607,7 @@ static irqreturn_t tegra_pcie_isr(int irq, void *arg)
 		"Target abort",
 		"Master abort",
 		"Invalid write",
+		""
 		"Response decoding error",
 		"AXI response decoding error",
 		"Transcation timeout",
@@ -1083,6 +1100,7 @@ retry:
 static void __init tegra_pcie_add_port(int index, u32 offset, u32 reset_reg)
 {
 	struct tegra_pcie_port *pp;
+	unsigned int data;
 
 	pp = tegra_pcie.port + tegra_pcie.num_ports;
 
@@ -1095,6 +1113,12 @@ static void __init tegra_pcie_add_port(int index, u32 offset, u32 reset_reg)
 		printk(KERN_INFO "PCIE: port %d: link down, ignoring\n", index);
 		return;
 	}
+	/* Power mangagement settings */
+	/* Enable clock clamping by default */
+	data = rp_readl(NV_PCIE2_RP_PRIV_MISC, index);
+	data |= (PCIE2_RP_PRIV_MISC_CTLR_CLK_CLAMP_ENABLE) |
+		(PCIE2_RP_PRIV_MISC_TMS_CLK_CLAMP_ENABLE);
+	rp_writel(data, NV_PCIE2_RP_PRIV_MISC, index);
 
 	tegra_pcie.num_ports++;
 	pp->index = index;
@@ -1141,6 +1165,9 @@ static int tegra_pcie_init(void)
 
 static int tegra_pci_probe(struct platform_device *pdev)
 {
+	int ret;
+	struct pci_dev *dev = NULL;
+
 	tegra_pcie.plat_data = pdev->dev.platform_data;
 	dev_dbg(&pdev->dev, "PCIE.C: %s : _port_status[0] %d\n",
 		__func__, tegra_pcie.plat_data->port_status[0]);
@@ -1148,8 +1175,14 @@ static int tegra_pci_probe(struct platform_device *pdev)
 		__func__, tegra_pcie.plat_data->port_status[1]);
 	dev_dbg(&pdev->dev, "PCIE.C: %s : _port_status[2] %d\n",
 		__func__, tegra_pcie.plat_data->port_status[2]);
+	ret = tegra_pcie_init();
 
-	return tegra_pcie_init();
+	/* disable async PM of pci devices to ensure right order */
+	/* suspend/resume calls of tegra and bus driver */
+	for_each_pci_dev(dev)
+		device_disable_async_suspend(&dev->dev);
+
+	return ret;
 }
 
 static int tegra_pci_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1159,7 +1192,13 @@ static int tegra_pci_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int tegra_pci_resume(struct platform_device *pdev)
 {
-	return tegra_pcie_power_on();
+	int ret;
+
+	ret = tegra_pcie_power_on();
+	tegra_pcie_enable_controller();
+	tegra_pcie_setup_translations();
+
+	return ret;
 }
 
 static int tegra_pci_remove(struct platform_device *pdev)
