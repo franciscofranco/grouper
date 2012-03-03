@@ -331,6 +331,7 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 	ktime_t entry_time;
 	struct tegra_twd_context twd_context;
 	bool sleep_completed = false;
+	struct tick_sched *ts = tick_get_tick_sched(dev->cpu);
 
 	if (!tegra_twd_get_state(&twd_context)) {
 		unsigned long twd_rate = clk_get_rate(twd_clk);
@@ -351,7 +352,8 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 	}
 
 	if (!tegra_is_lp2_timer_ready(dev->cpu) ||
-	    (request < state->target_residency)) {
+	    (request < state->target_residency) ||
+	    (!ts) || (ts->nohz_mode == NOHZ_MODE_INACTIVE)) {
 		/*
 		 * Not enough time left to enter LP2, or wake timer not ready
 		 */
