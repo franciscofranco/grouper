@@ -29,7 +29,8 @@
 
 /* Regulator types */
 #define REGULATOR_TYPE_SD		0
-#define REGULATOR_TYPE_LDO		1
+#define REGULATOR_TYPE_LDO_N		1
+#define REGULATOR_TYPE_LDO_P		2
 
 /* SD and LDO Registers */
 #define MAX77663_REG_SD0		0x16
@@ -470,7 +471,9 @@ static int max77663_regulator_enable(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	if (reg->regulator_mode == REGULATOR_MODE_STANDBY)
+	/* N-Channel LDOs don't support Low-Power mode. */
+	if ((reg->type != REGULATOR_TYPE_LDO_N) &&
+			(reg->regulator_mode == REGULATOR_MODE_STANDBY))
 		power_mode = POWER_MODE_LPM;
 
 	return max77663_regulator_set_power_mode(reg, power_mode);
@@ -536,9 +539,11 @@ static int max77663_regulator_set_mode(struct regulator_dev *rdev,
 	if (mode == REGULATOR_MODE_NORMAL)
 		power_mode = (pdata->flags & GLPM_ENABLE) ?
 			     POWER_MODE_GLPM : POWER_MODE_NORMAL;
-	else if (mode == REGULATOR_MODE_STANDBY)
-		power_mode = POWER_MODE_LPM;
-	else
+	else if (mode == REGULATOR_MODE_STANDBY) {
+		/* N-Channel LDOs don't support Low-Power mode. */
+		power_mode = (reg->type != REGULATOR_TYPE_LDO_N) ?
+			     POWER_MODE_LPM : POWER_MODE_NORMAL;
+	} else
 		return -EINVAL;
 
 	ret = max77663_regulator_set_power_mode(reg, power_mode);
@@ -621,6 +626,11 @@ static int max77663_regulator_preinit(struct max77663_regulator *reg)
 		dev_err(reg->dev, "preinit: Failed to set FPSCFG\n");
 		return ret;
 	}
+
+	/* N-Channel LDOs don't support Low-Power mode. */
+	if ((reg->type == REGULATOR_TYPE_LDO_N) &&
+			(pdata->flags & GLPM_ENABLE))
+		pdata->flags &= ~GLPM_ENABLE;
 
 	/* To prevent power rail turn-off when change FPS source,
 	 * it must set power mode to NORMAL before change FPS source to NONE
@@ -738,7 +748,7 @@ skip_init_apply:
 	if ((reg->id == MAX77663_REGULATOR_ID_LDO4)
 			&& (pdata->flags & LDO4_EN_TRACKING)) {
 		val = TRACK4_MASK;
-		ret = max77663_write(_to_parent(reg), MAX77663_REG_LDO_CFG3, &val, 1, 0);
+		ret = max77663_write(parent, MAX77663_REG_LDO_CFG3, &val, 1, 0);
 		if (ret < 0) {
 			dev_err(reg->dev, "preinit: "
 				"Failed to set register 0x%x\n",
@@ -775,10 +785,10 @@ skip_init_apply:
 		.power_mode_shift = SD_POWER_MODE_SHIFT,	\
 	}
 
-#define REGULATOR_LDO(_id, _min_uV, _max_uV, _step_uV)		\
+#define REGULATOR_LDO(_id, _type, _min_uV, _max_uV, _step_uV)	\
 	[MAX77663_REGULATOR_ID_##_id] = {			\
 		.id = MAX77663_REGULATOR_ID_##_id,		\
-		.type = REGULATOR_TYPE_LDO,			\
+		.type = REGULATOR_TYPE_LDO_##_type,		\
 		.volt_mask = LDO_VOLT_MASK,			\
 		.regs = {					\
 			[VOLT_REG] = {				\
@@ -809,15 +819,15 @@ static struct max77663_regulator max77663_regs[MAX77663_REGULATOR_ID_NR] = {
 	REGULATOR_SD(SD3,    SDX, SD3,  600000, 3387500, 12500),
 	REGULATOR_SD(SD4,    SDX, SD4,  600000, 3387500, 12500),
 
-	REGULATOR_LDO(LDO0, 800000, 2350000, 25000),
-	REGULATOR_LDO(LDO1, 800000, 2350000, 25000),
-	REGULATOR_LDO(LDO2, 800000, 3950000, 50000),
-	REGULATOR_LDO(LDO3, 800000, 3950000, 50000),
-	REGULATOR_LDO(LDO4, 800000, 1587500, 12500),
-	REGULATOR_LDO(LDO5, 800000, 3950000, 50000),
-	REGULATOR_LDO(LDO6, 800000, 3950000, 50000),
-	REGULATOR_LDO(LDO7, 800000, 3950000, 50000),
-	REGULATOR_LDO(LDO8, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO0, N, 800000, 2350000, 25000),
+	REGULATOR_LDO(LDO1, N, 800000, 2350000, 25000),
+	REGULATOR_LDO(LDO2, P, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO3, P, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO4, P, 800000, 1587500, 12500),
+	REGULATOR_LDO(LDO5, P, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO6, P, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO7, N, 800000, 3950000, 50000),
+	REGULATOR_LDO(LDO8, N, 800000, 3950000, 50000),
 };
 
 #define REGULATOR_DESC(_id, _name)			\
