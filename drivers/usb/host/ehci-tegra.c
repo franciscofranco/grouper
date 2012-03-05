@@ -326,6 +326,7 @@ static int tegra_ehci_hub_control(
 	if (tegra->phy->instance == 0 &&
 	   (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_RESET)) {
 		spin_unlock_irqrestore(&ehci->lock, flags);
+		mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 		return tegra_ehci_internal_port_reset(ehci, status_reg);
 	}
 
