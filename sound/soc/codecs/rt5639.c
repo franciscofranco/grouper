@@ -657,8 +657,6 @@ static int rt5639_vol_rescale_put(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new rt5639_snd_controls[] = {
 	/* Speaker Output Volume */
-	SOC_DOUBLE("Speaker Playback Switch", RT5639_SPK_VOL,
-		RT5639_L_MUTE_SFT, RT5639_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_EXT_TLV("Speaker Playback Volume", RT5639_SPK_VOL,
 		RT5639_L_VOL_SFT, RT5639_R_VOL_SFT, RT5639_VOL_RSCL_RANGE, 0,
 		rt5639_vol_rescale_get, rt5639_vol_rescale_put, out_vol_tlv),
