@@ -767,9 +767,12 @@ static void kai_audio_init(void)
 
 	tegra_get_board_info(&board_info);
 
-	if (!(board_info.fab == BOARD_FAB_A00)) {
+	if (board_info.fab == BOARD_FAB_A01) {
 		kai_audio_pdata.codec_name = "rt5639.4-001c";
 		kai_audio_pdata.codec_dai_name = "rt5639-aif1";
+	} else if (board_info.fab == BOARD_FAB_A00) {
+		kai_audio_pdata.codec_name = "rt5640.4-001c";
+		kai_audio_pdata.codec_dai_name = "rt5640-aif1";
 	}
 }
 
