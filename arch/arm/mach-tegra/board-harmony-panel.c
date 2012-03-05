@@ -329,7 +329,8 @@ static struct platform_device *harmony_gfx_devices[] __initdata = {
 	&harmony_backlight_device,
 };
 
-int __init harmony_panel_init(void) {
+int __init harmony_panel_init(void)
+{
 	int err;
 	struct resource *res;
 
@@ -352,6 +353,12 @@ int __init harmony_panel_init(void) {
 #if defined(CONFIG_TEGRA_NVMAP)
 	harmony_carveouts[1].base = tegra_carveout_start;
 	harmony_carveouts[1].size = tegra_carveout_size;
+#endif
+
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
 #endif
 
 	err = platform_add_devices(harmony_gfx_devices,

@@ -700,6 +700,12 @@ int __init kai_panel_init(void)
 	register_early_suspend(&kai_panel_early_suspender);
 #endif
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(kai_gfx_devices,
 				ARRAY_SIZE(kai_gfx_devices));
 

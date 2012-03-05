@@ -125,6 +125,12 @@ int __init p1852_panel_init(void)
 	res->start = tegra_fb_start;
 	res->end = tegra_fb_start + tegra_fb_size - 1;
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(p1852_gfx_devices,
 				ARRAY_SIZE(p1852_gfx_devices));
 	if (!err)

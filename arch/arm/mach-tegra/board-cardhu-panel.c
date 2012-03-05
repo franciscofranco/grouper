@@ -1225,6 +1225,12 @@ int __init cardhu_panel_init(void)
 	register_early_suspend(&cardhu_panel_early_suspender);
 #endif
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(cardhu_gfx_devices,
 				ARRAY_SIZE(cardhu_gfx_devices));
 

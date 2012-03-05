@@ -174,6 +174,12 @@ int __init p852_panel_init(void)
 	if (err)
 		return err;
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(p852_gfx_devices,
 				   ARRAY_SIZE(p852_gfx_devices));
 

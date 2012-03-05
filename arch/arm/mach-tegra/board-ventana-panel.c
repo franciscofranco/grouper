@@ -412,6 +412,12 @@ int __init ventana_panel_init(void)
 	ventana_carveouts[1].size = tegra_carveout_size;
 #endif
 
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
+#endif
+
 	err = platform_add_devices(ventana_gfx_devices,
 				   ARRAY_SIZE(ventana_gfx_devices));
 

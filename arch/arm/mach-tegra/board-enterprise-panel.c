@@ -709,8 +709,6 @@ struct early_suspend enterprise_panel_early_suspender;
 
 static void enterprise_panel_early_suspend(struct early_suspend *h)
 {
-	unsigned i;
-
 	/* power down LCD, add use a black screen for HDMI */
 	if (num_registered_fb > 0)
 		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
@@ -733,6 +731,7 @@ static void enterprise_panel_early_suspend(struct early_suspend *h)
 static void enterprise_panel_late_resume(struct early_suspend *h)
 {
 	unsigned i;
+
 #ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
 	cpufreq_restore_default_governor();
 #endif
@@ -784,6 +783,12 @@ int __init enterprise_panel_init(void)
 	enterprise_panel_early_suspender.resume = enterprise_panel_late_resume;
 	enterprise_panel_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	register_early_suspend(&enterprise_panel_early_suspender);
+#endif
+
+#ifdef CONFIG_TEGRA_GRHOST
+	err = nvhost_device_register(&tegra_grhost_device);
+	if (err)
+		return err;
 #endif
 
 	err = platform_add_devices(enterprise_gfx_devices,
