@@ -54,25 +54,31 @@ static void ll_device_want_to_sleep(struct st_data_s *st_data)
 	/* communicate to platform about chip asleep */
 	kim_data = st_data->kim_data;
 	pdata = kim_data->kim_pdev->dev.platform_data;
+	if (pdata->chip_asleep)
+		pdata->chip_asleep();
 }
 
 static void ll_device_want_to_wakeup(struct st_data_s *st_data)
 {
+	struct kim_data_s       *kim_data = st_data->kim_data;
+	struct ti_st_plat_data  *pdata = kim_data->kim_pdev->dev.platform_data;
+
 	/* diff actions in diff states */
 	switch (st_data->ll_state) {
 	case ST_LL_ASLEEP:
 		/* communicate to platform about chip wakeup */
+		if (pdata->chip_awake)
+			pdata->chip_awake();
+
 		send_ll_cmd(st_data, LL_WAKE_UP_ACK);	/* send wake_ack */
 		break;
 	case ST_LL_ASLEEP_TO_AWAKE:
 		/* duplicate wake_ind */
-		pr_debug("duplicate wake_ind while waiting for Wake ack");
-		send_ll_cmd(st_data, LL_WAKE_UP_ACK);	/* send wake_ack */
+		pr_err("duplicate wake_ind while waiting for Wake ack");
 		break;
 	case ST_LL_AWAKE:
 		/* duplicate wake_ind */
-		pr_debug("duplicate wake_ind already AWAKE");
-		send_ll_cmd(st_data, LL_WAKE_UP_ACK);	/* send wake_ack */
+		pr_err("duplicate wake_ind already AWAKE");
 		break;
 	case ST_LL_AWAKE_TO_ASLEEP:
 		/* duplicate wake_ind */
@@ -91,7 +97,12 @@ static void ll_device_want_to_wakeup(struct st_data_s *st_data)
  * enable ST LL */
 void st_ll_enable(struct st_data_s *ll)
 {
-	/* communicate to platform about chip enable */
+	struct kim_data_s      *kim_data = ll->kim_data;
+	struct ti_st_plat_data *pdata = kim_data->kim_pdev->dev.platform_data;
+        /* communicate to platform about chip enable */
+	if (pdata->chip_enable)
+		pdata->chip_enable();
+
 	ll->ll_state = ST_LL_AWAKE;
 }
 
@@ -99,7 +110,12 @@ void st_ll_enable(struct st_data_s *ll)
  * disable ST LL */
 void st_ll_disable(struct st_data_s *ll)
 {
-	/* communicate to platform about chip disable */
+	struct kim_data_s      *kim_data = ll->kim_data;
+	struct ti_st_plat_data *pdata = kim_data->kim_pdev->dev.platform_data;
+        /* communicate to platform about chip disable */
+	if (pdata->chip_disable)
+		pdata->chip_disable();
+
 	ll->ll_state = ST_LL_INVALID;
 }
 
@@ -111,6 +127,8 @@ void st_ll_wakeup(struct st_data_s *ll)
 
 	if (likely(ll->ll_state != ST_LL_AWAKE)) {
 		/* communicate to platform about chip wakeup */
+		if (pdata->chip_awake)
+			pdata->chip_awake();
 		send_ll_cmd(ll, LL_WAKE_UP_IND);	/* WAKE_IND */
 		ll->ll_state = ST_LL_ASLEEP_TO_AWAKE;
 	} else {

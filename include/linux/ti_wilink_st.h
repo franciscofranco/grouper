@@ -371,6 +371,8 @@ struct hci_command {
 #define LL_WAKE_UP_IND	0x32
 #define LL_WAKE_UP_ACK	0x33
 
+#define HCILL_SLEEP_MODE_OPCODE 0xFD0C
+
 /* initialize and de-init ST LL */
 long st_ll_init(struct st_data_s *);
 long st_ll_deinit(struct st_data_s *);
@@ -394,6 +396,9 @@ static inline unsigned long st_ll_getstate(struct st_data_s *ll){ return 0; }
 #endif
 unsigned long st_ll_sleep_state(struct st_data_s *, unsigned char);
 void st_ll_wakeup(struct st_data_s *);
+int bluesleep_start(struct uart_port *uport);
+void bluesleep_stop(void);
+
 
 /*
  * header information used by st_core.c for FM and GPS
@@ -444,10 +449,14 @@ struct ti_st_plat_data {
 	unsigned long baud_rate;
 	int (*suspend)(struct platform_device *, pm_message_t);
 	int (*resume)(struct platform_device *);
-	int (*chip_enable) (struct kim_data_s *);
+/*	int (*chip_enable) (struct kim_data_s *);
 	int (*chip_disable) (struct kim_data_s *);
 	int (*chip_asleep) (struct kim_data_s *);
-	int (*chip_awake) (struct kim_data_s *);
+	int (*chip_awake) (struct kim_data_s *);*/
+	int (*chip_enable) (void);
+	int (*chip_disable) (void);
+	int (*chip_asleep) (void);
+	int (*chip_awake) (void);
 };
 
 #endif /* TI_WILINK_ST_H */

@@ -103,6 +103,16 @@ config BT_BLUESLEEP
           Say Y here to compile support for bluesleep support into the kernel
           or say M to compile it as module (bluesleep).
 
+config BT_TIBLUESLEEP
+        tristate "Bluesleep driver support for TI"
+        help
+          TI Bluetooth Bluesleep Driver.
+          This driver provides the dynamic active power saving mechanism for
+          bluetooth radio devices.
+
+          Say Y here to compile support for bluesleep support into the kernel
+          or say M to compile it as module (bluesleep).
+
 config BT_HCIBPA10X
 	tristate "HCI BPA10x USB driver"
 	depends on USB
