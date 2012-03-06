@@ -427,6 +427,14 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 		return -EINVAL;
 	}
 
+	if ((req->size & 0x3) ||
+	   ((ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE) && (req->size & 0x7)))
+	{
+		pr_err("Invalid DMA request size 0x%08x for channel %d\n",
+				req->size, ch->id);
+		return -EINVAL;
+	}
+
 	spin_lock_irqsave(&ch->lock, irq_flags);
 
 	list_for_each_entry(_req, &ch->list, node) {
