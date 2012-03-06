@@ -3,7 +3,7 @@
  *
  * System DMA driver for NVIDIA Tegra SoCs
  *
- * Copyright (c) 2008-2011, NVIDIA Corporation.
+ * Copyright (c) 2008-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,11 +51,10 @@
 #define CSR_ONCE				(1<<27)
 #define CSR_FLOW				(1<<21)
 #define CSR_REQ_SEL_SHIFT			16
-#define CSR_REQ_SEL_MASK			(0x1F<<CSR_REQ_SEL_SHIFT)
 #define CSR_WCOUNT_SHIFT			2
 #define CSR_WCOUNT_MASK				0xFFFC
 
-#define APB_DMA_CHAN_STA				0x004
+#define APB_DMA_CHAN_STA			0x004
 #define STA_BUSY				(1<<31)
 #define STA_ISE_EOC				(1<<30)
 #define STA_HALT				(1<<29)
@@ -63,9 +62,9 @@
 #define STA_COUNT_SHIFT				2
 #define STA_COUNT_MASK				0xFFFC
 
-#define APB_DMA_CHAN_AHB_PTR				0x010
+#define APB_DMA_CHAN_AHB_PTR			0x010
 
-#define APB_DMA_CHAN_AHB_SEQ				0x014
+#define APB_DMA_CHAN_AHB_SEQ			0x014
 #define AHB_SEQ_INTR_ENB			(1<<31)
 #define AHB_SEQ_BUS_WIDTH_SHIFT			28
 #define AHB_SEQ_BUS_WIDTH_MASK			(0x7<<AHB_SEQ_BUS_WIDTH_SHIFT)
@@ -83,9 +82,9 @@
 #define AHB_SEQ_WRAP_SHIFT			16
 #define AHB_SEQ_WRAP_MASK			(0x7<<AHB_SEQ_WRAP_SHIFT)
 
-#define APB_DMA_CHAN_APB_PTR				0x018
+#define APB_DMA_CHAN_APB_PTR			0x018
 
-#define APB_DMA_CHAN_APB_SEQ				0x01c
+#define APB_DMA_CHAN_APB_SEQ			0x01c
 #define APB_SEQ_BUS_WIDTH_SHIFT			28
 #define APB_SEQ_BUS_WIDTH_MASK			(0x7<<APB_SEQ_BUS_WIDTH_SHIFT)
 #define APB_SEQ_BUS_WIDTH_8			(0<<APB_SEQ_BUS_WIDTH_SHIFT)
@@ -107,14 +106,23 @@
 #define TEGRA_SYSTEM_DMA_CH_MAX	\
 	(TEGRA_SYSTEM_DMA_CH_NR - TEGRA_SYSTEM_DMA_AVP_CH_NUM - 1)
 
+/* Maximum dma transfer size */
+#define TEGRA_DMA_MAX_TRANSFER_SIZE		0x10000
+
 static struct clk *dma_clk;
+
 static const unsigned int ahb_addr_wrap_table[8] = {
 	0, 32, 64, 128, 256, 512, 1024, 2048
 };
 
-static const unsigned int apb_addr_wrap_table[8] = {0, 1, 2, 4, 8, 16, 32, 64};
+static const unsigned int apb_addr_wrap_table[8] = {
+	0, 1, 2, 4, 8, 16, 32, 64
+};
 
-static const unsigned int bus_width_table[5] = {8, 16, 32, 64, 128};
+static const unsigned int bus_width_table[5] = {
+	8, 16, 32, 64, 128
+};
+
 static void __iomem *general_dma_addr = IO_ADDRESS(TEGRA_APB_DMA_BASE);
 typedef void (*dma_isr_handler)(struct tegra_dma_channel *ch);
 
@@ -155,7 +163,7 @@ void tegra_dma_flush(struct tegra_dma_channel *ch)
 }
 EXPORT_SYMBOL(tegra_dma_flush);
 
-void tegra_dma_stop(struct tegra_dma_channel *ch)
+static void tegra_dma_stop(struct tegra_dma_channel *ch)
 {
 	u32 csr;
 	u32 status;
@@ -170,11 +178,6 @@ void tegra_dma_stop(struct tegra_dma_channel *ch)
 	status = readl(ch->addr + APB_DMA_CHAN_STA);
 	if (status & STA_ISE_EOC)
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
-}
-
-bool tegra_dma_is_stopped(struct tegra_dma_channel *ch)
-{
-	return !!(readl(ch->addr + APB_DMA_CHAN_STA) & CSR_ENB);
 }
 
 int tegra_dma_cancel(struct tegra_dma_channel *ch)
@@ -378,6 +381,7 @@ bool tegra_dma_is_req_inflight(struct tegra_dma_channel *ch,
 	return false;
 }
 EXPORT_SYMBOL(tegra_dma_is_req_inflight);
+
 int tegra_dma_get_transfer_count(struct tegra_dma_channel *ch,
 			struct tegra_dma_req *req)
 {
@@ -415,6 +419,7 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	unsigned long irq_flags;
 	struct tegra_dma_req *_req;
 	int start_dma = 0;
+	struct tegra_dma_req *hreq, *hnreq;
 
 	if (req->size > TEGRA_DMA_MAX_TRANSFER_SIZE ||
 		req->source_addr & 0x3 || req->dest_addr & 0x3) {
@@ -443,20 +448,16 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	if (start_dma) {
 		tegra_dma_update_hw(ch, req);
 	} else {
-		struct tegra_dma_req *first_req, *second_req;
-		first_req = list_entry(ch->list.next,
-					typeof(*first_req), node);
-		second_req = list_entry(first_req->node.next,
-					typeof(*second_req), node);
-
 		/*
 		 * Check to see if this request needs to be configured
-		 * immediately
+		 * immediately in continuous mode.
 		 */
-		if (second_req != req)
+		if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
 			goto end;
 
-		if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
+		hreq = list_entry(ch->list.next, typeof(*hreq), node);
+		hnreq = list_entry(hreq->node.next, typeof(*hnreq), node);
+		if (hnreq != req)
 			goto end;
 
 		if ((ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE) &&
@@ -545,6 +546,8 @@ void tegra_dma_free_channel(struct tegra_dma_channel *ch)
 	__clear_bit(ch->id, channel_usage);
 	memset(ch->client_name, 0, sizeof(ch->client_name));
 	ch->isr_handler = NULL;
+	ch->callback = NULL;
+	ch->cb_req = NULL;
 	mutex_unlock(&tegra_dma_lock);
 }
 EXPORT_SYMBOL(tegra_dma_free_channel);
@@ -803,7 +806,6 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 			tegra_dma_stop(ch);
 
 			list_del(&req->node);
-
 			ch->callback = req->complete;
 			ch->cb_req = req;
 
@@ -813,11 +815,12 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 
 		/*
 		 * Configure next request so after full buffer transfer,
-		 * it can be start.
+		 * it can be start without sw intervention.
 		 */
 		configure_next_req(ch, req);
 
 		req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL;
+		req->status = TEGRA_DMA_REQ_SUCCESS;
 		req->bytes_transferred += req->size >> 1;
 
 		ch->callback = req->threshold;

@@ -64,8 +64,6 @@ struct tegra_dma_channel;
 #define TEGRA_DMA_REQ_SEL_SL2B6			28
 #define TEGRA_DMA_REQ_SEL_INVALID		31
 
-#define TEGRA_DMA_MAX_TRANSFER_SIZE		0x10000
-
 enum tegra_dma_mode {
 	TEGRA_DMA_SHARED = 1,
 	TEGRA_DMA_MODE_CONTINUOUS = 2,
@@ -161,7 +159,6 @@ bool tegra_dma_is_req_inflight(struct tegra_dma_channel *ch,
 int tegra_dma_get_transfer_count(struct tegra_dma_channel *ch,
 			struct tegra_dma_req *req);
 bool tegra_dma_is_empty(struct tegra_dma_channel *ch);
-bool tegra_dma_is_stopped(struct tegra_dma_channel *ch);
 
 struct tegra_dma_channel *tegra_dma_allocate_channel(int mode, const char namefmt [ ],...);
 void tegra_dma_free_channel(struct tegra_dma_channel *ch);
