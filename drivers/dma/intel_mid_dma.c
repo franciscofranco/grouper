@@ -862,7 +862,7 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 		pm_runtime_put(&mid->pdev->dev);
 		return -EIO;
 	}
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 
 	spin_lock_bh(&midc->lock);
 	while (midc->descs_allocated < DESCS_PER_CHANNEL) {
@@ -1093,8 +1093,12 @@ static int mid_setup_dma(struct pci_dev *pdev)
 		struct intel_mid_dma_chan *midch = &dma->ch[i];
 
 		midch->chan.device = &dma->common;
+<<<<<<< HEAD
 		midch->chan.cookie =  1;
 		midch->chan.chan_id = i;
+=======
+		dma_cookie_init(&midch->chan);
+>>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
 		midch->ch_id = dma->chan_base + i;
 		pr_debug("MDMA:Init CH %d, ID %d\n", i, midch->ch_id);
 

@@ -531,7 +531,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_irq(&pd_chan->lock);
 	list_splice(&tmp_list, &pd_chan->free_list);
 	pd_chan->descs_allocated = i;
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 	spin_unlock_irq(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
@@ -914,8 +914,12 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 		struct pch_dma_chan *pd_chan = &pd->channels[i];
 
 		pd_chan->chan.device = &pd->dma;
+<<<<<<< HEAD
 		pd_chan->chan.cookie = 1;
 		pd_chan->chan.chan_id = i;
+=======
+		dma_cookie_init(&pd_chan->chan);
+>>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
 
 		pd_chan->membase = &regs->desc[i];
 

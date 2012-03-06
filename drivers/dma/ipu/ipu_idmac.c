@@ -1506,8 +1506,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	BUG_ON(chan->client_count > 1);
 	WARN_ON(ichan->status != IPU_CHANNEL_FREE);
 
-	chan->cookie		= 1;
-	chan->completed_cookie	= -ENXIO;
+	dma_cookie_init(chan);
 
 	ret = ipu_irq_map(chan->chan_id);
 	if (ret < 0)
@@ -1635,8 +1634,15 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 		snprintf(ichan->eof_name, sizeof(ichan->eof_name), "IDMAC EOF %d", i);
 
 		dma_chan->device	= &idmac->dma;
+<<<<<<< HEAD
 		dma_chan->cookie	= 1;
+<<<<<<< HEAD
 		dma_chan->completed_cookie	= -ENXIO;
+=======
+=======
+		dma_cookie_init(dma_chan);
+>>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
+>>>>>>> 1e15982... dmaengine: consolidate initialization of cookies
 		dma_chan->chan_id	= i;
 		list_add_tail(&dma_chan->device_node, &dma->channels);
 	}

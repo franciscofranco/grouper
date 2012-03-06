@@ -1093,7 +1093,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_bh(&atchan->lock);
 	atchan->descs_allocated = i;
 	list_splice(&tmp_list, &atchan->free_list);
-	atchan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 	spin_unlock_bh(&atchan->lock);
 
 	/* channel parameters */
@@ -1239,7 +1239,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 		atchan->chan_common.device = &atdma->dma_common;
 		atchan->chan_common.chan_id = i;
-		atchan->chan_common.cookie = atchan->chan_common.completed_cookie = 1;
+		dma_cookie_init(&atchan->chan_common);
 		list_add_tail(&atchan->chan_common.device_node,
 				&atdma->dma_common.channels);
 
