@@ -778,7 +778,6 @@ static void handle_oneshot_dma(struct tegra_dma_channel *ch)
 static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
-	struct tegra_dma_req *nreq;
 
 	req = list_entry(ch->list.next, typeof(*req), node);
 
@@ -840,8 +839,8 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 			tegra_dma_stop(ch);
 		} else {
 			/* Check that next req on list should be in flight */
-			nreq = list_entry(ch->list.next, typeof(*nreq), node);
-			if (nreq->status != TEGRA_DMA_REQ_INFLIGHT) {
+			req = list_entry(ch->list.next, typeof(*req), node);
+			if (req->status != TEGRA_DMA_REQ_INFLIGHT) {
 				/*
 				 * We should not land here if queue mechanism
 				 * with system latency are properly configured.
@@ -851,11 +850,6 @@ static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 				start_head_req(ch);
 			}
 		}
-
-		list_del(&req->node);
-
-		ch->callback = req->complete;
-		ch->cb_req = req;
 		return;
 	}
 	tegra_dma_stop(ch);
