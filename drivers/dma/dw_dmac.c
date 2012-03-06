@@ -152,19 +152,35 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	}
 }
 
-/* Called with dwc->lock held and bh disabled */
-static dma_cookie_t
-dwc_assign_cookie(struct dw_dma_chan *dwc, struct dw_desc *desc)
+static void dwc_initialize(struct dw_dma_chan *dwc)
 {
-	dma_cookie_t cookie = dwc->chan.cookie;
+	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
+	struct dw_dma_slave *dws = dwc->chan.private;
+	u32 cfghi = DWC_CFGH_FIFO_MODE;
+	u32 cfglo = DWC_CFGL_CH_PRIOR(dwc->priority);
 
-	if (++cookie < 0)
-		cookie = 1;
+	if (dwc->initialized == true)
+		return;
 
-	dwc->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
+	if (dws) {
+		/*
+		 * We need controller-specific data to set up slave
+		 * transfers.
+		 */
+		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
-	return cookie;
+		cfghi = dws->cfg_hi;
+		cfglo |= dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
+	}
+
+	channel_writel(dwc, CFG_LO, cfglo);
+	channel_writel(dwc, CFG_HI, cfghi);
+
+	/* Enable interrupts */
+	channel_set_bit(dw, MASK.XFER, dwc->mask);
+	channel_set_bit(dw, MASK.ERROR, dwc->mask);
+
+	dwc->initialized = true;
 }
 
 /*----------------------------------------------------------------------*/
@@ -582,7 +598,7 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	cookie = dwc_assign_cookie(dwc, desc);
+	cookie = dma_cookie_assign(tx);
 
 	/*
 	 * REVISIT: We should attempt to chain as many descriptors as
