@@ -1020,7 +1020,7 @@ pl08x_dma_tx_status(struct dma_chan *chan,
 	u32 bytesleft = 0;
 
 	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
+	last_complete = plchan->chan.completed_cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret == DMA_SUCCESS) {
@@ -1032,7 +1032,7 @@ pl08x_dma_tx_status(struct dma_chan *chan,
 	 * This cookie not complete yet
 	 */
 	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
+	last_complete = plchan->chan.completed_cookie;
 
 	/* Get number of bytes left in the active transactions and queue */
 	bytesleft = pl08x_getbytes_chan(plchan);
@@ -1552,7 +1552,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	if (txd) {
 		/* Update last completed */
-		plchan->lc = txd->tx.cookie;
+		plchan->chan.completed_cookie = txd->tx.cookie;
 	}
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
@@ -1734,7 +1734,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 
 		chan->chan.device = dmadev;
 		chan->chan.cookie = 0;
-		chan->lc = 0;
+		chan->chan.completed_cookie = 0;
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);
