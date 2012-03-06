@@ -50,7 +50,7 @@
 
 /* Select LVDS panel resolution. 13X7 is default */
 #define PM313_LVDS_PANEL_19X12			1
-#define PM313_LVDS_PANEL_BPP			1 /* 0:24bpp, 1:18bpp */
+#define PM313_LVDS_PANEL_BPP			0 /* 0:24bpp, 1:18bpp */
 
 /* PM313 display board specific pins */
 #define pm313_R_FDE			TEGRA_GPIO_PW0
