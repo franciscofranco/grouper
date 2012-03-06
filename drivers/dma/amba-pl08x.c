@@ -90,6 +90,8 @@
 
 #include <asm/hardware/pl080.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME	"pl08xdmac"
 
 /**

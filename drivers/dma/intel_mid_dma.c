@@ -28,6 +28,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/intel_mid_dma.h>
 
+#include "dmaengine.h"
+
 #define MAX_CHAN	4 /*max ch across controllers*/
 #include "intel_mid_dma_regs.h"
 

@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 
 #include "at_hdmac_regs.h"
+#include "dmaengine.h"
 
 /*
  * Glossary

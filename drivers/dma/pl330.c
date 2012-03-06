@@ -18,6 +18,8 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
 
+#include "dmaengine.h"
+
 #define NR_DEFAULT_DESC	16
 
 enum desc_status {
