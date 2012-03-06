@@ -988,26 +988,20 @@ atc_tx_status(struct dma_chan *chan,
 
 	spin_lock_bh(&atchan->lock);
 
-	last_complete = chan->completed_cookie;
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret != DMA_SUCCESS) {
 		atc_cleanup_descriptors(atchan);
 
-		last_complete = chan->completed_cookie;
-		last_used = chan->cookie;
-
-		ret = dma_async_is_complete(cookie, last_complete, last_used);
+		ret = dma_cookie_status(chan, cookie, txstate);
 	}
+
+	last_complete = chan->completed_cookie;
+	last_used = chan->cookie;
 
 	spin_unlock_bh(&atchan->lock);
 
 	if (ret != DMA_SUCCESS)
-		dma_set_tx_state(txstate, last_complete, last_used,
-			atc_first_active(atchan)->len);
-	else
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+		dma_set_residue(txstate, atc_first_active(atchan)->len);
 
 	if (test_bit(ATC_IS_PAUSED, &atchan->status))
 		ret = DMA_PAUSED;
