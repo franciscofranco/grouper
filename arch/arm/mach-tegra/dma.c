@@ -965,30 +965,29 @@ int __init tegra_dma_init(void)
 	int ret = 0;
 	int i;
 	unsigned int irq;
-	struct clk *c;
 
 	bitmap_fill(channel_usage, NV_DMA_MAX_CHANNELS);
 
-	c = clk_get_sys("tegra-dma", NULL);
-	if (IS_ERR(c)) {
+	dma_clk = clk_get_sys("tegra-dma", NULL);
+	if (IS_ERR_OR_NULL(dma_clk)) {
 		pr_err("Unable to get clock for APB DMA\n");
-		ret = PTR_ERR(c);
+		ret = PTR_ERR(dma_clk);
 		goto fail;
 	}
-	ret = clk_enable(c);
+	ret = clk_enable(dma_clk);
 	if (ret != 0) {
 		pr_err("Unable to enable clock for APB DMA\n");
 		goto fail;
 	}
 
-	dma_clk = clk_get_sys("apbdma", "apbdma");
-	if (!IS_ERR_OR_NULL(dma_clk)) {
-		clk_enable(dma_clk);
-		tegra_periph_reset_assert(dma_clk);
-		udelay(10);
-		tegra_periph_reset_deassert(dma_clk);
-		udelay(10);
-	}
+	/*
+	 * Resetting all dma channels to make sure all channels are in init
+	 * state.
+	 */
+	tegra_periph_reset_assert(dma_clk);
+	udelay(10);
+	tegra_periph_reset_deassert(dma_clk);
+	udelay(10);
 
 	writel(GEN_ENABLE, general_dma_addr + APB_DMA_GEN);
 	writel(0, general_dma_addr + APB_DMA_CNTRL);
