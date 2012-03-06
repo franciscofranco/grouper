@@ -35,6 +35,8 @@
 	}
 #endif
 
+struct memory_accessor;
+
 void tegra_assert_system_reset(char mode, const char *cmd);
 void get_mac_addr(struct memory_accessor *, void *);
 
