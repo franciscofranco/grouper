@@ -114,6 +114,7 @@
 
 #define ONOFF_SFT_RST_MASK		(1 << 7)
 #define ONOFF_SLPEN_MASK		(1 << 2)
+#define ONOFF_PWR_OFF_MASK		(1 << 1)
 
 #define ONOFF_SLP_LPM_MASK		(1 << 5)
 
@@ -241,6 +242,15 @@ static struct max77663_irq_data max77663_irqs[MAX77663_IRQ_NR] = {
 	},
 };
 
+/* MAX77663 PMU doesn't allow PWR_OFF and SFT_RST setting in ONOFF_CFG1
+ * at the same time. So if it try to set PWR_OFF and SFT_RST to ONOFF_CFG1
+ * simultaneously, handle only SFT_RST and ignore PWR_OFF.
+ */
+#define CHECK_ONOFF_CFG1_MASK	(ONOFF_SFT_RST_MASK | ONOFF_PWR_OFF_MASK)
+#define CHECK_ONOFF_CFG1(_addr, _val)			\
+	unlikely((_addr == MAX77663_REG_ONOFF_CFG1) &&	\
+		 ((_val & CHECK_ONOFF_CFG1_MASK) == CHECK_ONOFF_CFG1_MASK))
+
 static inline int max77663_i2c_write(struct i2c_client *client, u8 addr,
 				     void *src, u32 bytes)
 {
@@ -260,10 +270,14 @@ static inline int max77663_i2c_write(struct i2c_client *client, u8 addr,
 		int i;
 
 		for (i = 0; i < (bytes * 2); i++) {
-			if (i % 2)
-				buf[i] = *src8++;
-			else
+			if (i % 2) {
+				if (CHECK_ONOFF_CFG1(buf[i - 1], *src8))
+					buf[i] = *src8++ & ~ONOFF_PWR_OFF_MASK;
+				else
+					buf[i] = *src8++;
+			} else {
 				buf[i] = addr++;
+			}
 		}
 		bytes = (bytes * 2) - 1;
 	}
