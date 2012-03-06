@@ -132,9 +132,9 @@ static int tegra_aic326x_call_mode_put(struct snd_kcontrol *kcontrol,
 		tegra20_das_set_tristate(codec_dap_id, 1);
 		tegra20_das_set_tristate(bb_dap_id, 1);
 		tegra20_das_connect_dap_to_dap(codec_dap_id,
-			bb_dap_sel, 1, 0, 0);
+			bb_dap_sel, 0, 0, 0);
 		tegra20_das_connect_dap_to_dap(bb_dap_id,
-			codec_dap_sel, 0, 0, 0);
+			codec_dap_sel, 1, 0, 0);
 		tegra20_das_set_tristate(codec_dap_id, 0);
 		tegra20_das_set_tristate(bb_dap_id, 0);
 #endif
@@ -341,17 +341,10 @@ static int tegra_aic326x_bt_hw_params(struct snd_pcm_substream *substream,
 
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
 
-	if (machine_is_cardhu()) {
-		err = snd_soc_dai_set_fmt(rtd->cpu_dai,
-				SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_NB_NF |
-				SND_SOC_DAIFMT_CBS_CFS);
-	} else {
-		err = snd_soc_dai_set_fmt(rtd->cpu_dai,
-				SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_NB_NF |
-				SND_SOC_DAIFMT_CBM_CFM);
-	}
+	err = snd_soc_dai_set_fmt(rtd->cpu_dai,
+			SND_SOC_DAIFMT_DSP_A |
+			SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS);
 
 	if (err < 0) {
 		dev_err(rtd->codec->card->dev, "cpu_dai fmt not set\n");
@@ -417,9 +410,9 @@ static int tegra_aic326x_voice_call_hw_params(
 	tegra_asoc_utils_lock_clk_rate(&machine->util_data, 1);
 
 	err = snd_soc_dai_set_fmt(codec_dai,
-					SND_SOC_DAIFMT_DSP_A |
+					SND_SOC_DAIFMT_DSP_B |
 					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBM_CFM);
+					SND_SOC_DAIFMT_CBS_CFS);
 	if (err < 0) {
 		dev_err(card->dev, "codec_dai fmt not set\n");
 		return err;
@@ -634,17 +627,13 @@ static const struct snd_soc_dapm_route aic326x_audio_map[] = {
 	{"Headphone Jack", NULL, "HPL"},
 	{"Headphone Jack", NULL, "HPR"},
 	/* internal (IN2L/IN2R) mic is stero */
-	{"Mic Bias Ext" ,NULL, "Int Mic"},
-	{"IN2L", NULL, "Mic Bias Ext"},
-	{"Mic Bias Ext" ,NULL, "Int Mic"},
-	{"IN2R", NULL, "Mic Bias Ext"},
-	/* Line in */
-	//{"IN2L", NULL, "Linein"},
-	//{"IN2R", NULL, "Linein"},
-	/* Headset (IN1L) MIC */
-	{"Mic Bias Int" ,NULL, "Mic Jack"},
+	{"Mic Bias Int" ,NULL, "Int Mic"},
+	{"IN2L", NULL, "Mic Bias Int"},
+	{"Mic Bias Int" ,NULL, "Int Mic"},
+	{"IN2R", NULL, "Mic Bias Int"},
+	{"Mic Bias Ext" ,NULL, "Mic Jack"},
 	{"CM1L" ,NULL, "Mic Jack"},
-	{"IN1L", NULL, "Mic Bias Int"},
+	{"IN1L", NULL, "Mic Bias Ext"},
 	{"IN1L", NULL, "CM1L"},
 };
 
@@ -770,9 +759,8 @@ static int tegra_aic326x_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	//snd_soc_dapm_nc_pin(dapm, "IN2L");
-	//snd_soc_dapm_nc_pin(dapm, "IN2R");
 	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS_EXT ON");
+	snd_soc_dapm_force_enable_pin(dapm,"MICBIAS_INT ON");
 	snd_soc_dapm_sync(dapm);
 
 	return 0;
