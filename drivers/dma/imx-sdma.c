@@ -510,7 +510,7 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 	else
 		sdmac->status = DMA_SUCCESS;
 
-	sdmac->chan.completed_cookie = sdmac->desc.cookie;
+	dma_cookie_complete(&sdmac->desc);
 	if (sdmac->desc.callback)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 	sdmac->last_completed = sdmac->desc.cookie;
