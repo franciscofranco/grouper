@@ -273,6 +273,12 @@ static inline int max77663_rtc_do_irq(struct max77663_rtc *rtc)
 	u8 irq_status;
 	int ret;
 
+	ret = max77663_rtc_update_buffer(rtc, 0);
+	if (ret < 0) {
+		dev_err(rtc->dev, "rtc_irq: Failed to get rtc update buffer\n");
+		return ret;
+	}
+
 	ret = max77663_read(parent, MAX77663_RTC_IRQ, &irq_status, 1, 1);
 	if (ret < 0) {
 		dev_err(rtc->dev, "rtc_irq: Failed to get rtc irq status\n");
