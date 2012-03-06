@@ -1447,4 +1447,4 @@ module_exit(tegra_aes_mod_exit);
 
 MODULE_DESCRIPTION("Tegra AES hw acceleration support.");
 MODULE_AUTHOR("NVIDIA Corporation");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL v2");
