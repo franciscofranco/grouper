@@ -63,7 +63,7 @@
 #include <linux/spi/spi.h>
 
 #include "tlv320aic326x.h"
-
+#include <linux/gpio.h>
 /*
  *****************************************************************************
  * Global Variable
@@ -733,16 +733,10 @@ static const struct snd_kcontrol_new aic3262_snd_controls[] = {
 					RAGC_CNTL_R7, 0, 0x0F, 0),
 
 	SOC_SINGLE("DAC PRB Selection",DAC_PRB, 0, 25, 0),
-
-	SOC_SINGLE("INTERRUPT FLAG - Read only", 46, 0, 255,0),
-	SOC_SINGLE("INTERRUPT STICKY FLAG - Read only", 44, 0, 255,0),
-	SOC_SINGLE("INT1 CONTROL", 48, 0, 255,0),
-	SOC_SINGLE("GPIO1 CONTROL", GPIO1_IO_CNTL, 0, 255,0),
 	SOC_SINGLE("HP_DEPOP", HP_DEPOP, 0, 255,0),
 	SOC_DOUBLE("IN1 LO BYPASS VOLUME" , LINE_AMP_CNTL_R2, 3, 0, 3, 1),
 	SOC_ENUM("Input CM mode", input_cm_mode),
 	SOC_ENUM("Output CM mode", output_cm_mode),
-
 };
 
 
@@ -819,6 +813,8 @@ static const struct aic3262_rate_divs aic3262_divs[] = {
 #ifdef CONFIG_MINI_DSP
 	{12288000, 48000, 1, 8, 52, 128, 2, 8, 128, 2, 8, 4,
 		{{0, 60, 0}, {0, 61, 0} } },
+	{12000000, 48000, 1, 8, 1920, 128, 2, 8, 128, 2, 8, 4,
+         {{0, 60, 0}, {0, 61, 0}}},
 #else
 	/* 48k rate */
 	{12000000, 48000, 1, 8, 1920, 128, 8, 2, 128, 8, 2, 4,
@@ -826,8 +822,6 @@ static const struct aic3262_rate_divs aic3262_divs[] = {
 	{12288000, 48000, 1, 8, 52, 128, 8, 2, 128, 8, 2, 4,
 		{{0, 60, 1}, {0, 61, 1} } },
 	{24000000, 48000, 1, 4, 960, 128, 4, 4, 128, 4, 4, 4,
-		{{0, 60, 1}, {0, 61, 1} } },
-	{26000000, 48000, 2, 7, 5618, 128, 8, 2, 128, 8, 2, 4,
 		{{0, 60, 1}, {0, 61, 1} } },
 #endif
 
@@ -1480,7 +1474,6 @@ static int aic3262_multi_i2s_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	case AIC3262_FREQ_12000000:
 	case AIC3262_FREQ_12288000:
 	case AIC3262_FREQ_24000000:
-	case AIC3262_FREQ_26000000:
 		aic3262->sysclk = freq;
 		return 0;
 		break;
@@ -2188,13 +2181,13 @@ static struct snd_soc_dai_driver tlv320aic3262_dai[] = {
 	.name = "aic3262-asi1",
 	.id = 1,
 	.playback = {
-		.stream_name = "Playback",
+		.stream_name = "ASI1 Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
 		.formats = AIC3262_FORMATS},
 	.capture = { /* dummy for fast DAI switching */
-		.stream_name = "Capture",
+		.stream_name = "ASI1 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
@@ -2206,13 +2199,13 @@ static struct snd_soc_dai_driver tlv320aic3262_dai[] = {
 	.name = "aic3262-asi2",
 	.id = 2,
 	.playback = {
-		.stream_name = "Playback",
+		.stream_name = "ASI2 Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
 		.formats = AIC3262_FORMATS,},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "ASI2 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
@@ -2225,13 +2218,13 @@ static struct snd_soc_dai_driver tlv320aic3262_dai[] = {
 	.name = "aic3262-asi3",
 	.id = 3,
 	.playback = {
-		.stream_name = "Playback",
+		.stream_name = "ASI3 Playback",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
 		.formats = AIC3262_FORMATS, },
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "ASI3 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC3262_RATES,
@@ -2440,8 +2433,8 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 	/* set default volumes */
 	{0, DAC_LVOL, 0x01},
 	{0, DAC_RVOL, 0x01},
-	{0, HPL_VOL,  0x3a},
-	{0, HPR_VOL,  0x3a},
+	{0, HPL_VOL,  0x80},
+	{0, HPR_VOL,  0x80},
 	{0, SPK_AMP_CNTL_R2, 0x14},
 	{0, SPK_AMP_CNTL_R3, 0x14},
 	{0, SPK_AMP_CNTL_R4, 0x33},
@@ -2482,33 +2475,34 @@ static const struct aic3262_configs aic3262_reg_init[] = {
 
 	{0, ADC_CHANNEL_POW, 0x0}, /*ladc, radc ON , SOFT STEP disabled*/
 	{0, ADC_FINE_GAIN, 0x00},   /*ladc - unmute, radc - unmute*/
-	{0, MICL_PGA, 0x4f},
-	{0, MICR_PGA, 0x4f},
+	{0, MICL_PGA, 0x3f},
+	{0, MICR_PGA, 0x3f},
 	/*controls MicBias ext power based on B0_P1_R51_D6*/
 	{0, MIC_BIAS_CNTL, 0x80},
 	/*   ASI1 Configuration */
 	{0, ASI1_BUS_FMT, 0},
 	{0, ASI1_BWCLK_CNTL_REG, 0x00},		/* originaly 0x24*/
 	{0, ASI1_BCLK_N_CNTL, 1},
-	{0, ASI1_BCLK_N, 0x84},
+	{0, ASI1_BCLK_N, 0x04},
 
 	{0, MA_CNTL, 0},			/* Mixer Amp disabled */
 	{0, LINE_AMP_CNTL_R2, 0x00},		/* Line Amp Cntl disabled */
 
 	/* ASI2 Configuration */
 	{0, ASI2_BUS_FMT, 0},
-	{0, ASI2_BCLK_N_CNTL, 0x0},
-	{0, ASI2_BCLK_N, 0x84},
+	{0, ASI2_BCLK_N_CNTL, 0x01},
+	{0, ASI2_BCLK_N, 0x04},
 	{0, ASI2_BWCLK_OUT_CNTL, 0x20},
 
 	{0, BEEP_CNTL_R1, 0x05},
 	{0, BEEP_CNTL_R2, 0x04},
 
 	/* Interrupt config for headset detection */
-	//{0, INT1_CNTL, 0x80}, /*INT enabled after Jack registration*/
+	{0,HEADSET_TUNING1_REG,0x7f},
+	{0, INT1_CNTL, 0x40},
+	/*{0, TIMER_REG, 0x8c},*/
 	{0, INT_FMT, 0x40},
 	{0, GPIO1_IO_CNTL, 0x14},
-	/* enables debounce with 512ms*/
 	{0, HP_DETECT, 0x96},
 
 #if defined(CONFIG_MINI_DSP)
@@ -2799,15 +2793,173 @@ static int pll_power_on_event(struct snd_soc_dapm_widget *w,
 	}
 	return 0;
 }
+
+static int polling_loop(struct snd_soc_codec *codec, unsigned int reg,
+			int mask, int on_off)
+{
+	unsigned int counter, status;
+
+	counter = 0;
+	switch(on_off) {
+		case 0: /*off*/
+			do {
+				status = snd_soc_read(codec, reg);
+				counter++;
+			} while ((counter < 500) && ((status & mask) == mask));
+		break;
+		case 1: /*on*/
+			do {
+				status = snd_soc_read(codec, reg);
+				counter++;
+			} while ((counter < 500) && ((status & mask) != mask));
+		break;
+		default:
+			printk("%s: unknown arguement\n", __func__);
+			break;
+	}
+
+	printk("%s: exiting with count value %d \n", __func__, counter);
+	if(counter >= 500)
+		return -1;
+	return 0;
+}
+
+int poll_dac(struct snd_soc_codec *codec, int left_right, int on_off)
+{
+	int ret = 0;
+
+	aic3262_change_page(codec, 0);
+	aic3262_change_book(codec, 0);
+
+	switch(on_off) {
+
+		case 0:/*power off polling*/
+			/*DAC power polling logic*/
+			switch(left_right) {
+				case 0: /*left dac polling*/
+					ret = polling_loop(codec, DAC_FLAG_R1, LDAC_POW_FLAG_MASK, 0);
+					break;
+				case 1:/*right dac polling*/
+					ret = polling_loop(codec, DAC_FLAG_R1, RDAC_POW_FLAG_MASK, 0);
+					break;
+			}
+			break;
+		case 1:/*power on polling*/
+			/*DAC power polling logic*/
+			switch(left_right) {
+				case 0: /*left dac polling*/
+					ret = polling_loop(codec, DAC_FLAG_R1, LDAC_POW_FLAG_MASK, 1);
+					break;
+				case 1:/*right dac polling*/
+					ret = polling_loop(codec, DAC_FLAG_R1, RDAC_POW_FLAG_MASK, 1);
+					break;
+			}
+		break;
+		default:
+			printk("%s:unknown arguement\n", __func__);
+			break;
+		}
+	if(ret)
+		printk("%s: power %s %s failure", __func__, left_right?"right":"left", on_off?"on":"off");
+	return ret;
+}
+
+int poll_adc(struct snd_soc_codec *codec, int left_right, int on_off)
+{
+	int ret = 0;
+
+	aic3262_change_page(codec, 0);
+	aic3262_change_book(codec, 0);
+
+	switch(on_off) {
+
+		case 0:/*power off polling*/
+			/*DAC power polling logic*/
+			switch(left_right) {
+				case 0: /*left dac polling*/
+					ret = polling_loop(codec, ADC_FLAG_R1, LADC_POW_FLAG_MASK, 0);
+					break;
+				case 1:/*right dac polling*/
+					ret = polling_loop(codec, ADC_FLAG_R1, RADC_POW_FLAG_MASK, 0);
+					break;
+	}
+			break;
+		case 1:/*power on polling*/
+			/*DAC power polling logic*/
+			switch(left_right) {
+				case 0: /*left dac polling*/
+					ret = polling_loop(codec, ADC_FLAG_R1, LADC_POW_FLAG_MASK, 1);
+					break;
+				case 1:/*right dac polling*/
+					ret = polling_loop(codec, ADC_FLAG_R1, RADC_POW_FLAG_MASK, 1);
+					break;
+		}
+			break;
+		default:
+			printk("%s:unknown arguement\n", __func__);
+			break;
+	}
+
+	if(ret)
+		printk("%s: power %s %s failure", __func__, left_right?"right":"left", on_off?"on":"off");
+	return ret;
+}
+
+static int  slave_dac_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	if (event & SND_SOC_DAPM_POST_PMU) {
+		/* Poll for DAC Power-up first */
+		poll_dac(codec, 0, 1);
+		poll_dac(codec, 1, 1);
+	}
+
+	if (event & SND_SOC_DAPM_POST_PMD) {
+		poll_dac(codec, 0, 0);
+		poll_dac(codec, 1, 0);
+	}
+	return 0;
+}
+
+
+static int  slave_adc_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	if (event & SND_SOC_DAPM_POST_PMU) {
+
+		/* Poll for ADC Power-up first */
+		poll_adc(codec, 0, 1);
+		poll_adc(codec, 1, 1);
+	}
+
+
+	if (event & SND_SOC_DAPM_POST_PMD) {
+		poll_adc(codec, 0, 0);
+		poll_adc(codec, 1, 0);
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget aic3262_dapm_widgets[] = {
 	/* TODO: Can we switch these off ? */
 	SND_SOC_DAPM_AIF_IN("ASI1IN", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("ASI2IN", "ASI2 Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("ASI3IN", "ASI3 Playback", 0, SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_DAC("Left DAC", NULL, PASI_DAC_DP_SETUP, 7, 0),
-	SND_SOC_DAPM_DAC("Right DAC", NULL, PASI_DAC_DP_SETUP, 6, 0),
 
+	SND_SOC_DAPM_DAC_E("Left DAC", NULL, PASI_DAC_DP_SETUP, 7, 0,
+			slave_dac_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD |
+			SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_DAC_E("Right DAC", NULL, PASI_DAC_DP_SETUP, 6, 0,
+			slave_dac_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD |
+			SND_SOC_DAPM_PRE_PMD),
 
 	/* dapm widget (path domain) for HPL Output Mixer */
 	SND_SOC_DAPM_MIXER("HPL Output Mixer", SND_SOC_NOPM, 0, 0,
@@ -2931,9 +3083,13 @@ SND_SOC_DAPM_MUX("DAC MiniDSP IN2 Route",
 	SND_SOC_DAPM_PGA("ADC MiniDSP OUT3", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 
-	SND_SOC_DAPM_ADC("Left ADC", NULL, ADC_CHANNEL_POW, 7, 0),
-	SND_SOC_DAPM_ADC("Right ADC", NULL, ADC_CHANNEL_POW, 6, 0),
 
+	SND_SOC_DAPM_ADC_E("Left ADC", NULL, ADC_CHANNEL_POW, 7, 0,
+			slave_adc_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD |
+			SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_ADC_E("Right ADC", NULL, ADC_CHANNEL_POW, 6, 0,
+			slave_adc_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD |
+			SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_PGA("Left MicPGA",MICL_PGA, 7, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Right MicPGA",MICR_PGA, 7, 1, NULL, 0),
@@ -3829,7 +3985,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
 	unsigned int value;
 	unsigned int micbits, hsbits = 0;
-
 	DBG(KERN_INFO "%s++\n", __func__);
 
 	aic3262_change_page(codec, 0);
@@ -3872,7 +4027,6 @@ static irqreturn_t aic3262_jack_handler(int irq, void *data)
 		snd_soc_jack_report(aic3262->headset_jack,
 				SND_JACK_HEADSET, SND_JACK_HEADSET);
 	}
-
 	DBG(KERN_INFO "%s--\n", __func__);
 	return IRQ_HANDLED;
 }
@@ -3895,7 +4049,25 @@ int aic326x_headset_detect(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(aic326x_headset_detect);
 
+int aic326x_headset_button_init(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack, int jack_type)
+{
+	struct aic3262_priv *aic3262 = snd_soc_codec_get_drvdata(codec);
 
+	aic3262->button_dev = input_allocate_device();
+	aic3262->button_dev->name = "aic326x_headset_button";
+       aic3262->button_dev->phys = "codec/input0";
+	aic3262->button_dev->dev.parent = snd_card_get_device_link(codec->card->snd_card);
+	input_set_capability(aic3262->button_dev, EV_KEY, KEY_MEDIA);
+
+	if (input_register_device(aic3262->button_dev))
+	{
+	   printk( "Unable to register input device headset button");
+	}
+
+	aic3262_jack_handler(aic3262->irq, codec);
+	return 0;
+}
 #ifdef AIC3262_MULTI_I2S
 /*
 * aic3262_asi_default_config

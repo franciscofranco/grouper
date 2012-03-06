@@ -21,15 +21,17 @@
 
 #ifndef _TLV320AIC3262_H
 #define _TLV320AIC3262_H
-
+#include <linux/input.h>
 #define AUDIO_NAME "aic3262"
 #define AIC3262_VERSION "1.1"
 
-#define AIC3262_ASI2_MASTER 1
+//#define AIC3262_ASI2_MASTER 1
 
 /* Enable this macro allow for different ASI formats */
 /*#define ASI_MULTI_FMT*/
 #undef ASI_MULTI_FMT
+
+#define  INT_FLAG2_BUTTN_PRESSBIT 0x20
 
 /* Enable register caching on write */
 #define EN_REG_CACHE 1
@@ -64,7 +66,6 @@ page, so fix that before commenting this line*/
 #define AIC3262_FREQ_12000000 12000000
 #define AIC3262_FREQ_12288000 12288000
 #define AIC3262_FREQ_24000000 24000000
-#define AIC3262_FREQ_26000000 26000000
 
 /* Macro for enabling the Multi_I2S Support in Driver */
 #define AIC3262_MULTI_I2S	1
@@ -143,6 +144,13 @@ page, so fix that before commenting this line*/
 #define DAC_FLAG_R1_NOHS	0
 #define DAC_FLAG_R1_MONOHS	1
 #define DAC_FLAG_R1_STEREOHS	2
+
+/*mask patterns for DAC and ADC polling logic*/
+#define LDAC_POW_FLAG_MASK	0x80
+#define RDAC_POW_FLAG_MASK	0x08
+#define LADC_POW_FLAG_MASK	0x40
+#define RADC_POW_FLAG_MASK	0x04
+
 /* ****************** Book 0 Registers **************************************/
 
 /* ****************** Page 0 Registers **************************************/
@@ -186,6 +194,7 @@ page, so fix that before commenting this line*/
 #define STICKY_FLAG1		42
 #define INT_FLAG1		43
 #define STICKY_FLAG2		44
+#define STICKY_FLAG3		45
 #define INT_FLAG2		46
 #define INT1_CNTL		48
 #define INT2_CNTL		49
@@ -557,6 +566,7 @@ struct aic3262_priv {
 	u8 spk_amp;
 	struct spi_device *spi;
 	struct snd_soc_jack *headset_jack;
+	struct input_dev *button_dev;
 	int codec_audio_mode;
 #if defined(LOCAL_REG_ACCESS)
 	void *control_data;
@@ -644,7 +654,8 @@ struct aic3262_rate_divs {
  */
 extern int aic326x_headset_detect(struct snd_soc_codec *codec,
 	struct snd_soc_jack *jack, int jack_type);
-
+extern int aic326x_headset_button_init(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack, int jack_type);
 
 extern u8 aic3262_read(struct snd_soc_codec *codec, u16 reg);
 extern u16 aic3262_read_2byte(struct snd_soc_codec *codec, u16 reg);
@@ -656,6 +667,8 @@ extern void aic3262_write_reg_cache(struct snd_soc_codec *codec,
 extern int aic3262_change_book(struct snd_soc_codec *codec, u8 new_book);
 extern int reg_def_conf(struct snd_soc_codec *codec);
 extern int i2c_verify_book0(struct snd_soc_codec *codec);
+extern int poll_dac(struct snd_soc_codec *codec, int left_right, int on_off);
+extern int poll_adc(struct snd_soc_codec *codec, int left_right, int on_off);
 
 #ifdef CONFIG_MINI_DSP
 extern int aic3262_minidsp_program(struct snd_soc_codec *codec);

@@ -231,7 +231,6 @@ int byte_i2c_array_transfer(struct snd_soc_codec *codec,
 		/* Check if current Reg offset is zero */
 		if (program_ptr[j].reg_off == 0) {
 			/* Check for the Book Change Request */
-			printk(KERN_INFO "inside if 1 j =%d\n", j);
 			if ((j < (size - 1)) &&
 				(program_ptr[j+1].reg_off == 127)) {
 				aic3262_change_book(codec,
@@ -561,9 +560,10 @@ struct process_flow{
   	ARRAY_SIZE(main44_miniDSP_D_reg_values),main44_miniDSP_D_reg_values,
   	ARRAY_SIZE(main44_REG_Section_post_program),main44_REG_Section_post_program,
   	{
-  		{ 0, 0, ARRAY_SIZE(handset_miniDSP_D_reg_values), handset_miniDSP_D_reg_values},
-		{ 0, 0, ARRAY_SIZE(handphone_miniDSP_D_reg_values), handphone_miniDSP_D_reg_values},
-		{ 0, 0, ARRAY_SIZE(speaker_miniDSP_D_reg_values), speaker_miniDSP_D_reg_values},
+
+		{ 0, 0, 0, 0},
+		{ 0, 0, 0, 0},
+		{ 0, 0, 0, 0},
 		{ 0, 0, 0, 0},
 
 
@@ -844,6 +844,69 @@ int i2c_verify(struct snd_soc_codec *codec)
 	return 0;
 }
 
+
+int change_codec_power_status(struct snd_soc_codec * codec, int off_restore, int power_mask)
+{
+	int minidsp_power_mask;
+	u8 dac_status;
+	u8 adc_status;
+
+	minidsp_power_mask = 0;
+
+	aic3262_change_page (codec, 0);
+	aic3262_change_book (codec, 0);
+
+
+	switch (off_restore) {
+
+		case 0: /* Power-off the Codec */
+			dac_status = snd_soc_read (codec, DAC_FLAG_R1);
+
+			if(dac_status & 0x88) {
+				minidsp_power_mask |= 0x1;
+				snd_soc_update_bits(codec, PASI_DAC_DP_SETUP, 0xC0, 0x0);
+
+				poll_dac(codec, 0x0, 0x0);
+				poll_dac(codec, 0x1, 0x0);
+			}
+
+			adc_status = snd_soc_read (codec, ADC_FLAG_R1);
+
+			if(adc_status & 0x44) {
+				minidsp_power_mask |= 0x2;
+				snd_soc_update_bits(codec, ADC_CHANNEL_POW, 0xC0, 0x0);
+
+				poll_adc(codec, 0x0, 0x0);
+				poll_adc(codec, 0x1, 0x0);
+			}
+		break;
+		case 1: /* For Restoring Codec to Previous Power State */
+
+			if(power_mask & 0x1) {
+
+				snd_soc_update_bits(codec, PASI_DAC_DP_SETUP, 0xC0, 0xC0);
+
+				poll_dac(codec, 0x0, 0x1);
+				poll_dac(codec, 0x1, 0x1);
+			}
+
+			if(power_mask & 0x2) {
+
+				snd_soc_update_bits(codec, ADC_CHANNEL_POW, 0xC0, 0xC0);
+
+				poll_adc(codec, 0x0, 0x1);
+				poll_adc(codec, 0x1, 0x1);
+			}
+		break;
+		default:
+			printk(KERN_ERR "#%s: Unknown Power State Requested..\n",
+				__func__);
+	}
+
+	return minidsp_power_mask;
+
+}
+
 /*
  *----------------------------------------------------------------------------
  * Function  : boot_minidsp
@@ -853,9 +916,11 @@ int i2c_verify(struct snd_soc_codec *codec)
 int
 boot_minidsp(struct snd_soc_codec *codec, int new_mode)
 {
-struct aic3262_priv *aic326x = snd_soc_codec_get_drvdata(codec);
-struct process_flow *  pflows = &miniDSP_programs[new_mode];
-int (*ptransfer)(struct snd_soc_codec *codec,
+	struct aic3262_priv *aic326x = snd_soc_codec_get_drvdata(codec);
+	struct process_flow *  pflows = &miniDSP_programs[new_mode];
+	int minidsp_stat;
+
+	int (*ptransfer)(struct snd_soc_codec *codec,
 				reg_value *program_ptr,
 				int size);
 
@@ -871,15 +936,21 @@ int (*ptransfer)(struct snd_soc_codec *codec,
 #else
 	ptransfer = minidsp_i2c_multibyte_transfer;
 #endif
- 	ptransfer(codec, pflows->miniDSP_init,		   pflows->init_size);
-	   ptransfer(codec, pflows->miniDSP_A_values,  pflows->A_size);
-	   ptransfer(codec, pflows->miniDSP_D_values,  pflows->D_size);
-	   ptransfer(codec, pflows->miniDSP_post,		 pflows->post_size);
 
+	minidsp_stat = change_codec_power_status (codec, 0x0, 0x3);
+
+	ptransfer(codec, pflows->miniDSP_init,		   pflows->init_size);
+	ptransfer(codec, pflows->miniDSP_A_values,  pflows->A_size);
+	ptransfer(codec, pflows->miniDSP_D_values,  pflows->D_size);
+	ptransfer(codec, pflows->miniDSP_post,		 pflows->post_size);
 
 	aic326x->process_flow = new_mode;
 
+	change_codec_power_status(codec, 1, minidsp_stat);
+
+	aic3262_change_page( codec,0);
 	aic3262_change_book( codec,0);
+
 	return 0;
 }
 
