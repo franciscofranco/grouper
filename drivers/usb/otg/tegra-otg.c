@@ -43,6 +43,8 @@
 #define  USB_VBUS_STATUS	(1 << 10)
 #define  USB_INTS		(USB_VBUS_INT_STATUS | USB_ID_INT_STATUS)
 
+typedef void (*callback_t)(enum usb_otg_state otg_state, void *args);
+
 struct tegra_otg_data {
 	struct otg_transceiver otg;
 	unsigned long int_status;
@@ -55,6 +57,9 @@ struct tegra_otg_data {
 	unsigned int intr_reg_data;
 	bool detect_vbus;
 	bool clk_enabled;
+	callback_t	charger_cb;
+	void	*charger_cb_data;
+
 };
 static struct tegra_otg_data *tegra_clone;
 
@@ -161,6 +166,16 @@ void tegra_stop_host(struct tegra_otg_data *tegra)
 	}
 }
 
+int register_otg_callback(callback_t cb, void *args)
+{
+	if (!tegra_clone)
+		return -ENODEV;
+	tegra_clone->charger_cb = cb;
+	tegra_clone->charger_cb_data = args;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(register_otg_callback);
+
 static void irq_work(struct work_struct *work)
 {
 	struct tegra_otg_data *tegra =
@@ -209,6 +224,9 @@ static void irq_work(struct work_struct *work)
 		dev_info(tegra->otg.dev, "%s --> %s\n", tegra_state_name(from),
 					      tegra_state_name(to));
 
+		if (tegra->charger_cb)
+			tegra->charger_cb(to, tegra->charger_cb_data);
+
 		if (to == OTG_STATE_A_SUSPEND) {
 			if (from == OTG_STATE_A_HOST)
 				tegra_stop_host(tegra);
@@ -222,6 +240,8 @@ static void irq_work(struct work_struct *work)
 			tegra_start_host(tegra);
 		}
 	}
+
+
 	clk_disable(tegra->clk);
 	tegra_otg_disable_clk();
 }
