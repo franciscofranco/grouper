@@ -408,6 +408,11 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_aif_out,		/* audio interface output */
 };
 
+enum snd_soc_dapm_subclass {
+	SND_SOC_DAPM_CLASS_INIT	= 0,
+	SND_SOC_DAPM_CLASS_PCM	= 1,
+};
+
 /*
  * DAPM audio route definition.
  *
