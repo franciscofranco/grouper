@@ -897,3 +897,11 @@ config ARM_SAVE_DEBUG_CONTEXT
 	help
 	  This option enables save/restore of the ARM debug registers
 	  across CPU powerdown.
+
+config CPA
+	bool "Change Page Attributes"
+	depends on CPU_V7
+	help
+	  This option enables Changing Page Attibutes for low memory.
+	  This is needed to avoid conflicting memory mappings for low memory,
+	  One from kernel page table and others from user process page tables.
