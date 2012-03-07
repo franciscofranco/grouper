@@ -318,12 +318,19 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 {
 	u32 val;
 	int tx_fifo_avail;
-	u8 *buf = i2c_dev->msg_buf;
-	size_t buf_remaining = i2c_dev->msg_buf_remaining;
+	u8 *buf;
+	size_t buf_remaining;
 	int words_to_transfer;
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2c_dev->fifo_lock, flags);
+	if (!i2c_dev->msg_buf_remaining) {
+		spin_unlock_irqrestore(&i2c_dev->fifo_lock, flags);
+		return 0;
+	}
+
+	buf = i2c_dev->msg_buf;
+	buf_remaining = i2c_dev->msg_buf_remaining;
 
 	val = i2c_readl(i2c_dev, I2C_FIFO_STATUS);
 	tx_fifo_avail = (val & I2C_FIFO_STATUS_TX_MASK) >>
@@ -362,7 +369,12 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 	 * boundary and fault.
 	 */
 	if (tx_fifo_avail > 0 && buf_remaining > 0) {
-		BUG_ON(buf_remaining > 3);
+		if (buf_remaining > 3) {
+			dev_err(i2c_dev->dev,
+				"Remaining buffer more than 3 %d\n",
+				buf_remaining);
+			BUG();
+		}
 		memcpy(&val, buf, buf_remaining);
 
 		/* Again update before writing to FIFO to make sure isr sees. */
