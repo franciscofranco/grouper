@@ -109,8 +109,8 @@ static int ak8975_write_data(struct i2c_client *client,
 	struct i2c_msg msg;
 	u8 w_data[2];
 	int ret = 0;
-
-	struct ak8975_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
 
 	regval = data->reg_cache[reg];
 	regval &= ~mask;
@@ -171,7 +171,8 @@ static int ak8975_read_data(struct i2c_client *client,
  */
 static int ak8975_setup(struct i2c_client *client)
 {
-	struct ak8975_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ak8975_data *data = iio_priv(indio_dev);
 	u8 device_id;
 	int ret;
 
