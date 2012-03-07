@@ -136,6 +136,8 @@ static void __init uart_debug_init(void)
 		/* UARTB is the debug port. */
 		pr_info("Selecting UARTB as the debug console\n");
 		whistler_uart_devices[1] = &debug_uartb;
+		debug_uart_port_base = ((struct plat_serial8250_port *)(
+			debug_uartb_device.dev.platform_data))->mapbase;
 		debug_uart_clk = clk_get_sys("serial8250.0", "uartb");
 
 		/* Clock enable for the debug channel */
@@ -159,6 +161,8 @@ static void __init uart_debug_init(void)
 		/* UARTA is the debug port. */
 		pr_info("Selecting UARTA as the debug console\n");
 		whistler_uart_devices[0] = &debug_uarta;
+		debug_uart_port_base = ((struct plat_serial8250_port *)(
+			debug_uarta_device.dev.platform_data))->mapbase;
 		debug_uart_clk = clk_get_sys("serial8250.0", "uarta");
 
 		/* Clock enable for the debug channel */
