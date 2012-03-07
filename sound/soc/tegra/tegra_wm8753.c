@@ -63,6 +63,8 @@
 #define GPIO_INT_MIC_EN BIT(2)
 #define GPIO_EXT_MIC_EN BIT(3)
 
+extern int g_is_call_mode;
+
 struct tegra_wm8753 {
 	struct tegra_asoc_utils_data util_data;
 	struct tegra_wm8753_platform_data *pdata;
@@ -523,6 +525,7 @@ static int tegra_call_mode_put(struct snd_kcontrol *kcontrol,
 	}
 
 	machine->is_call_mode = is_call_mode_new;
+	g_is_call_mode = machine->is_call_mode;
 
 	return 1;
 }

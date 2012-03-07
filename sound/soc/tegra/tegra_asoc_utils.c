@@ -29,6 +29,17 @@
 
 #include "tegra_asoc_utils.h"
 
+int g_is_call_mode;
+
+bool tegra_is_voice_call_active()
+{
+	if (g_is_call_mode)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL_GPL(tegra_is_voice_call_active);
+
 int tegra_asoc_utils_set_rate(struct tegra_asoc_utils_data *data, int srate,
 			      int mclk)
 {
