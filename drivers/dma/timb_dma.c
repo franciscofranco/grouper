@@ -546,7 +546,8 @@ static void td_issue_pending(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *td_prep_slave_sg(struct dma_chan *chan,
 	struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
 {
 	struct timb_dma_chan *td_chan =
 		container_of(chan, struct timb_dma_chan, chan);
@@ -754,12 +755,8 @@ static int __devinit td_probe(struct platform_device *pdev)
 		}
 
 		td_chan->chan.device = &td->dma;
-<<<<<<< HEAD
-		td_chan->chan.cookie = 1;
 		td_chan->chan.chan_id = i;
-=======
 		dma_cookie_init(&td_chan->chan);
->>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
 		spin_lock_init(&td_chan->lock);
 		INIT_LIST_HEAD(&td_chan->active_list);
 		INIT_LIST_HEAD(&td_chan->queue);

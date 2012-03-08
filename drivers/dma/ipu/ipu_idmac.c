@@ -1356,7 +1356,8 @@ static void ipu_gc_tasklet(unsigned long arg)
 /* Allocate and initialise a transfer descriptor. */
 static struct dma_async_tx_descriptor *idmac_prep_slave_sg(struct dma_chan *chan,
 		struct scatterlist *sgl, unsigned int sg_len,
-		enum dma_data_direction direction, unsigned long tx_flags)
+		enum dma_transfer_direction direction, unsigned long tx_flags,
+		void *context)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac_tx_desc *desc = NULL;
@@ -1634,15 +1635,7 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 		snprintf(ichan->eof_name, sizeof(ichan->eof_name), "IDMAC EOF %d", i);
 
 		dma_chan->device	= &idmac->dma;
-<<<<<<< HEAD
-		dma_chan->cookie	= 1;
-<<<<<<< HEAD
-		dma_chan->completed_cookie	= -ENXIO;
-=======
-=======
 		dma_cookie_init(dma_chan);
->>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
->>>>>>> 1e15982... dmaengine: consolidate initialization of cookies
 		dma_chan->chan_id	= i;
 		list_add_tail(&dma_chan->device_node, &dma->channels);
 	}

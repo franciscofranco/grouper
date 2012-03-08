@@ -832,8 +832,8 @@ txx9dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 static struct dma_async_tx_descriptor *
 txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
-		unsigned long flags)
+		unsigned int sg_len, enum dma_transfer_direction direction,
+		unsigned long flags, void *context)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
 	struct txx9dmac_dev *ddev = dc->ddev;
@@ -1162,15 +1162,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->ddev->chan[ch] = dc;
 	dc->chan.device = &dc->dma;
 	list_add_tail(&dc->chan.device_node, &dc->chan.device->channels);
-<<<<<<< HEAD
-	dc->chan.cookie = dc->chan.completed_cookie = 1;
-=======
-<<<<<<< HEAD
-	dc->chan.cookie = dc->completed = 1;
-=======
 	dma_cookie_init(&dc->chan);
->>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
->>>>>>> 1e15982... dmaengine: consolidate initialization of cookies
 
 	if (is_dmac64(dc))
 		dc->ch_regs = &__txx9dmac_regs(dc->ddev)->CHAN[ch];

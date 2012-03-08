@@ -587,7 +587,8 @@ static void pd_issue_pending(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			struct scatterlist *sgl, unsigned int sg_len,
-			enum dma_data_direction direction, unsigned long flags)
+			enum dma_transfer_direction direction, unsigned long flags,
+			void *context)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma_slave *pd_slave = chan->private;
@@ -914,12 +915,7 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 		struct pch_dma_chan *pd_chan = &pd->channels[i];
 
 		pd_chan->chan.device = &pd->dma;
-<<<<<<< HEAD
-		pd_chan->chan.cookie = 1;
-		pd_chan->chan.chan_id = i;
-=======
 		dma_cookie_init(&pd_chan->chan);
->>>>>>> d3ee98cdc... dmaengine: consolidate initialization of cookies
 
 		pd_chan->membase = &regs->desc[i];
 
