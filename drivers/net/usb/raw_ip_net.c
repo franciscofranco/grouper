@@ -571,8 +571,8 @@ static int usb_net_raw_ip_rx_urb_submit(struct baseband_usb *usb)
 
 static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 {
-	struct baseband_usb *usb = (struct baseband_usb *) urb->context;
-	int i = usb->baseband_index;
+	struct baseband_usb *usb;
+	int i;
 	struct sk_buff *skb;
 	unsigned char *dst;
 	unsigned char ethernet_header[14] = {
@@ -595,6 +595,8 @@ static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 		pr_err("no urb\n");
 		return;
 	}
+	usb = (struct baseband_usb *)urb->context;
+	i = usb->baseband_index;
 	switch (urb->status) {
 	case 0:
 		break;
@@ -798,7 +800,9 @@ static void usb_net_raw_ip_tx_urb_work(struct work_struct *work)
 	pr_debug("usb_net_raw_ip_tx_urb_work {\n");
 
 	/* check if tx urb(s) queued */
-	if (!usb->usb.tx_urb && usb_anchor_empty(&usb->usb.tx_urb_deferred)) {
+	if (usb == NULL ||
+		(!usb->usb.tx_urb &&
+		usb_anchor_empty(&usb->usb.tx_urb_deferred))) {
 		pr_debug("%s: nothing to do!\n", __func__);
 		return;
 	}
@@ -858,7 +862,7 @@ static void usb_net_raw_ip_tx_urb_work(struct work_struct *work)
 
 static void usb_net_raw_ip_tx_urb_comp(struct urb *urb)
 {
-	struct baseband_usb *usb = (struct baseband_usb *) urb->context;
+	struct baseband_usb *usb;
 
 	pr_debug("usb_net_raw_ip_tx_urb_comp {\n");
 
@@ -867,6 +871,7 @@ static void usb_net_raw_ip_tx_urb_comp(struct urb *urb)
 		pr_err("no urb\n");
 		return;
 	}
+	usb = (struct baseband_usb *)urb->context;
 	switch (urb->status) {
 	case 0:
 		break;
