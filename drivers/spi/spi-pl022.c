@@ -1048,7 +1048,7 @@ static int configure_dma(struct pl022 *pl022)
 		goto err_tx_sgmap;
 
 	/* Send both scatterlists */
-	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
+	rxdesc = dmaengine_prep_slave_sg(rxchan,
 				      pl022->sgt_rx.sgl,
 				      rx_sglen,
 				      DMA_FROM_DEVICE,
@@ -1056,7 +1056,7 @@ static int configure_dma(struct pl022 *pl022)
 	if (!rxdesc)
 		goto err_rxdesc;
 
-	txdesc = txchan->device->device_prep_slave_sg(txchan,
+	txdesc = dmaengine_prep_slave_sg(txchan,
 				      pl022->sgt_tx.sgl,
 				      tx_sglen,
 				      DMA_TO_DEVICE,

@@ -292,6 +292,38 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	dma_cookie_t cookie;
 	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
 	unsigned long flags;
+	size_t new_size;
+
+	BUG_ON(bytes_per_line <= 0);
+
+	new_size = bytes_per_line * icd->user_height;
+
+	if (vb2_plane_size(vb, 0) < new_size) {
+		dev_err(icd->parent, "Buffer #%d too small (%lu < %zu)\n",
+			vb->v4l2_buf.index, vb2_plane_size(vb, 0), new_size);
+		goto error;
+	}
+
+	if (buf->state == CSI_BUF_NEEDS_INIT) {
+		sg_dma_address(sg)	= vb2_dma_contig_plane_dma_addr(vb, 0);
+		sg_dma_len(sg)		= new_size;
+
+		txd = dmaengine_prep_slave_sg(
+			&ichan->dma_chan, sg, 1, DMA_DEV_TO_MEM,
+			DMA_PREP_INTERRUPT);
+		if (!txd)
+			goto error;
+
+		txd->callback_param	= txd;
+		txd->callback		= mx3_cam_dma_done;
+
+		buf->state		= CSI_BUF_PREPARED;
+		buf->txd		= txd;
+	} else {
+		txd = buf->txd;
+	}
+
+	vb2_set_plane_payload(vb, 0, new_size);
 
 	/* This is the configuration of one sg-element */
 	video->out_pixel_fmt	= fourcc_to_ipu_pix(fourcc);

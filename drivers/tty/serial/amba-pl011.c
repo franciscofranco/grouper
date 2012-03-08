@@ -480,7 +480,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		return -EBUSY;
 	}
 
-	desc = dma_dev->device_prep_slave_sg(chan, &dmatx->sg, 1, DMA_TO_DEVICE,
+	desc = dmaengine_prep_slave_sg(chan, &dmatx->sg, 1, DMA_MEM_TO_DEV,
 					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dma_unmap_sg(dma_dev->dev, &dmatx->sg, 1, DMA_TO_DEVICE);
@@ -663,7 +663,6 @@ static void pl011_dma_rx_callback(void *data);
 static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 {
 	struct dma_chan *rxchan = uap->dmarx.chan;
-	struct dma_device *dma_dev;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
 	struct dma_async_tx_descriptor *desc;
 	struct pl011_sgbuf *sgbuf;
@@ -674,9 +673,14 @@ static int pl011_dma_rx_trigger_dma(struct uart_amba_port *uap)
 	/* Start the RX DMA job */
 	sgbuf = uap->dmarx.use_buf_b ?
 		&uap->dmarx.sgbuf_b : &uap->dmarx.sgbuf_a;
+<<<<<<< HEAD
 	dma_dev = rxchan->device;
 	desc = rxchan->device->device_prep_slave_sg(rxchan, &sgbuf->sg, 1,
 					DMA_FROM_DEVICE,
+=======
+	desc = dmaengine_prep_slave_sg(rxchan, &sgbuf->sg, 1,
+					DMA_DEV_TO_MEM,
+>>>>>>> 1605282... dmaengine/dma_slave: introduce inline wrappers
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	/*
 	 * If the DMA engine is busy and cannot prepare a
