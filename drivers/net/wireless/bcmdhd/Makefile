@@ -37,14 +37,17 @@ DHDOFILES = aiutils.o bcmsdh_sdmmc_linux.o dhd_linux.o siutils.o bcmutils.o   \
 
 obj-$(CONFIG_BCMDHD) += bcmdhd.o
 bcmdhd-objs += $(DHDOFILES)
-ifneq ($(CONFIG_BCMDHD_WEXT),)
+
+ifeq ($(CONFIG_BCMDHD_WEXT),y)
 bcmdhd-objs += wl_iw.o
 DHDCFLAGS += -DSOFTAP
 endif
-ifneq ($(CONFIG_CFG80211),)
+
+ifeq ($(CONFIG_BCMDHD_CFG80211),y)
 bcmdhd-objs += wl_cfg80211.o wl_cfgp2p.o dhd_linux_mon.o
 DHDCFLAGS += -DWL_CFG80211
 endif
+
 EXTRA_CFLAGS = $(DHDCFLAGS)
 ifeq ($(CONFIG_BCMDHD),m)
 EXTRA_LDFLAGS += --strip-debug
