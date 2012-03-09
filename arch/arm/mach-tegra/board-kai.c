@@ -580,7 +580,7 @@ static struct gpio_led kai_led_info[] = {
 		.gpio			= TEGRA_GPIO_STAT_LED,
 		.active_low		= 1,
 		.retain_state_suspended	= 0,
-		.default_state		= LEDS_GPIO_DEFSTATE_ON,
+		.default_state		= LEDS_GPIO_DEFSTATE_OFF,
 	},
 };
 
