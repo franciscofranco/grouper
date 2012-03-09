@@ -210,7 +210,7 @@ static int tegra_bt_sco_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_fmt(cpu_dai,
 					SND_SOC_DAIFMT_DSP_A |
 					SND_SOC_DAIFMT_NB_NF |
-					SND_SOC_DAIFMT_CBM_CFM);
+					SND_SOC_DAIFMT_CBS_CFS);
 	if (err < 0) {
 		dev_err(card->dev, "cpu_dai fmt not set\n");
 		return err;
@@ -503,9 +503,9 @@ static int tegra_call_mode_put(struct snd_kcontrol *kcontrol,
 		tegra20_das_set_tristate(codec_dap_id, 1);
 		tegra20_das_set_tristate(bb_dap_id, 1);
 		tegra20_das_connect_dap_to_dap(codec_dap_id,
-			bb_dap_sel, 1, 0, 0);
+			bb_dap_sel, 0, 0, 0);
 		tegra20_das_connect_dap_to_dap(bb_dap_id,
-			codec_dap_sel, 0, 0, 0);
+			codec_dap_sel, 1, 0, 0);
 		tegra20_das_set_tristate(codec_dap_id, 0);
 		tegra20_das_set_tristate(bb_dap_id, 0);
 #endif
