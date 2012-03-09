@@ -181,36 +181,53 @@ static int smb349_configure_otg(struct i2c_client *client, int enable)
 	}
 
 	if (enable) {
+		/* Configure PGOOD to be active low */
+		ret = smb349_read(client, SMB349_SYSOK_USB3);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
+
+		ret = smb349_write(client, SMB349_SYSOK_USB3, (ret & (~(1))));
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
+
 		/* Enable OTG */
-	       ret = smb349_update_reg(client, SMB349_CMD_REG, 0x10);
-	       if (ret < 0) {
-		       dev_err(&client->dev, "%s: Failed in writing register"
+		ret = smb349_update_reg(client, SMB349_CMD_REG, 0x10);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: Failed in writing register"
 				"0x%02x\n", __func__, SMB349_CMD_REG);
 			goto error;
-	       }
-
+		}
 	} else {
-	       /* Disable OTG */
-	       ret = smb349_read(client, SMB349_CMD_REG);
-	       if (ret < 0) {
+		/* Disable OTG */
+		ret = smb349_read(client, SMB349_CMD_REG);
+		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
-	       }
+		}
 
-	       ret = smb349_write(client, SMB349_CMD_REG, (ret & (~(1<<4))));
-	       if (ret < 0) {
+		ret = smb349_write(client, SMB349_CMD_REG, (ret & (~(1<<4))));
+		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
-	       }
+		}
+
+		/* Configure PGOOD to be active high */
+		ret = smb349_update_reg(client, SMB349_SYSOK_USB3, 0x01);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
 	}
 
 	/* Disable volatile writes to registers */
 	ret = smb349_volatile_writes(client, SMB349_DISABLE_WRITE);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&client->dev, "%s error in configuring OTG..\n",
 								__func__);
-	       goto error;
-	}
 error:
 	return ret;
 }
@@ -473,8 +490,10 @@ static int __devinit smb349_probe(struct i2c_client *client,
 				__func__);
 		goto error;
 	}
+
 	return 0;
 error:
+	free_irq(irq_num, charger);
 	kfree(charger);
 	return ret;
 }
@@ -483,7 +502,9 @@ static int __devexit smb349_remove(struct i2c_client *client)
 {
 	struct smb349_charger *charger = i2c_get_clientdata(client);
 
+	free_irq(gpio_to_irq(client->irq), charger);
 	kfree(charger);
+
 	return 0;
 }
 
