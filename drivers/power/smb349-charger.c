@@ -450,12 +450,12 @@ error:
 	return ret;
 }
 
-static void smb349_otg_status(enum usb_otg_state otg_state, void *data)
+static void smb349_otg_status(enum usb_otg_state to, enum usb_otg_state from, void *data)
 {
 	struct i2c_client *client = charger->client;
 	int ret;
 
-	if (otg_state == OTG_STATE_A_HOST) {
+	if ((from == OTG_STATE_A_SUSPEND) && (to == OTG_STATE_A_HOST)) {
 
 		/* configure charger */
 		ret = smb349_configure_charger(client, 0);
@@ -469,7 +469,7 @@ static void smb349_otg_status(enum usb_otg_state otg_state, void *data)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
 
-	} else if (otg_state == OTG_STATE_A_SUSPEND) {
+	} else if ((from == OTG_STATE_A_HOST) && (to == OTG_STATE_A_SUSPEND)) {
 
 		/* Disable OTG */
 		ret = smb349_configure_otg(client, 0);

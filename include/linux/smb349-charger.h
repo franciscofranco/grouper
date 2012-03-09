@@ -50,7 +50,8 @@ struct smb349_charger {
 };
 
 int smb349_battery_online(void);
-typedef void (*callback_t)(enum usb_otg_state otg_state, void *args);
+typedef void (*callback_t)(enum usb_otg_state to,
+		enum usb_otg_state from, void *args);
 /*
  * Register callback function for the client.
  * Used by fuel-gauge driver to get battery charging properties.
