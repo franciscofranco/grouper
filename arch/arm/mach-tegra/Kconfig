@@ -477,7 +477,6 @@ config TEGRA_LP2_ARM_TWD
 
 config TEGRA_RAIL_OFF_MULTIPLE_CPUS
 	bool
-endif
 
 config TEGRA_SLOW_CSITE
 	bool "lower csite clock to 1 Mhz to reduce its power consumption"
@@ -492,3 +491,4 @@ config TEGRA_PREINIT_CLOCKS
 	help
 	  Preinitialize Tegra clocks to known states before actual full-
 	  scale clock initialization starts.
+endif
