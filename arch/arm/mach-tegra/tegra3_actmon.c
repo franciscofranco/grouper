@@ -85,6 +85,10 @@ static u8 actmon_sampling_period;
 
 static unsigned long actmon_clk_freq;
 
+/* Maximum frequency EMC is running at when sourced from PLLP. This is
+ * really a short-cut, but it is true for all Tegra3  platforms
+ */
+#define EMC_PLLP_FREQ_MAX			204000
 
 /* Units:
  * - frequency in kHz
@@ -102,6 +106,7 @@ struct actmon_dev {
 	unsigned long	max_freq;
 	unsigned long	target_freq;
 	unsigned long	cur_freq;
+	unsigned long	suspend_freq;
 
 	unsigned long	avg_actv_freq;
 	unsigned long	avg_band_freq;
@@ -404,6 +409,9 @@ static void actmon_dev_suspend(struct actmon_dev *dev)
 		actmon_wmb();
 	}
 	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (dev->suspend_freq)
+		clk_set_rate(dev->clk, dev->suspend_freq * 1000);
 }
 
 static void actmon_dev_resume(struct actmon_dev *dev)
@@ -486,6 +494,9 @@ static struct actmon_dev actmon_dev_emc = {
 	.dev_id = "tegra_actmon",
 	.con_id = "emc",
 
+	/* EMC suspend floor to guarantee suspend entry on PLLM */
+	.suspend_freq		= EMC_PLLP_FREQ_MAX + 2000,
+
 	.boost_freq_step	= 16000,
 	.boost_up_coef		= 200,
 	.boost_down_coef	= 50,
@@ -514,6 +525,9 @@ static struct actmon_dev actmon_dev_avp = {
 	.glb_status_irq_mask = (0x1 << 30),
 	.dev_id = "tegra_actmon",
 	.con_id = "avp",
+
+	/* AVP/SCLK suspend activity floor */
+	.suspend_freq		= 40000,
 
 	.boost_freq_step	= 8000,
 	.boost_up_coef		= 200,
