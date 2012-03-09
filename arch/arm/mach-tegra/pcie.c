@@ -1040,13 +1040,6 @@ static bool tegra_pcie_check_link(struct tegra_pcie_port *pp, int idx,
 	int timeout;
 
 	do {
-		/* Pulse the PEX reset */
-		reg = afi_readl(reset_reg) & ~AFI_PEX_CTRL_RST;
-		afi_writel(reg, reset_reg);
-		mdelay(1);
-		reg = afi_readl(reset_reg) | AFI_PEX_CTRL_RST;
-		afi_writel(reg, reset_reg);
-
 		timeout = TEGRA_PCIE_LINKUP_TIMEOUT;
 		while (timeout) {
 			reg = readl(pp->base + RP_VEND_XP);
@@ -1075,6 +1068,12 @@ static bool tegra_pcie_check_link(struct tegra_pcie_port *pp, int idx,
 		}
 
 retry:
+		/* Pulse the PEX reset */
+		reg = afi_readl(reset_reg) & ~AFI_PEX_CTRL_RST;
+		afi_writel(reg, reset_reg);
+		reg = afi_readl(reset_reg) | AFI_PEX_CTRL_RST;
+		afi_writel(reg, reset_reg);
+
 		retries--;
 	} while (retries);
 
