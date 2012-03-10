@@ -121,46 +121,18 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 	},
 };
 
-
-static unsigned long retry_suspend;
-
-static int plat_kim_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct kim_data_s *kim_gdata;
-	struct st_data_s *core_data;
-	kim_gdata = dev_get_drvdata(&pdev->dev);
-	core_data = kim_gdata->core_data;
-	if (st_ll_getstate(core_data) != ST_LL_INVALID) {
-		/* Prevent suspend until sleep indication from chip */
-		while (st_ll_getstate(core_data) != ST_LL_ASLEEP &&
-			(retry_suspend++ < 5)) {
-				return -1;
-		}
-	}
-	return 0;
-}
-
-static int plat_kim_resume(struct platform_device *pdev)
-{
-	retry_suspend = 0;
-	return 0;
-}
-
-
 /* wl128x BT, FM, GPS connectivity chip */
-struct ti_st_plat_data wilink_pdata = {
-	.nshutdown_gpio	= TEGRA_GPIO_PU0,
-	.dev_name	= BLUETOOTH_UART_DEV_NAME,
-	.flow_cntrl	= 1,
-	.baud_rate	= 3000000,
-	.suspend	= plat_kim_suspend,
-	.resume		= plat_kim_resume,
+struct ti_st_plat_data kai_wilink_pdata = {
+	.nshutdown_gpio = TEGRA_GPIO_PU0,
+	.dev_name = BLUETOOTH_UART_DEV_NAME,
+	.flow_cntrl = 1,
+	.baud_rate = 3000000,
 };
 
 static struct platform_device wl128x_device = {
 	.name		= "kim",
 	.id		= -1,
-	.dev.platform_data = &wilink_pdata,
+	.dev.platform_data = &kai_wilink_pdata,
 };
 
 static struct platform_device btwilink_device = {
@@ -175,7 +147,28 @@ static noinline void __init kai_bt_st(void)
 	platform_device_register(&wl128x_device);
 	platform_device_register(&btwilink_device);
 	tegra_gpio_enable(TEGRA_GPIO_PU0);
-	return;
+}
+
+static struct resource kai_bluesleep_resources[] = {
+	[0] = {
+		.name = "host_wake",
+			.start	= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
+			.end	= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
+			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct platform_device kai_bluesleep_device = {
+	.name		= "tibluesleep",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(kai_bluesleep_resources),
+	.resource	= kai_bluesleep_resources,
+};
+
+static noinline void __init kai_tegra_setup_tibluesleep(void)
+{
+	platform_device_register(&kai_bluesleep_device);
+	tegra_gpio_enable(TEGRA_GPIO_PU6);
 }
 
 static __initdata struct tegra_clk_init_table kai_clk_init_table[] = {
@@ -431,7 +424,6 @@ static void __init uart_debug_init(void)
 			debug_uarta_device.dev.platform_data))->mapbase;
 		break;
 	}
-	return;
 }
 
 static void __init kai_uart_init(void)
@@ -823,6 +815,7 @@ static void __init tegra_kai_init(void)
 	kai_keys_init();
 	kai_panel_init();
 	kai_bt_st();
+	kai_tegra_setup_tibluesleep();
 	kai_nfc_init();
 	kai_sensors_init();
 	kai_pins_state_init();
