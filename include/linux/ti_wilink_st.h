@@ -24,7 +24,9 @@
 
 #ifndef TI_WILINK_ST_H
 #define TI_WILINK_ST_H
+#include <linux/wakelock.h>
 
+#include <linux/serial_core.h>
 /**
  * enum proto-type - The protocol on WiLink chips which share a
  *	common physical interface like UART.
@@ -156,6 +158,7 @@ struct st_data_s {
 	unsigned long ll_state;
 	void *kim_data;
 	struct tty_struct *tty;
+	struct wake_lock st_wk_lock;
 };
 
 /*
@@ -396,7 +399,7 @@ static inline unsigned long st_ll_getstate(struct st_data_s *ll){ return 0; }
 #endif
 unsigned long st_ll_sleep_state(struct st_data_s *, unsigned char);
 void st_ll_wakeup(struct st_data_s *);
-int bluesleep_start(struct uart_port *uport);
+int bluesleep_start(struct uart_port *);
 void bluesleep_stop(void);
 
 
@@ -449,14 +452,6 @@ struct ti_st_plat_data {
 	unsigned long baud_rate;
 	int (*suspend)(struct platform_device *, pm_message_t);
 	int (*resume)(struct platform_device *);
-/*	int (*chip_enable) (struct kim_data_s *);
-	int (*chip_disable) (struct kim_data_s *);
-	int (*chip_asleep) (struct kim_data_s *);
-	int (*chip_awake) (struct kim_data_s *);*/
-	int (*chip_enable) (void);
-	int (*chip_disable) (void);
-	int (*chip_asleep) (void);
-	int (*chip_awake) (void);
 };
 
 #endif /* TI_WILINK_ST_H */

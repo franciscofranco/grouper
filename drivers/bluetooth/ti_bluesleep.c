@@ -56,7 +56,6 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h> /* event notifications */
-#include <linux/ti_wilink_st.h>
 #include "hci_uart.h"
 
 /*
@@ -134,7 +133,6 @@ static void hsuart_power(int on)
 
 static void hostwake_sleep_work(struct work_struct *work)
 {
-	int retval ;	
 	pr_debug("%s", __func__);
 	free_irq(bsi->host_wake_irq, "tibluesleep");
 	/*Activating UART */
@@ -151,7 +149,7 @@ static void hostwake_sleep_work(struct work_struct *work)
 
 
 /**
- * A tasklet function that runs in tasklet context 
+ * A tasklet function that runs in tasklet context
  * @param data Not used.
  */
 static void bluesleep_hostwake_task(unsigned long data)
@@ -161,7 +159,6 @@ static void bluesleep_hostwake_task(unsigned long data)
 	spin_lock(&rw_lock);
 	hostwake_workqueue();
 	spin_unlock(&rw_lock);
-
 }
 
 
@@ -190,14 +187,10 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev_id)
   int bluesleep_start(struct uart_port *uport)
 {
 	int retval;
-
 	bsi->uport = uport;
-
 	pr_debug("%s", __func__);
 
 	if (test_bit(BT_SUSPEND, &flags)) {
-
-
 		BT_DBG("bluesleep_acquire irq");
 		if (bsi->irq_polarity == POLARITY_LOW) {
 			retval = request_irq(bsi->host_wake_irq, bluesleep_hostwake_isr,
@@ -213,19 +206,18 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev_id)
 			goto fail;
 		}
 
-	retval = enable_irq_wake(bsi->host_wake_irq);
-	if (retval < 0) {
-		BT_ERR("Couldn't enable BT_HOST_WAKE as wakeup interrupt retval %d\n",retval);
-		free_irq(bsi->host_wake_irq, NULL);
-		goto fail;
-	}
-
+		retval = enable_irq_wake(bsi->host_wake_irq);
+		if (retval < 0) {
+			BT_ERR("Couldn't enable BT_HOST_WAKE as wakeup"
+					"interrupt retval %d\n", retval);
+			free_irq(bsi->host_wake_irq, NULL);
+			goto fail;
+		}
 	}
 
 	return 0;
 fail:
 	atomic_inc(&open_count);
-
 	return retval;
 }
 
@@ -241,7 +233,6 @@ fail:
 		BT_ERR("Couldn't disable hostwake IRQ wakeup mode\n");
 
 	free_irq(bsi->host_wake_irq, NULL);
-
 }
 
 static int bluesleep_probe(struct platform_device *pdev)
@@ -249,17 +240,9 @@ static int bluesleep_probe(struct platform_device *pdev)
 	int ret;
 	struct resource *res;
 
-	struct kim_data_s *kim_gdata;
-	struct st_data_s *core_data;
-	kim_gdata = dev_get_drvdata(&pdev->dev);
-	core_data = kim_gdata->core_data;
-	struct uart_state *state = (struct uart_state *)core_data->tty->driver_data;	
-
-
 	bsi = kzalloc(sizeof(struct bluesleep_info), GFP_KERNEL);
 	if (!bsi)
 		return -ENOMEM;
-
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 						"host_wake");
@@ -269,7 +252,7 @@ static int bluesleep_probe(struct platform_device *pdev)
 		goto free_bsi;
 	}
 
-	bsi->host_wake_irq = res->start;	
+	bsi->host_wake_irq = res->start;
 
 	if (bsi->host_wake_irq < 0) {
 		BT_ERR("couldn't find host_wake irq");
@@ -286,7 +269,6 @@ static int bluesleep_probe(struct platform_device *pdev)
 	set_bit(BT_ACTIVE, &flags);
 
 	return 0;
-
 
 free_bsi:
 	kfree(bsi);
@@ -306,12 +288,10 @@ static int bluesleep_resume(struct platform_device *pdev)
 
 	pr_debug("%s", __func__);
 	if (test_bit(BT_SUSPEND, &flags)) {
-	
+
 		if ((bsi->uport != NULL) && (bsi->has_ext_wake)) {
 			tegra_uart_request_clock_on(bsi->uport);
 			tegra_uart_set_mctrl(bsi->uport, TIOCM_RTS);
-			
-
 		}
 		clear_bit(BT_SUSPEND, &flags);
 		set_bit(BT_ACTIVE, &flags);
@@ -345,13 +325,12 @@ static struct platform_driver bluesleep_driver = {
 static int __init bluesleep_init(void)
 {
 	int retval;
-	struct proc_dir_entry *ent;
 
 	BT_INFO("BlueSleep Mode Driver Ver %s", VERSION);
 
 	retval = platform_driver_register(&bluesleep_driver);
 	if (retval)
-		return retval;
+		goto fail;
 
 	if (bsi == NULL)
 		return 0;
