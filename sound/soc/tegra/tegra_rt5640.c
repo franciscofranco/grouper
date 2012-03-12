@@ -505,8 +505,8 @@ static int tegra_rt5640_init(struct snd_soc_pcm_runtime *rtd)
 		}
 		machine->gpio_requested |= GPIO_EXT_MIC_EN;
 
-		/* Enable ext mic; enable signal is active-low */
-		gpio_direction_output(pdata->gpio_ext_mic_en, 0);
+		/* Disable ext mic; enable signal is active-low */
+		gpio_direction_output(pdata->gpio_ext_mic_en, 1);
 	}
 
 	if (gpio_is_valid(pdata->gpio_hp_det)) {
