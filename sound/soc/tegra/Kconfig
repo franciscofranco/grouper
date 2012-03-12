@@ -86,6 +86,20 @@ config SND_SOC_TEGRA_TRIMSLICE
 	  Say Y or M here if you want to add support for SoC audio on the
 	  TrimSlice platform.
 
+config SND_SOC_TEGRA_P1852
+	tristate "SoC Audio support for P1852 SKUs"
+	depends on SND_SOC_TEGRA
+	depends on MACH_P1852
+	select SND_SOC_TEGRA30_I2S if ARCH_TEGRA_3x_SOC
+	select SND_SOC_TEGRA30_SPDIF if ARCH_TEGRA_3x_SOC
+	select SND_SOC_SPDIF
+	select SND_SOC_TEGRA30_DAM if ARCH_TEGRA_3x_SOC
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  TEGRA P1852 SKUs. These are plug-n-play boards and and the codecs
+	  used by the system integrator needs to be provided while instantiating
+	  the driver.
+
 config MACH_HAS_SND_SOC_TEGRA_WM8753
 	bool
 	help
