@@ -491,6 +491,12 @@ static int __devinit max17048_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK_DEFERRABLE(&chip->work, max17048_work);
 	schedule_delayed_work(&chip->work, MAX17048_DELAY);
 
+	ret = update_charger_status();
+	if (ret) {
+		dev_err(&client->dev, "failed: update_charger_status\n");
+		goto error;
+	}
+
 	return 0;
 error:
 	power_supply_unregister(&chip->ac);
