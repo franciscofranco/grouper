@@ -57,5 +57,6 @@ typedef void (*callback_t)(enum usb_otg_state otg_state, void *args);
  */
 extern int register_callback(charging_callback_t cb, void *args);
 extern int register_otg_callback(callback_t cb, void *args);
+extern int update_charger_status(void);
 
 #endif /*__LINUX_SMB349_CHARGER_H */

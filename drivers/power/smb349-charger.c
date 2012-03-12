@@ -336,6 +336,54 @@ irq_error:
 	return IRQ_HANDLED;
 }
 
+int update_charger_status(void)
+{
+	struct i2c_client *client = charger->client;
+	int ret, val;
+
+	val =  smb349_read(client, SMB349_STS_REG_D);
+	if (val < 0) {
+		dev_err(&client->dev, "%s(): Failed in reading register"
+			"0x%02x\n", __func__, SMB349_STS_REG_D);
+		goto val_error;
+	} else if (val != 0) {
+		if (val & DEDICATED_CHARGER)
+			charger->chrg_type = AC;
+		else if (val & CHRG_DOWNSTRM_PORT)
+			charger->chrg_type = USB;
+
+		/* configure charger */
+		ret = smb349_configure_charger(client, 1);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto ret_error;
+		}
+
+		charger->state = progress;
+	} else {
+		charger->state = stopped;
+
+		/* Disable charger */
+		ret = smb349_configure_charger(client, 0);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto ret_error;
+		}
+	}
+
+	if (charger->charger_cb)
+		charger->charger_cb(charger->state, charger->chrg_type,
+						charger->charger_cb_data);
+	return 0;
+val_error:
+	return val;
+ret_error:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(update_charger_status);
+
 int register_callback(charging_callback_t cb, void *args)
 {
 	struct smb349_charger *charger_data = charger;
