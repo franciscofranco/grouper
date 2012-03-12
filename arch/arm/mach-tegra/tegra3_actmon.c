@@ -551,6 +551,8 @@ static int actmon_pm_notify(struct notifier_block *nb,
 			actmon_dev_suspend(actmon_devices[i]);
 		break;
 	case PM_POST_SUSPEND:
+		actmon_writel(actmon_sampling_period - 1,
+			      ACTMON_GLB_PERIOD_CTRL);
 		for (i = 0; i < ARRAY_SIZE(actmon_devices); i++)
 			actmon_dev_resume(actmon_devices[i]);
 		break;
