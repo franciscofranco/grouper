@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Google, Inc.
  * Author: Colin Cross <ccross@android.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -191,6 +191,20 @@ static u32 dvc_readl(struct tegra_i2c_dev *i2c_dev, unsigned long reg)
 	return readl(i2c_dev->base + reg);
 }
 
+static void dvc_i2c_mask_irq(struct tegra_i2c_dev *i2c_dev, u32 mask)
+{
+	u32 int_mask = dvc_readl(i2c_dev, DVC_CTRL_REG3);
+	int_mask &= ~mask;
+	dvc_writel(i2c_dev, int_mask, DVC_CTRL_REG3);
+}
+
+static void dvc_i2c_unmask_irq(struct tegra_i2c_dev *i2c_dev, u32 mask)
+{
+	u32 int_mask = dvc_readl(i2c_dev, DVC_CTRL_REG3);
+	int_mask |= mask;
+	dvc_writel(i2c_dev, int_mask, DVC_CTRL_REG3);
+}
+
 /*
  * i2c_writel and i2c_readl will offset the register if necessary to talk
  * to the I2C block inside the DVC block
@@ -370,7 +384,6 @@ static void tegra_dvc_init(struct tegra_i2c_dev *i2c_dev)
 	u32 val = 0;
 	val = dvc_readl(i2c_dev, DVC_CTRL_REG3);
 	val |= DVC_CTRL_REG3_SW_PROG;
-	val |= DVC_CTRL_REG3_I2C_DONE_INTR_EN;
 	dvc_writel(i2c_dev, val, DVC_CTRL_REG3);
 
 	val = dvc_readl(i2c_dev, DVC_CTRL_REG1);
@@ -426,7 +439,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 
 	/* Interrupt generated before sending stop signal so
 	* wait for some time so that stop signal can be send proerly */
-	udelay(100);
+	mdelay(1);
 
 	tegra_periph_reset_assert(i2c_dev->div_clk);
 	udelay(2);
@@ -590,6 +603,10 @@ err:
 
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
 
+	/* An error occured, mask dvc interrupt */
+	if (i2c_dev->is_dvc)
+		dvc_i2c_mask_irq(i2c_dev, DVC_CTRL_REG3_I2C_DONE_INTR_EN);
+
 	if (i2c_dev->is_dvc)
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
 
@@ -648,6 +665,9 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	if (!(msg->flags & I2C_M_RD))
 		tegra_i2c_fill_tx_fifo(i2c_dev);
 
+	if (i2c_dev->is_dvc)
+		dvc_i2c_unmask_irq(i2c_dev, DVC_CTRL_REG3_I2C_DONE_INTR_EN);
+
 	int_mask = I2C_INT_NO_ACK | I2C_INT_ARBITRATION_LOST | I2C_INT_TX_FIFO_OVERFLOW;
 	if (msg->flags & I2C_M_RD)
 		int_mask |= I2C_INT_RX_FIFO_DATA_REQ;
@@ -660,6 +680,9 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	ret = wait_for_completion_timeout(&i2c_dev->msg_complete,
 					TEGRA_I2C_TIMEOUT);
 	tegra_i2c_mask_irq(i2c_dev, int_mask);
+
+	if (i2c_dev->is_dvc)
+		dvc_i2c_mask_irq(i2c_dev, DVC_CTRL_REG3_I2C_DONE_INTR_EN);
 
 	if (WARN_ON(ret == 0)) {
 		dev_err(i2c_dev->dev,
