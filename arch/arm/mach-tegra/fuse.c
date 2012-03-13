@@ -273,9 +273,11 @@ unsigned int tegra_spare_fuse(int bit)
 
 int tegra_sku_id(void)
 {
-	int sku_id;
-	u32 reg = tegra_fuse_readl(FUSE_SKU_INFO);
-	sku_id = reg & 0xFF;
+	static int sku_id = -1;
+	if (sku_id == -1) {
+		u32 reg = tegra_fuse_readl(FUSE_SKU_INFO);
+		sku_id = reg & 0xFF;
+	}
 	return sku_id;
 }
 
