@@ -528,7 +528,7 @@ int __init ventana_camera_late_init(void)
 		gpio_export(ventana_camera_gpio_keys[i].gpio, false);
 	}
 
-	ventana_gpio_fixed_voltage_regulator_init();
+	ventana_cam_fixed_voltage_regulator_init();
 
 	cam1_2v8 = regulator_get(NULL, "cam1_2v8");
 	if (WARN_ON(IS_ERR(cam1_2v8))) {

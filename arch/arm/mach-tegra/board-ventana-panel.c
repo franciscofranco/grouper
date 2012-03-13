@@ -37,7 +37,6 @@
 #include "gpio-names.h"
 #include "board.h"
 
-#define ventana_pnl_pwr_enb	TEGRA_GPIO_PC6
 #define ventana_bl_enb		TEGRA_GPIO_PD4
 #define ventana_lvds_shutdown	TEGRA_GPIO_PB2
 #define ventana_hdmi_hpd	TEGRA_GPIO_PN7
@@ -46,6 +45,8 @@
 /*panel power on sequence timing*/
 #define ventana_pnl_to_lvds_ms	0
 #define ventana_lvds_to_bl_ms	200
+
+static struct regulator *pnl_pwr;
 
 #ifdef CONFIG_TEGRA_DC
 static struct regulator *ventana_hdmi_reg = NULL;
@@ -112,7 +113,17 @@ static int ventana_panel_enable(void)
 		regulator_put(reg);
 	}
 
-	gpio_set_value(ventana_pnl_pwr_enb, 1);
+	if (pnl_pwr == NULL) {
+		pnl_pwr = regulator_get(NULL, "pnl_pwr");
+		if (WARN_ON(IS_ERR(pnl_pwr)))
+			pr_err("%s: couldn't get regulator pnl_pwr: %ld\n",
+				__func__, PTR_ERR(pnl_pwr));
+		else
+			regulator_enable(pnl_pwr);
+	} else {
+		regulator_enable(pnl_pwr);
+	}
+
 	mdelay(ventana_pnl_to_lvds_ms);
 	gpio_set_value(ventana_lvds_shutdown, 1);
 	mdelay(ventana_lvds_to_bl_ms);
@@ -122,7 +133,7 @@ static int ventana_panel_enable(void)
 static int ventana_panel_disable(void)
 {
 	gpio_set_value(ventana_lvds_shutdown, 0);
-	gpio_set_value(ventana_pnl_pwr_enb, 0);
+	regulator_disable(pnl_pwr);
 	return 0;
 }
 
@@ -383,10 +394,6 @@ int __init ventana_panel_init(void)
 {
 	int err;
 	struct resource __maybe_unused *res;
-
-	gpio_request(ventana_pnl_pwr_enb, "pnl_pwr_enb");
-	gpio_direction_output(ventana_pnl_pwr_enb, 1);
-	tegra_gpio_enable(ventana_pnl_pwr_enb);
 
 	gpio_request(ventana_lvds_shutdown, "lvds_shdn");
 	gpio_direction_output(ventana_lvds_shutdown, 1);
