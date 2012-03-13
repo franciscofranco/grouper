@@ -365,7 +365,7 @@ static int __devinit tps80031_rtc_probe(struct platform_device *pdev)
 	/* If RTC have POR values, set time using platform data*/
 	tps80031_rtc_read_time(&pdev->dev, &tm);
 	if ((tm.tm_year == RTC_YEAR_OFFSET + RTC_POR_YEAR) &&
-		(tm.tm_mon == RTC_POR_MONTH) &&
+		(tm.tm_mon == (RTC_POR_MONTH - 1)) &&
 		(tm.tm_mday == RTC_POR_DAY)) {
 		if (pdata->time.tm_year < 2000 ||
 			pdata->time.tm_year > 2100) {
