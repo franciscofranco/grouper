@@ -131,14 +131,6 @@ void arm_machine_flush_console(void)
 
 void arm_machine_restart(char mode, const char *cmd)
 {
-	/* Flush the console to make sure all the relevant messages make it
-	 * out to the console drivers */
-	arm_machine_flush_console();
-
-	/* Disable interrupts first */
-	local_irq_disable();
-	local_fiq_disable();
-
 	/*
 	 * Tell the mm system that we are going to reboot -
 	 * we may need it to insert some 1:1 mappings so that
@@ -293,6 +285,14 @@ void machine_power_off(void)
 
 void machine_restart(char *cmd)
 {
+	/* Flush the console to make sure all the relevant messages make it
+	 * out to the console drivers */
+	arm_machine_flush_console();
+
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+
 	machine_shutdown();
 	arm_pm_restart(reboot_mode, cmd);
 }
