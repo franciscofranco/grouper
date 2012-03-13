@@ -545,11 +545,17 @@ struct tegra_dsi_out enterprise_dsi = {
 	.n_data_lanes = 2,
 	.pixel_format = TEGRA_DSI_PIXEL_FORMAT_24BIT_P,
 #if(DC_CTRL_MODE & TEGRA_DC_OUT_ONE_SHOT_MODE)
-	/* For one-shot mode, mismatch between freq of DC and TE signal
-	 * may cause frame drop. We increase refreash rate a little bit
-	 * more than target value to avoid missing TE signal.
+	/* For one-shot mode, actual refresh rate is decided by the
+	 * frequency of TE signal. Although the frequency of TE is
+	 * expected running at rated_refresh_rate (typically 60Hz),
+	 * it may vary. Mismatch between freq of DC and TE signal
+	 * would cause frame drop. We increase refresh_rate to the
+	 * value larger than maximum TE frequency to avoid missing
+	 * any TE signal. The value of refresh_rate is also used to
+	 * calculate the pixel clock.
 	 */
 	.refresh_rate = 66,
+	.rated_refresh_rate = 60,
 #else
 	.refresh_rate = 60,
 #endif
