@@ -884,7 +884,7 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto err_fini_utils;
+		goto err_switch_unregister;
 	}
 
 	if (!card->instantiated) {
@@ -896,6 +896,10 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 
 err_unregister_card:
 	snd_soc_unregister_card(card);
+err_switch_unregister:
+#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&aic326x_wired_switch_dev);
+#endif
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
 err_free_machine:
