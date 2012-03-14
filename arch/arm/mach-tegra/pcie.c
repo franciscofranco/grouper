@@ -1109,8 +1109,13 @@ static int tegra_pcie_init(void)
 	int rp_offset = 0;
 	int ctrl_offset = AFI_PEX0_CTRL;
 
-	pcibios_min_mem = 0;
-
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	pcibios_min_mem = 0x1000;
+	pcibios_min_io = 0;
+#else
+	pcibios_min_mem = 0x03000000ul;
+	pcibios_min_io = 0x10000000ul;
+#endif
 	err = tegra_pcie_get_resources();
 	if (err)
 		return err;
