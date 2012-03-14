@@ -26,7 +26,11 @@
 #include <linux/uaccess.h>
 
 #include <linux/mfd/max77663-core.h>
-
+//=================stree test=================
+#include <linux/miscdevice.h>
+#include <linux/ioctl.h>
+#include <linux/fs.h>
+//=================stree test end =================
 /* RTC i2c slave address */
 #define MAX77663_RTC_I2C_ADDR		0x48
 
@@ -160,6 +164,11 @@ struct max77663_chip {
 	u8 cache_gpio_alt;
 
 	u8 rtc_i2c_addr;
+	//=================stree test=================
+	int			i2c_status;
+	struct delayed_work stress_test;
+	struct miscdevice max77663_misc;
+	//=================stree test end=================
 };
 
 struct max77663_chip *max77663_chip;
@@ -1281,14 +1290,104 @@ static inline void max77663_debugfs_exit(struct max77663_chip *chip)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
+//=================stree test=================
+struct max77663_chip *temp_max77663=NULL;
 
+static ssize_t show_max77663_i2c_status(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	if(temp_max77663)
+		return sprintf(buf, "%d\n", temp_max77663->i2c_status);
+	else
+		return sprintf(buf, "%d\n", 0);
+}
+static DEVICE_ATTR(max77663_i2c_status, S_IWUSR | S_IRUGO,show_max77663_i2c_status,NULL);
+
+static struct attribute *max77663_i2c_attributes[] = {
+
+	&dev_attr_max77663_i2c_status.attr,
+	NULL,
+};
+
+static const struct attribute_group max77663_i2c_group = {
+	.attrs = max77663_i2c_attributes,
+};
+
+
+#define MAX77663_IOC_MAGIC	0xFB
+#define MAX77663_IOC_MAXNR	5
+#define MAX77663_POLLING_DATA _IOR(MAX77663_IOC_MAGIC, 1,int)
+
+#define TEST_END (0)
+#define START_NORMAL (1)
+#define START_HEAVY (2)
+#define IOCTL_ERROR (-1)
+struct workqueue_struct *max77663_strees_work_queue=NULL;
+
+#define CHIP_IDENT_REGISTER (0x5D)
+void max77663_read_stress_test(struct work_struct *work)
+{
+	struct i2c_client *client = NULL;
+	unsigned int  reg_val;
+	int ret = 0;
+
+	mutex_lock(&temp_max77663->io_lock);
+	client = temp_max77663->i2c_power;
+	ret = max77663_i2c_read(client, CHIP_IDENT_REGISTER, &reg_val, 1);
+	if (ret < 0) {
+		printk("failed max77663_read_stress_test \n");
+	}
+	mutex_unlock(&temp_max77663->io_lock);
+	
+	queue_delayed_work(max77663_strees_work_queue, &temp_max77663->stress_test, 2*HZ);
+	return ;
+}
+long  max77663_ioctl(struct file *filp,  unsigned int cmd, unsigned long arg)
+{
+	if (_IOC_TYPE(cmd) ==MAX77663_IOC_MAGIC){
+	     printk("max77663_ioctl vaild magic \n");
+		}
+	else	{
+		printk("max77663_ioctl invaild magic \n");
+		return -ENOTTY;
+		}
+
+	switch(cmd)
+	{
+		 case MAX77663_POLLING_DATA :
+		    if ((arg==START_NORMAL)||(arg==START_HEAVY)){
+				 printk("max77663 stress test start (%s)\n",(arg==START_NORMAL)?"normal":"heavy");
+				 queue_delayed_work(max77663_strees_work_queue, &temp_max77663->stress_test, 2*HZ);
+		    	}
+		else{
+				 printk("max77663 tress test end\n");
+				 cancel_delayed_work_sync(&temp_max77663->stress_test);
+	      }
+		break;
+	  default:  /* redundant, as cmd was checked against MAXNR */
+	           printk("MAX77663: unknow i2c  stress test  command cmd=%x arg=%lu\n",cmd,arg);
+		return -ENOTTY;
+		}
+   return 0;
+}
+int max77663_open(struct inode *inode, struct file *filp)
+{
+	return 0;          
+}
+struct file_operations max77663_fops = {
+	.owner =    THIS_MODULE,
+	.unlocked_ioctl =   max77663_ioctl,
+	.open =  max77663_open,
+};
+//=================stree test end=================
 static int max77663_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct max77663_platform_data *pdata = client->dev.platform_data;
 	struct max77663_chip *chip;
 	int ret = 0;
-
+	//=================stree test ===================
+	int rc;
+	//=================stree test end=================
 	if (pdata == NULL) {
 		dev_err(&client->dev, "probe: Invalid platform_data\n");
 		ret = -ENODEV;
@@ -1338,7 +1437,21 @@ static int max77663_probe(struct i2c_client *client,
 		dev_err(&client->dev, "probe: Failed to add subdev: %d\n", ret);
 		goto out_exit;
 	}
+	//=================stree test=================
+	temp_max77663=chip;
+       temp_max77663->i2c_status=1;
+	if (sysfs_create_group(&client->dev.kobj, &max77663_i2c_group)) {
+		dev_err(&client->dev, "max77663_i2c_probe:Not able to create the sysfs\n");
+	}
+       INIT_DELAYED_WORK(&temp_max77663->stress_test,  max77663_read_stress_test) ;
+       max77663_strees_work_queue = create_singlethread_workqueue("max77663_strees_test_workqueue");
 
+	temp_max77663->max77663_misc.minor	= MISC_DYNAMIC_MINOR;
+	temp_max77663->max77663_misc.name	= "max77663";
+	temp_max77663->max77663_misc.fops  	= &max77663_fops;
+       rc=misc_register(&temp_max77663->max77663_misc);
+	 printk(KERN_INFO "max77663 register misc device for I2C stress test rc=%x\n", rc);
+	//=================stree test end=================
 	return 0;
 
 out_exit:
