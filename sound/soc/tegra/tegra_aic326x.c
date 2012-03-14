@@ -841,7 +841,7 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &snd_soc_tegra_aic326x;
 	struct tegra_aic326x *machine;
 	struct tegra_aic326x_platform_data *pdata;
-	int ret, i;
+	int ret;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -874,6 +874,11 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 		goto err_fini_utils;
 	}
 #endif
+
+	if(machine_is_tegra_enterprise()) {
+		tegra_aic326x_dai[DAI_LINK_HIFI].codec_name = "aic3262-codec.0-0018";
+		tegra_aic326x_dai[DAI_LINK_VOICE_CALL].codec_name = "aic3262-codec.0-0018";
+	}
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
