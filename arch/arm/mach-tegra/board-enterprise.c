@@ -498,6 +498,7 @@ static struct tegra_asoc_platform_data enterprise_audio_pdata = {
 	.gpio_int_mic_en	= -1,
 	.gpio_ext_mic_en	= -1,
 	.debounce_time_hp = -1,
+	/*defaults for Enterprise board*/
 	.audio_port_id		= {
 		[HIFI_CODEC] = 0,
 		[BASEBAND] = 2,
@@ -523,6 +524,16 @@ static struct tegra_asoc_platform_data enterprise_audio_aic326x_pdata = {
 	.gpio_hp_mute		= -1,
 	.gpio_int_mic_en	= -1,
 	.gpio_ext_mic_en	= -1,
+	/*defaults for Verbier-Enterprise (E1197) board with TI AIC326X codec*/
+	.audio_port_id		= {
+		[HIFI_CODEC] = 0,
+		[BASEBAND] = 2,
+		[BT_SCO] = 3,
+	},
+	.baseband_param		= {
+		.rate = 8000,
+		.channels = 1,
+	},
 };
 
 static struct platform_device enterprise_audio_aic326x_device = {
