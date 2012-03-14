@@ -1157,8 +1157,15 @@ static __devinit int tegra_max98088_driver_probe(struct platform_device *pdev)
 		goto err_switch_unregister;
 	}
 
+	if (!card->instantiated) {
+		dev_err(&pdev->dev, "No MAX98088 codec\n");
+		goto err_unregister_card;
+	}
+
 	return 0;
 
+err_unregister_card:
+	snd_soc_unregister_card(card);
 err_switch_unregister:
 #ifdef CONFIG_SWITCH
 	switch_dev_unregister(&wired_switch_dev);
