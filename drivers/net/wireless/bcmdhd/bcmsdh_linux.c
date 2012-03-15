@@ -135,24 +135,24 @@ bcmsdh_chipmatch(uint16 vendor, uint16 device)
 #if defined(BCMPLATFORM_BUS)
 #if defined(BCMLXSDMMC)
 /* forward declarations */
-int bcmsdh_probe(struct device *dev);
-int bcmsdh_remove(struct device *dev);
+int bcmsdh_probe_bcmdhd(struct device *dev);
+int bcmsdh_remove_bcmdhd(struct device *dev);
 
-EXPORT_SYMBOL(bcmsdh_probe);
-EXPORT_SYMBOL(bcmsdh_remove);
+EXPORT_SYMBOL(bcmsdh_probe_bcmdhd);
+EXPORT_SYMBOL(bcmsdh_remove_bcmdhd);
 
 #else
 /* forward declarations */
-static int __devinit bcmsdh_probe(struct device *dev);
-static int __devexit bcmsdh_remove(struct device *dev);
+static int __devinit bcmsdh_probe_bcmdhd(struct device *dev);
+static int __devexit bcmsdh_remove_bcmdhd(struct device *dev);
 #endif /* BCMLXSDMMC */
 
 #ifndef BCMLXSDMMC
 static struct device_driver bcmsdh_driver = {
 	.name		= "pxa2xx-mci",
 	.bus		= &platform_bus_type,
-	.probe		= bcmsdh_probe,
-	.remove		= bcmsdh_remove,
+	.probe		= bcmsdh_probe_bcmdhd,
+	.remove		= bcmsdh_remove_bcmdhd,
 	.suspend	= NULL,
 	.resume		= NULL,
 	};
@@ -161,7 +161,7 @@ static struct device_driver bcmsdh_driver = {
 #ifndef BCMLXSDMMC
 static
 #endif /* BCMLXSDMMC */
-int bcmsdh_probe(struct device *dev)
+int bcmsdh_probe_bcmdhd(struct device *dev)
 {
 	osl_t *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
@@ -269,7 +269,7 @@ err:
 #ifndef BCMLXSDMMC
 static
 #endif /* BCMLXSDMMC */
-int bcmsdh_remove(struct device *dev)
+int bcmsdh_remove_bcmdhd(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
 	osl_t *osh;
