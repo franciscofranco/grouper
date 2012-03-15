@@ -178,6 +178,7 @@ struct spi_tegra_data {
 	char			port_name[32];
 
 	struct clk		*clk;
+	struct clk		*sclk;
 	void __iomem		*base;
 	phys_addr_t		phys;
 	unsigned		irq;
@@ -1267,11 +1268,18 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		goto fail_irq_req;
 	}
 
-	tspi->clk = clk_get(&pdev->dev, NULL);
+	tspi->clk = clk_get(&pdev->dev, "spi");
 	if (IS_ERR(tspi->clk)) {
 		dev_err(&pdev->dev, "can not get clock\n");
 		ret = PTR_ERR(tspi->clk);
 		goto fail_clk_get;
+	}
+
+	tspi->sclk = clk_get(&pdev->dev, "sclk");
+	if (IS_ERR(tspi->sclk)) {
+		dev_err(&pdev->dev, "can not get sclock\n");
+		ret = PTR_ERR(tspi->sclk);
+		goto fail_sclk_get;
 	}
 
 	INIT_LIST_HEAD(&tspi->queue);
@@ -1434,6 +1442,9 @@ fail_rx_buf_alloc:
 		tegra_dma_free_channel(tspi->rx_dma);
 fail_rx_dma_alloc:
 	pm_runtime_disable(&pdev->dev);
+	clk_put(tspi->sclk);
+fail_sclk_get:
+	clk_put(tspi->clk);
 fail_clk_get:
 	free_irq(tspi->irq, tspi);
 fail_irq_req:
@@ -1472,6 +1483,7 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
+	clk_put(tspi->sclk);
 	clk_put(tspi->clk);
 	iounmap(tspi->base);
 
@@ -1588,6 +1600,7 @@ static int tegra_spi_runtime_idle(struct device *dev)
 	tspi = spi_master_get_devdata(master);
 
 	clk_disable(tspi->clk);
+	clk_disable(tspi->sclk);
 	return 0;
 }
 
@@ -1598,6 +1611,7 @@ static int tegra_spi_runtime_resume(struct device *dev)
 	master = dev_get_drvdata(dev);
 	tspi = spi_master_get_devdata(master);
 
+	clk_enable(tspi->sclk);
 	clk_enable(tspi->clk);
 	return 0;
 }
