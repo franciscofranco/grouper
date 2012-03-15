@@ -43,6 +43,7 @@
 #include <mach/io.h>
 #include <mach/pci.h>
 #include <mach/audio.h>
+#include <mach/tegra_p1852_pdata.h>
 #include <asm/mach/flash.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -113,11 +114,20 @@ static __initdata struct tegra_clk_init_table p1852_clk_init_table[] = {
 	{ "sbc5",		"pll_m",	100000000,	true},
 	{ "sbc6",		"pll_m",	100000000,	true},
 	{ "cpu_g",		"cclk_g",	900000000,	true},
-	{ "i2s0",		"clk_m",	12288000,	false},
-	{ "i2s1",		"clk_m",	12288000,	false},
-	{ "i2s2",		"clk_m",	12288000,	false},
-	{ "i2s3",		"clk_m",	12288000,	false},
-	{ "i2s4",		"clk_m",	12288000,	false},
+	{ "i2s0",		"pll_a_out0",	12288000,	false},
+	{ "i2s1",		"pll_a_out0",	12288000,	false},
+	{ "i2s2",		"pll_a_out0",	12288000,	false},
+	{ "i2s3",		"pll_a_out0",	12288000,	false},
+	{ "i2s4",		"pll_a_out0",	12288000,	false},
+	{ "audio0",		"i2s0_sync",	12288000,	false},
+	{ "audio1",		"i2s1_sync",	12288000,	false},
+	{ "audio2",		"i2s2_sync",	12288000,	false},
+	{ "audio3",		"i2s3_sync",	12288000,	false},
+	{ "audio4",		"i2s4_sync",	12288000,	false},
+	{ "apbif",		"clk_m",	12000000,	false},
+	{ "dam0",		"clk_m",	12000000,	true},
+	{ "dam1",		"clk_m",	12000000,	true},
+	{ "dam2",		"clk_m",	12000000,	true},
 	{ "vi",			"pll_p",	200000000,	true},
 	{ "vi_sensor",		"pll_p",	150000000,	true},
 	{ "vde",		"pll_c",	484000000,	true},
@@ -220,6 +230,55 @@ static void __init p1852_uart_init(void)
 	platform_add_devices(p1852_uart_devices,
 				ARRAY_SIZE(p1852_uart_devices));
 }
+
+static struct tegra_p1852_platform_data p1852_audio_pdata = {
+	.codec_info[0] = {
+		.codec_dai_name = "dit-hifi",
+		.cpu_dai_name = "tegra30-i2s.0",
+		.codec_name = "spdif-dit.0",
+		.name = "tegra-i2s-1",
+		.i2s_format = format_i2s,
+		.master = 1,
+	},
+	.codec_info[1] = {
+		.codec_dai_name = "dit-hifi",
+		.cpu_dai_name = "tegra30-i2s.1",
+		.codec_name = "spdif-dit.1",
+		.name = "tegra-i2s-2",
+		.i2s_format = format_i2s,
+		.master = 0,
+	},
+
+};
+
+static struct platform_device generic_codec_1 = {
+	.name		= "spdif-dit",
+	.id			= 0,
+};
+static struct platform_device generic_codec_2 = {
+	.name		= "spdif-dit",
+	.id			= 1,
+};
+
+static struct platform_device tegra_snd_p1852 = {
+	.name       = "tegra-snd-p1852",
+	.id = 0,
+	.dev    = {
+	    .platform_data = &p1852_audio_pdata,
+	},
+};
+
+static void p1852_i2s_audio_init(void)
+{
+	platform_device_register(&tegra_pcm_device);
+	platform_device_register(&generic_codec_1);
+	platform_device_register(&generic_codec_2);
+	platform_device_register(&tegra_i2s_device0);
+	platform_device_register(&tegra_i2s_device1);
+	platform_device_register(&tegra_ahub_device);
+	platform_device_register(&tegra_snd_p1852);
+}
+
 
 #if defined(CONFIG_SPI_TEGRA) && defined(CONFIG_SPI_SPIDEV)
 static struct spi_board_info tegra_spi_devices[] __initdata = {
@@ -362,6 +421,7 @@ static void __init tegra_p1852_init(void)
 	tegra_clk_init_from_table(p1852_clk_init_table);
 	p1852_pinmux_init();
 	p1852_i2c_init();
+	p1852_i2s_audio_init();
 	p1852_gpio_init();
 	p1852_uart_init();
 	p1852_usb_init();
