@@ -328,7 +328,7 @@ static int nvavp_pushbuffer_alloc(struct nvavp_info *nvavp)
 	int ret = 0;
 
 	nvavp->pushbuf_handle = nvmap_alloc(nvavp->nvmap, NVAVP_PUSHBUFFER_SIZE,
-				SZ_1M, NVMAP_HANDLE_UNCACHEABLE);
+				SZ_1M, NVMAP_HANDLE_UNCACHEABLE, 0);
 	if (IS_ERR(nvavp->pushbuf_handle)) {
 		dev_err(&nvavp->nvhost_dev->dev,
 			"cannot create pushbuffer handle\n");
@@ -571,7 +571,7 @@ static int nvavp_load_ucode(struct nvavp_info *nvavp)
 
 		ucode_info->handle = nvmap_alloc(nvavp->nvmap,
 						nvavp->ucode_info.size,
-					SZ_1M, NVMAP_HANDLE_UNCACHEABLE);
+					SZ_1M, NVMAP_HANDLE_UNCACHEABLE, 0);
 		if (IS_ERR(ucode_info->handle)) {
 			dev_err(&nvavp->nvhost_dev->dev,
 				"cannot create ucode handle\n");
@@ -1205,7 +1205,7 @@ static int tegra_nvavp_probe(struct nvhost_device *ndev)
 		break;
 	case NVMAP_HEAP_CARVEOUT_GENERIC:
 		nvavp->os_info.handle = nvmap_alloc(nvavp->nvmap, SZ_1M, SZ_1M,
-						NVMAP_HANDLE_UNCACHEABLE);
+						NVMAP_HANDLE_UNCACHEABLE, 0);
 		if (IS_ERR_OR_NULL(nvavp->os_info.handle)) {
 			dev_err(&ndev->dev, "cannot create AVP os handle\n");
 			ret = PTR_ERR(nvavp->os_info.handle);
