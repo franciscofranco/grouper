@@ -210,25 +210,42 @@ TRACE_EVENT(nvhost_channel_write_waitchks,
 	  __entry->name, __entry->waitchks, __entry->waitmask)
 );
 
-TRACE_EVENT(nvhost_channel_context_switch,
-	TP_PROTO(const char *name, void *old_ctx, void *new_ctx),
+TRACE_EVENT(nvhost_channel_context_save,
+	TP_PROTO(const char *name, void *ctx),
 
-	TP_ARGS(name, old_ctx, new_ctx),
+	TP_ARGS(name, ctx),
 
 	TP_STRUCT__entry(
 	    __field(const char *, name)
-	    __field(void*, old_ctx)
-	    __field(void*, new_ctx)
+	    __field(void*, ctx)
 	),
 
 	TP_fast_assign(
 	    __entry->name = name;
-	    __entry->old_ctx = old_ctx;
-	    __entry->new_ctx = new_ctx;
+	    __entry->ctx = ctx;
 	),
 
-	TP_printk("name=%s, old=%p, new=%p",
-	  __entry->name, __entry->old_ctx, __entry->new_ctx)
+	TP_printk("name=%s, ctx=%p",
+	  __entry->name, __entry->ctx)
+);
+
+TRACE_EVENT(nvhost_channel_context_restore,
+	TP_PROTO(const char *name, void *ctx),
+
+	TP_ARGS(name, ctx),
+
+	TP_STRUCT__entry(
+	    __field(const char *, name)
+	    __field(void*, ctx)
+	),
+
+	TP_fast_assign(
+	    __entry->name = name;
+	    __entry->ctx = ctx;
+	),
+
+	TP_printk("name=%s, ctx=%p",
+	  __entry->name, __entry->ctx)
 );
 
 TRACE_EVENT(nvhost_ctrlopen,
