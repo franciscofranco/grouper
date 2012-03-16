@@ -4,6 +4,8 @@
  * Copyright (C) 2010 Google, Inc.
  * Author: Erik Gilling <konkers@android.com>
  *
+ * Copyright (C) 2010-2012 NVIDIA Corporation
+ *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -93,6 +95,8 @@ struct tegra_dc {
 	void				*out_data;
 
 	struct tegra_dc_mode		mode;
+	bool				mode_dirty;
+	spinlock_t                      mode_lock;
 
 	struct tegra_dc_win		windows[DC_N_WINDOWS];
 	struct tegra_dc_blend		blend;

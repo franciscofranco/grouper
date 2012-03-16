@@ -6,7 +6,7 @@
  *         Colin Cross <ccross@android.com>
  *         Travis Geiselbrecht <travis@palm.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -78,6 +78,10 @@ static int tegra_fb_set_par(struct fb_info *info)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
 	struct fb_var_screeninfo *var = &info->var;
+
+	BUG_ON(info == NULL);
+	if (!info)
+		return -EINVAL;
 
 	if (var->bits_per_pixel) {
 		/* we only support RGB ordering for now */
@@ -484,6 +488,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	unsigned long fb_size = 0;
 	unsigned long fb_phys = 0;
 	int ret = 0;
+	struct fb_videomode m;
 
 	win = tegra_dc_get_window(dc, fb_data->win);
 	if (!win) {
@@ -535,22 +540,15 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	info->fix.line_length = round_up(info->fix.line_length,
 					TEGRA_LINEAR_PITCH_ALIGNMENT);
 
-	info->var.xres			= fb_data->xres;
-	info->var.yres			= fb_data->yres;
+	INIT_LIST_HEAD(&info->modelist);
+	tegra_dc_to_fb_videomode(&m, &dc->mode);
+	fb_videomode_to_var(&info->var, &m);
 	info->var.xres_virtual		= fb_data->xres;
 	info->var.yres_virtual		= fb_data->yres * 2;
 	info->var.bits_per_pixel	= fb_data->bits_per_pixel;
 	info->var.activate		= FB_ACTIVATE_VBL;
 	info->var.height		= tegra_dc_get_out_height(dc);
 	info->var.width			= tegra_dc_get_out_width(dc);
-	info->var.pixclock		= 0;
-	info->var.left_margin		= 0;
-	info->var.right_margin		= 0;
-	info->var.upper_margin		= 0;
-	info->var.lower_margin		= 0;
-	info->var.hsync_len		= 0;
-	info->var.vsync_len		= 0;
-	info->var.vmode			= FB_VMODE_NONINTERLACED;
 
 	win->x.full = dfixed_const(0);
 	win->y.full = dfixed_const(0);
