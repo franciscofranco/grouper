@@ -277,11 +277,14 @@ static int tegra_rt5640_jack_notifier(struct notifier_block *self,
 	struct snd_soc_codec *codec = jack->codec;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
+	struct tegra_rt5640_platform_data *pdata = machine->pdata;
 	enum headset_state state = BIT_NO_HEADSET;
 	unsigned char status_jack;
 
 	if (jack == &tegra_rt5640_hp_jack) {
 		if (action) {
+			/* Enable ext mic; enable signal is active-low */
+			gpio_direction_output(pdata->gpio_ext_mic_en, 0);
 			if (!strncmp(machine->pdata->codec_name, "rt5639", 6))
 				status_jack = rt5639_headset_detect(codec, 1);
 			else if (!strncmp(machine->pdata->codec_name, "rt5640",
@@ -302,6 +305,8 @@ static int tegra_rt5640_jack_notifier(struct notifier_block *self,
 							SND_JACK_MICROPHONE;
 			}
 		} else {
+			/* Disable ext mic; enable signal is active-low */
+			gpio_direction_output(pdata->gpio_ext_mic_en, 1);
 			if (!strncmp(machine->pdata->codec_name, "rt5639", 6))
 				rt5639_headset_detect(codec, 0);
 			else if (!strncmp(machine->pdata->codec_name, "rt5640",
