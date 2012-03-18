@@ -3016,7 +3016,8 @@ static int tegra3_clk_shared_bus_update(struct clk *bus)
 		if (c->u.shared_bus_user.enabled) {
 			switch (c->u.shared_bus_user.mode) {
 			case SHARED_BW:
-				bw += c->u.shared_bus_user.rate;
+				if (bw < bus->max_rate)
+					bw += c->u.shared_bus_user.rate;
 				break;
 			case SHARED_CEILING:
 				ceiling = min(c->u.shared_bus_user.rate,
@@ -3028,6 +3029,16 @@ static int tegra3_clk_shared_bus_update(struct clk *bus)
 				rate = max(c->u.shared_bus_user.rate, rate);
 			}
 		}
+	}
+
+	if (bw) {
+		if (bus->flags & PERIPH_EMC_ENB) {
+			bw = tegra_emc_bw_efficiency ?
+				(bw / tegra_emc_bw_efficiency) : bus->max_rate;
+			bw = (bw < bus->max_rate / 100) ?
+				(bw * 100) : bus->max_rate;
+		}
+		bw = clk_round_rate_locked(bus, bw);
 	}
 	rate = min(max(rate, bw), ceiling);
 
@@ -3076,6 +3087,10 @@ static long tegra_clk_shared_bus_round_rate(struct clk *c, unsigned long rate)
 	/* auto user follow others, by itself it run at minimum bus rate */
 	if (c->u.shared_bus_user.mode == SHARED_AUTO)
 		rate = 0;
+
+	/* BW users should not be rounded until aggregated */
+	if (c->u.shared_bus_user.mode == SHARED_BW)
+		return rate;
 
 	return clk_round_rate(c->parent, rate);
 }
