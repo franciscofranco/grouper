@@ -77,6 +77,7 @@ int grouper_pinmux_init(void);
 int grouper_panel_init(void);
 int grouper_sensors_init(void);
 int grouper_keys_init(void);
+int grouper_kbc_init(void);
 int grouper_pins_state_init(void);
 int grouper_emc_init(void);
 int grouper_edp_init(void);

@@ -25,9 +25,6 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
-#include <linux/mfd/max77663-core.h>
-#include <linux/interrupt_keys.h>
-#include <linux/gpio_scrollwheel.h>
 
 #include <mach/irqs.h>
 #include <mach/io.h>
@@ -38,6 +35,64 @@
 
 #include "gpio-names.h"
 #include "devices.h"
+
+#define GROUPER_ROW_COUNT	1
+#define GROUPER_COL_COUNT	4
+
+static const u32 kbd_keymap[] = {
+	KEY(0, 0, KEY_RESERVED),
+	KEY(0, 1, KEY_RESERVED),
+	KEY(0, 2, KEY_VOLUMEUP),
+	KEY(0, 3, KEY_VOLUMEDOWN),
+};
+
+static const struct matrix_keymap_data keymap_data = {
+	.keymap	 = kbd_keymap,
+	.keymap_size    = ARRAY_SIZE(kbd_keymap),
+};
+
+static struct tegra_kbc_platform_data grouper_kbc_platform_data = {
+	.debounce_cnt = 20,
+	.repeat_cnt = 1,
+	.scan_count = 30,
+	.wakeup = false,
+	.keymap_data = &keymap_data,
+	.wake_cnt = 0,
+};
+
+int __init grouper_kbc_init(void)
+{
+	struct tegra_kbc_platform_data *data = &grouper_kbc_platform_data;
+	int i;
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+	BUG_ON(board_info.board_id != BOARD_E1565);
+
+	pr_info("Registering tegra-kbc\n");
+	tegra_kbc_device.dev.platform_data = &grouper_kbc_platform_data;
+
+	for (i = 0; i < GROUPER_ROW_COUNT; i++) {
+		data->pin_cfg[i].num = i;
+		data->pin_cfg[i].is_row = true;
+		data->pin_cfg[i].en = true;
+	}
+	for (i = 0; i < GROUPER_COL_COUNT; i++) {
+		/*
+		 * Avoid keypad scan (ROW0,COL0) and (ROW0, COL1)
+		 * KBC-COL1 (GPIO-Q-01) is unused, and
+		 * KBC-COL0(GPIO-Q-00) and AP_ONKEY#(GPIO-P-00) are
+		 * both wired with power button, but we configure
+		 * AP_ONKEY pin for power button instead.
+		 */
+		if (i <= 1) continue;
+		data->pin_cfg[i + KBC_PIN_GPIO_16].num = i;
+		data->pin_cfg[i + KBC_PIN_GPIO_16].en = true;
+	}
+
+	platform_device_register(&tegra_kbc_device);
+	return 0;
+}
 
 #define GPIO_KEY(_id, _gpio, _iswake)		\
 	{					\
@@ -51,12 +106,7 @@
 	}
 
 static struct gpio_keys_button grouper_keys[] = {
-	[0] = GPIO_KEY(KEY_MENU, PR2, 0),
-	[1] = GPIO_KEY(KEY_BACK, PQ1, 0),
-	[2] = GPIO_KEY(KEY_HOME, PQ0, 0),
-	[3] = GPIO_KEY(KEY_SEARCH, PQ3, 0),
-	[4] = GPIO_KEY(KEY_VOLUMEUP, PR1, 0),
-	[5] = GPIO_KEY(KEY_VOLUMEDOWN, PR0, 0),
+	[0] = GPIO_KEY(KEY_POWER, PV0, 1),
 };
 
 static struct gpio_keys_platform_data grouper_keys_platform_data = {
@@ -72,37 +122,13 @@ static struct platform_device grouper_keys_device = {
 	},
 };
 
-#define INT_KEY(_id, _irq, _iswake, _deb_int)	\
-	{					\
-		.code = _id,			\
-		.irq = _irq,			\
-		.active_low = 1,		\
-		.desc = #_id,			\
-		.type = EV_KEY,			\
-		.wakeup = _iswake,		\
-		.debounce_interval = _deb_int,	\
-	}
-static struct interrupt_keys_button grouper_int_keys[] = {
-	[0] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 0, 100),
-	[1] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 0, 3000),
-};
-
-static struct interrupt_keys_platform_data grouper_int_keys_pdata = {
-	.int_buttons	= grouper_int_keys,
-	.nbuttons       = ARRAY_SIZE(grouper_int_keys),
-};
-
-static struct platform_device grouper_int_keys_device = {
-	.name   = "interrupt-keys",
-	.id     = 0,
-	.dev    = {
-		.platform_data  = &grouper_int_keys_pdata,
-	},
-};
-
 int __init grouper_keys_init(void)
 {
 	int i;
+	struct board_info board_info;
+
+	tegra_get_board_info(&board_info);
+	BUG_ON(board_info.board_id != BOARD_E1565);
 
 	pr_info("Registering gpio keys\n");
 
@@ -112,7 +138,6 @@ int __init grouper_keys_init(void)
 					buttons[i].gpio);
 
 	platform_device_register(&grouper_keys_device);
-	platform_device_register(&grouper_int_keys_device);
 
 	return 0;
 }
