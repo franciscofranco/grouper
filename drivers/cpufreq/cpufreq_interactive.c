@@ -405,10 +405,9 @@ static int cpufreq_interactive_up_task(void *data)
 					max_freq = pjcpu->target_freq;
 			}
 
-			if (max_freq != pcpu->policy->cur)
-				__cpufreq_driver_target(pcpu->policy,
-							max_freq,
-							CPUFREQ_RELATION_H);
+			__cpufreq_driver_target(pcpu->policy,
+						max_freq,
+						CPUFREQ_RELATION_H);
 			mutex_unlock(&set_speed_lock);
 
 			pcpu->freq_change_time_in_idle =
@@ -452,9 +451,8 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 				max_freq = pjcpu->target_freq;
 		}
 
-		if (max_freq != pcpu->policy->cur)
-			__cpufreq_driver_target(pcpu->policy, max_freq,
-						CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(pcpu->policy, max_freq,
+					CPUFREQ_RELATION_H);
 
 		mutex_unlock(&set_speed_lock);
 		pcpu->freq_change_time_in_idle =
