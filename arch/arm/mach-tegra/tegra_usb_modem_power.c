@@ -96,6 +96,9 @@ static void device_add_handler(struct usb_device *udev)
 	const struct usb_device_id *id = usb_match_id(intf, modem_list);
 
 	if (id) {
+		/* hold wakelock to ensure ril has enough time to restart */
+		wake_lock_timeout(&tegra_mdm.wake_lock, HZ*10);
+
 		pr_info("Add device %d <%s %s>\n", udev->devnum,
 			udev->manufacturer, udev->product);
 
