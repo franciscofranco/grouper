@@ -45,7 +45,7 @@ static bool emc_enable;
 #endif
 module_param(emc_enable, bool, 0644);
 
-#define EMC_MIN_RATE_DDR3		50000000
+#define EMC_MIN_RATE_DDR3		25500000
 #define EMC_STATUS_UPDATE_TIMEOUT	100
 #define TEGRA_EMC_TABLE_MAX_SIZE 	16
 
