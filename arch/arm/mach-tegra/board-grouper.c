@@ -172,7 +172,7 @@ static struct tegra_i2c_platform_data grouper_i2c1_platform_data = {
 static struct tegra_i2c_platform_data grouper_i2c2_platform_data = {
 	.adapter_nr	= 1,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 100000, 0 },
+	.bus_clk_rate	= { 400000, 0 },
 	.is_clkon_always = true,
 	.scl_gpio		= {TEGRA_GPIO_PT5, 0},
 	.sda_gpio		= {TEGRA_GPIO_PT6, 0},
@@ -586,10 +586,77 @@ static __initdata struct tegra_clk_init_table touch_clk_init_table[] = {
 	{ NULL,         NULL,           0,              0},
 };
 
+#if defined(CONFIG_TOUCHSCREEN_ELAN_TF_3K)
+// Interrupt pin: TEGRA_GPIO_PH4
+// Reset pin: TEGRA_GPIO_PH6
+// Power pin:
+
+#include <linux/i2c/ektf3k.h>
+
+static struct elan_ktf3k_i2c_platform_data ts_elan_ktf3k_data[] = {
+        {
+                .version = 0x0001,
+		   .abs_x_min = 0,
+                .abs_x_max = ELAN_X_MAX,   //LG 9.7" Dpin 2368, Spin 2112
+                .abs_y_min = 0,
+                .abs_y_max = ELAN_Y_MAX,   //LG 9.7" Dpin 1728, Spin 1600
+                .intr_gpio = TEGRA_GPIO_PH4,
+                .rst_gpio = TEGRA_GPIO_PH6,
+        },
+};
+static struct i2c_board_info elan_i2c_devices[] = {
+        {
+                I2C_BOARD_INFO(ELAN_KTF3K_NAME, 0x10),
+                .platform_data = &ts_elan_ktf3k_data,
+                .irq = (INT_GPIO_BASE + TEGRA_GPIO_PH4),
+        },
+
+};
+#endif
+
+static int elan_touch_init(void)
+{
+	struct board_info BoardInfo;
+#if defined(CONFIG_TOUCHSCREEN_ELAN_TF_3K)
+      struct elan_ktf3k_i2c_platform_data *platform;
+#endif
+
+	tegra_gpio_enable(TEGRA_GPIO_PH4);
+	tegra_gpio_enable(TEGRA_GPIO_PH6);
+
+	gpio_request(TEGRA_GPIO_PH4, "elan-irq");
+	gpio_direction_input(TEGRA_GPIO_PH4);
+
+	gpio_request(TEGRA_GPIO_PH6, "elan-reset");
+	gpio_direction_output(TEGRA_GPIO_PH6, 0);
+	msleep(1);
+	gpio_set_value(TEGRA_GPIO_PH6, 1);
+	msleep(100);
+
+	tegra_get_board_info(&BoardInfo);
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+	if ((BoardInfo.sku & SKU_TOUCH_MASK) == SKU_TOUCH_2000) {
+		atmel_mxt_info.config = config_sku2000;
+		atmel_mxt_info.config_crc = MXT_CONFIG_CRC_SKU2000;
+	}
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_ELAN_TF_3K)
+	platform = (struct elan_ktf3k_i2c_platform_data *)elan_i2c_devices[0].platform_data;
+	platform->abs_x_max = ELAN_X_MAX_370T;
+	platform->abs_y_max = ELAN_Y_MAX_370T;
+	printk("[ELAN] Touch dirver register\n");
+	i2c_register_board_info(1, elan_i2c_devices, 1);
+#endif
+	return 0;
+
+}
+
 static int __init grouper_touch_init(void)
 {
 	int touch_id;
 
+    return elan_touch_init();	
 	tegra_gpio_enable(GROUPER_TS_ID1);
 	tegra_gpio_enable(GROUPER_TS_ID2);
 

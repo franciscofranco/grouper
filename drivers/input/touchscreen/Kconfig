@@ -745,6 +745,13 @@ config TOUCHSCREEN_TPS6507X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tps6507x_ts.
 
+config TOUCHSCREEN_ELAN_TF_3K
+        tristate "ELAN legacy Touchscreen Interface"
+        depends on I2C
+        help
+          To compile this driver as a module, choose M here: the
+          module will be called atmel_tsadcc.
+
 config TOUCHSCREEN_RM31080A
 	tristate "RAYDIUM_31080A based touchscreens"
 	depends on SPI_MASTER
