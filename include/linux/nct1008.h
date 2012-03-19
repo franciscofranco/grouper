@@ -45,7 +45,12 @@ struct nct1008_platform_data {
 	void (*alarm_fn)(bool raised);
 	void (*probe_callback)(struct nct1008_data *);
 };
-
+//=================stree test=================
+#include <linux/suspend.h>
+#include <linux/miscdevice.h>
+#include <linux/ioctl.h>
+#include <linux/fs.h>
+//=================stree test end =================
 struct nct1008_data {
 	struct workqueue_struct *workqueue;
 	struct work_struct work;
@@ -64,6 +69,12 @@ struct nct1008_data {
 
 	void (*alert_func)(void *);
 	void *alert_data;
+	//===================stress test start=====================
+	int i2c_status;
+	struct delayed_work stress_test;
+	struct miscdevice nct1008_misc;
+	struct notifier_block	pm_notify;
+	//===================stress test end=====================
 };
 
 #ifdef CONFIG_SENSORS_NCT1008
