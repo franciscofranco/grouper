@@ -874,7 +874,7 @@ static void elan_ktf3k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 			for (i = 0; i < FINGER_NUM; i++) {
 			  if ((fbits & 0x1)) {
 			     elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);  
-			     y = ts->abs_y_max - y;
+			     x = ts->abs_x_max - x;
 			     touch_size = ((i & 0x01) ? buf[size_index[i]] : (buf[size_index[i]] >> 4)) & 0x0F;
 			     if(touch_size == 0) touch_size = 1;
 			     if (touch_size <= 7)
@@ -949,7 +949,7 @@ static void elan_ktf3k_ts_report_data2(struct i2c_client *client, uint8_t *buf)
 		    for (i = 0; i < FINGER_NUM; i++) {
 		        if ((fbits & 0x1)) {
 	                  elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);  
-			     y = ts->abs_y_max - y;
+			     x = ts->abs_x_max - x;
 			     touch_size = buf[35 + i] << 3;
 			     pressure_size = buf[45 + i];	 
 			     if (!((x<=0) || (y<=0) || (x>=ts->abs_x_max) || (y>=ts->abs_y_max))) {   
