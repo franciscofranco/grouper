@@ -620,9 +620,12 @@ static int elan_touch_init(void)
 #if defined(CONFIG_TOUCHSCREEN_ELAN_TF_3K)
       struct elan_ktf3k_i2c_platform_data *platform;
 #endif
-
+	tegra_gpio_enable(TEGRA_GPIO_PH3);
 	tegra_gpio_enable(TEGRA_GPIO_PH4);
 	tegra_gpio_enable(TEGRA_GPIO_PH6);
+
+	gpio_request(TEGRA_GPIO_PH3, "elan-pwn");
+	gpio_direction_output(TEGRA_GPIO_PH3, 1);
 
 	gpio_request(TEGRA_GPIO_PH4, "elan-irq");
 	gpio_direction_input(TEGRA_GPIO_PH4);
