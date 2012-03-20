@@ -105,6 +105,7 @@ static __initdata struct tegra_clk_init_table p1852_clk_init_table[] = {
 	{ "d_audio",		"pll_a_out0",	12288000,	false},
 	{ "nor",		"pll_p",	86500000,	true},
 	{ "uarta",		"pll_p",	480000000,	true},
+	{ "uartd",		"pll_p",	480000000,	true},
 	{ "uarte",		"pll_p",	480000000,	true},
 	{ "sdmmc2",		"pll_p",	52000000,	true},
 	{ "sbc1",		"pll_m",	100000000,	true},
@@ -198,6 +199,7 @@ static void p1852_i2c_init(void)
 static struct platform_device *p1852_uart_devices[] __initdata = {
 	&tegra_uarta_device,
 	&tegra_uartb_device,
+	&tegra_uartd_device,
 	&tegra_uarte_device,
 };
 static struct clk *debug_uart_clk;
@@ -327,7 +329,6 @@ static void p1852_spi_init(void)
 	tegra_spi_device2.name = "spi_slave_tegra";
 	platform_device_register(&tegra_spi_device1);
 	platform_device_register(&tegra_spi_device2);
-	platform_device_register(&tegra_spi_device4);
 	p852_register_spidev();
 }
 
