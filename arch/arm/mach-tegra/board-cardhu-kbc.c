@@ -232,6 +232,7 @@ int __init cardhu_keys_init(void)
 	pr_info("Registering gpio keys\n");
 
 	if (board_info.board_id == BOARD_E1291) {
+
 		if (board_info.fab >= BOARD_FAB_A04) {
 			cardhu_keys_e1291_platform_data.buttons =
 					cardhu_keys_e1291_a04;
@@ -274,7 +275,10 @@ int __init cardhu_keys_init(void)
 		(board_info.board_id == BOARD_E1186) ||
 		(board_info.board_id == BOARD_PM305) ||
 		(board_info.board_id == BOARD_PM311) ||
-		(board_info.board_id == BOARD_PM269))
+		(board_info.board_id == BOARD_PM269)) {
+		if (get_tegra_image_type() == rck_image)
+			cardhu_int_keys[0].code = KEY_ENTER;
 		platform_device_register(&cardhu_int_keys_device);
+	}
 	return 0;
 }
