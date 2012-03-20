@@ -1,7 +1,7 @@
 /*
  * drivers/media/video/tegra/nvavp/nvavp_dev.c
  *
- * Copyright (C) 2011 NVIDIA Corp.
+ * Copyright (C) 2011-2012 NVIDIA Corp.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -1163,7 +1163,12 @@ static int tegra_nvavp_probe(struct nvhost_device *ndev)
 #endif
 	switch (heap_mask) {
 	case NVMAP_HEAP_IOVMM:
+
+#ifdef CONFIG_TEGRA_SMMU_BASE_AT_E0000000
+		iovmm_addr = 0xeff00000;
+#else
 		iovmm_addr = 0x0ff00000;
+#endif
 
 		/* Tegra3 A01 has different SMMU address */
 		if (tegra_get_chipid() == TEGRA_CHIPID_TEGRA3
