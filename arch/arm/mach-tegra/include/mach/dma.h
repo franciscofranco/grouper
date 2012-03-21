@@ -189,6 +189,15 @@ bool tegra_dma_is_empty(struct tegra_dma_channel *ch);
 struct tegra_dma_channel *tegra_dma_allocate_channel(int mode,
 		const char namefmt[], ...);
 void tegra_dma_free_channel(struct tegra_dma_channel *ch);
+
+/*
+ * tegra_dma_cancel: Stop the dma and remove all request from pending request
+ * queue for transfer.
+ * The pending list for data transfer will become empty after this callback.
+ * The status of each request will be marked as ABORTED.
+ * bytes_transferred in each requests shows the actual bytes transferred by dma.
+ * Callbacks will not be called when cancel the requests.
+*/
 int tegra_dma_cancel(struct tegra_dma_channel *ch);
 
 int __init tegra_dma_init(void);
