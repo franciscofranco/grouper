@@ -28,15 +28,16 @@
 
 
 static const u16 rt5640_dsp_init[][2] = {
-	{0x3fd2, 0x0038}, {0x22d2, 0x8000}, {0x22ee, 0x0001}, {0x22f2, 0x0044},
-	{0x22f5, 0x8000}, {0x22f6, 0x0000}, {0x22f9, 0x007f}, {0x2310, 0x0800},
+	{0x3fd2, 0x0038}, {0x229C, 0x0fa0}, {0x22d2, 0x8400}, {0x22ee, 0x0001},
+	{0x22f2, 0x0040}, {0x22f5, 0x8000}, {0x22f6, 0x0000}, {0x22f9, 0x007f},
+	{0x2310, 0x0880},
 };
 #define RT5640_DSP_INIT_NUM \
 	(sizeof(rt5640_dsp_init) / sizeof(rt5640_dsp_init[0]))
 
 static const u16 rt5640_dsp_48[][2] = {
-	{0x22c8, 0x0026}, {0x22fe, 0x0fa0}, {0x22ff, 0x3c83},
-	{0x22fa, 0x2484}, {0x2301, 0x0001},
+	{0x22c8, 0x0026}, {0x22fe, 0x0fa0}, {0x22ff, 0x3893}, {0x22fa, 0x2487},
+	{0x2301, 0x0002},
 };
 #define RT5640_DSP_48_NUM (sizeof(rt5640_dsp_48) / sizeof(rt5640_dsp_48[0]))
 
@@ -52,61 +53,67 @@ static const u16 rt5640_dsp_16[][2] = {
 #define RT5640_DSP_16_NUM (sizeof(rt5640_dsp_16) / sizeof(rt5640_dsp_16[0]))
 
 static const u16 rt5640_dsp_aec_ns_fens[][2] = {
-	{0x22f8, 0x8005}, {0x2303, 0x49f1}, {0x2304, 0x0312}, {0x2305, 0x0005},
-	{0x2309, 0x0200}, {0x230a, 0x1b00}, {0x230c, 0x0400}, {0x230d, 0x0400},
-	{0x2325, 0x5000}, {0x2326, 0x0040}, {0x232f, 0x00C0}, {0x2332, 0x0100},
-	{0x2333, 0x0020}, {0x2337, 0xffff}, {0x2339, 0x0010}, {0x2348, 0x1000},
-	{0x2349, 0x0800}, {0x2365, 0x2000}, {0x236e, 0x2000}, {0x236f, 0x0a05},
-	{0x2370, 0x0f00}, {0x2372, 0x0800}, {0x2373, 0x2200}, {0x2374, 0x1800},
-	{0x2375, 0x1200}, {0x2382, 0x0400}, {0x2383, 0x0400}, {0x2384, 0x0006},
-	{0x2385, 0x0005}, {0x2398, 0x0020}, {0x23a5, 0x0006}, {0x23b3, 0x0008},
-	{0x23b4, 0x0001}, {0x23bc, 0x0130}, {0x23bd, 0x0100}, {0x23be, 0x2400},
-	{0x23cf, 0x0800}, {0x23d0, 0x0600}, {0x23d1, 0xff80}, {0x23d2, 0xff80},
-	{0x23d3, 0x1000}, {0x23d4, 0x3e00}, {0x23d5, 0x5000}, {0x23e7, 0x0400},
-	{0x23e8, 0x0600}, {0x23e9, 0x5000}, {0x23ea, 0x7f00}, {0x23ed, 0x0300},
-	{0x22fb, 0x0000},
+	{0x22f8, 0x8005}, {0x2303, 0x0971}, {0x2304, 0x0312}, {0x2305, 0x0005},
+	{0x2309, 0x0400}, {0x230a, 0x1b00}, {0x230c, 0x0200}, {0x230d, 0x0300},
+	{0x2310, 0x0824}, {0x2325, 0x5000}, {0x2326, 0x0040}, {0x232f, 0x0080},
+	{0x2332, 0x0080}, {0x2333, 0x0008}, {0x2337, 0x0002}, {0x2339, 0x0010},
+	{0x2348, 0x1000}, {0x2349, 0x1000}, {0x2360, 0x0180}, {0x2361, 0x1800},
+	{0x2362, 0x0180}, {0x2363, 0x0100}, {0x2364, 0x0078}, {0x2365, 0x2000},
+	{0x236e, 0x1800}, {0x236f, 0x0a0a}, {0x2370, 0x0f00}, {0x2372, 0x1a00},
+	{0x2373, 0x3000}, {0x2374, 0x2400},	{0x2375, 0x1800}, {0x2380, 0x7fff},
+	{0x2381, 0x4000}, {0x2382, 0x0400}, {0x2383, 0x0400}, {0x2384, 0x0005},
+	{0x2385, 0x0005}, {0x238c, 0x0400}, {0x238e, 0x7000}, {0x2393, 0x4444},
+	{0x2394, 0x4444}, {0x2395, 0x4444}, {0x2396, 0x2000}, {0x2396, 0x3000},
+	{0x2398, 0x0020}, {0x23a5, 0x0006}, {0x23a6, 0x7fff}, {0x23b3, 0x000e},
+	{0x23b4, 0x000a}, {0x23b7, 0x0008}, {0x23bb, 0x1000}, {0x23bc, 0x0130},
+	{0x23bd, 0x0100}, {0x23be, 0x2400},	{0x23cf, 0x0800}, {0x23d0, 0x0400},
+	{0x23d1, 0xff80}, {0x23d2, 0xff80},	{0x23d3, 0x0800}, {0x23d4, 0x3e00},
+	{0x23d5, 0x5000}, {0x23e7, 0x0800},	{0x23e8, 0x0e00}, {0x23e9, 0x7000},
+	{0x23ea, 0x7ff0}, {0x23ed, 0x0300},	{0x22fb, 0x0000},
 };
 #define RT5640_DSP_AEC_NUM \
 	(sizeof(rt5640_dsp_aec_ns_fens) / sizeof(rt5640_dsp_aec_ns_fens[0]))
 
 static const u16 rt5640_dsp_hfbf[][2] = {
-	{0x22f8, 0x8004}, {0x22a0, 0x1206}, {0x22a1, 0x1200}, {0x22a2, 0x1000},
+	{0x22f8, 0x8004}, {0x22a0, 0x1205}, {0x22a1, 0x0f00}, {0x22a2, 0x1000},
 	{0x22a3, 0x1000}, {0x22a4, 0x1000}, {0x22aa, 0x0006}, {0x22ad, 0x0060},
-	{0x22ae, 0x0080}, {0x22af, 0x0000}, {0x22b0, 0x000f}, {0x22b4, 0x0020},
-	{0x22b5, 0x0001}, {0x22f9, 0x007f}, {0x2303, 0x0971}, {0x2304, 0x0302},
-	{0x2305, 0x102d}, {0x230c, 0x0200}, {0x230d, 0x0200}, {0x232f, 0x0060},
+	{0x22ae, 0x0080}, {0x22af, 0x0000}, {0x22b0, 0x000e}, {0x22b1, 0x0010},
+	{0x22b2, 0x0006}, {0x22b3, 0x0001}, {0x22b4, 0x0010}, {0x22b5, 0x0001},
+	{0x22b7, 0x0005}, {0x22d8, 0x0017}, {0x22f9, 0x007f}, {0x2303, 0x0971},
+	{0x2304, 0x0302}, {0x2303, 0x0971}, {0x2304, 0x4302}, {0x2305, 0x102d},
+	{0x2309, 0x0400}, {0x230c, 0x0400}, {0x230d, 0x0200}, {0x232f, 0x0020},
 	{0x2332, 0x0100}, {0x2333, 0x0020}, {0x2337, 0xffff}, {0x2339, 0x0010},
-	{0x2348, 0x1000}, {0x2349, 0x1000}, {0x236e, 0x2400}, {0x236f, 0x1006},
+	{0x2348, 0x1000}, {0x2349, 0x1000}, {0x236e, 0x1800}, {0x236f, 0x1006},
 	{0x2370, 0x1000}, {0x2372, 0x0200}, {0x237b, 0x001e}, {0x2380, 0x7fff},
 	{0x2381, 0x4000}, {0x2382, 0x0080}, {0x2383, 0x0200}, {0x2386, 0x7f80},
-	{0x2387, 0x0040}, {0x238a, 0x0280}, {0x238e, 0x5000}, {0x2396, 0x6a00},
-	{0x2397, 0x6000}, {0x2398, 0x00e0}, {0x23a5, 0x0005}, {0x23b3, 0x0008},
-	{0x23b4, 0x0002}, {0x23bb, 0x2000}, {0x23bc, 0x00d0}, {0x23bd, 0x0140},
-	{0x23be, 0x1000}, {0x23cf, 0x0800}, {0x23d0, 0x0400}, {0x23d1, 0x0100},
-	{0x23d2, 0x0100}, {0x23d5, 0x7c00}, {0x23e7, 0x0400}, {0x23e8, 0x0600},
-	{0x23e9, 0x5000}, {0x23ea, 0x7f00}, {0x23ed, 0x0300}, {0x23ee, 0x3000},
-	{0x23ef, 0x2800}, {0x22fb, 0x0000},
+	{0x2387, 0x0040}, {0x238a, 0x0280}, {0x238c, 0x6000}, {0x238e, 0x5000},
+	{0x2396, 0x6a00}, {0x2397, 0x6000}, {0x2398, 0x00e0}, {0x23a5, 0x0005},
+	{0x23b3, 0x000f}, {0x23b4, 0x0003}, {0x23bb, 0x2000}, {0x23bc, 0x00d0},
+	{0x23bd, 0x0140}, {0x23be, 0x1000}, {0x23cf, 0x0800}, {0x23d0, 0x0400},
+	{0x23d1, 0x0100}, {0x23d2, 0x0100}, {0x23d5, 0x7c00}, {0x23ed, 0x0300},
+	{0x23ee, 0x3000}, {0x23ef, 0x2800}, {0x22fb, 0x0000},
 };
 #define RT5640_DSP_HFBF_NUM \
 	(sizeof(rt5640_dsp_hfbf) / sizeof(rt5640_dsp_hfbf[0]))
 
 static const u16 rt5640_dsp_ffp[][2] = {
-	{0x22f8, 0x8005}, {0x2303, 0x19f1}, {0x2304, 0x8312}, {0x2305, 0x0005},
-	{0x2309, 0x0200}, {0x230a, 0x1b00}, {0x230c, 0x0600}, {0x230d, 0x0400},
-	{0x2325, 0x5000}, {0x2326, 0x0040}, {0x232f, 0x0060}, {0x2332, 0x0100},
-	{0x2333, 0x0020}, {0x2337, 0xffff}, {0x2339, 0x0010}, {0x2348, 0x1000},
-	{0x2349, 0x1000}, {0x2360, 0x0180}, {0x2361, 0x1800}, {0x2362, 0x0180},
-	{0x2363, 0x0100}, {0x2364, 0x0078}, {0x2365, 0x2000}, {0x236e, 0x2000},
-	{0x236f, 0x1c00}, {0x2370, 0x1800}, {0x2372, 0x1000}, {0x2373, 0x3000},
-	{0x2374, 0x2400}, {0x2375, 0x1800}, {0x2380, 0x7fff}, {0x2381, 0x4000},
-	{0x2382, 0x0400}, {0x2383, 0x0400}, {0x2384, 0x0005}, {0x2385, 0x0005},
-	{0x238e, 0x7000}, {0x2393, 0x4444}, {0x2394, 0x4444}, {0x2395, 0x4444},
-	{0x2396, 0x2000}, {0x2397, 0x3000}, {0x2398, 0x0020}, {0x23a5, 0x0006},
-	{0x23a6, 0x7fff}, {0x23b3, 0x0008}, {0x23b4, 0x0003}, {0x23bb, 0x1000},
-	{0x23bc, 0x0130}, {0x23bd, 0x0160}, {0x23be, 0x2400}, {0x23cf, 0x0800},
-	{0x23d0, 0x0400}, {0x23d1, 0xff80}, {0x23d2, 0xff80}, {0x23d3, 0x0800},
-	{0x23d4, 0x3e00}, {0x23d5, 0x5000}, {0x23e7, 0x0400}, {0x23e8, 0x0600},
-	{0x23e9, 0x5000}, {0x23ea, 0x7f00}, {0x23ed, 0x0300}, {0x22fb, 0x0000},
+	{0x22f8, 0x8005}, {0x2303, 0x1971}, {0x2304, 0x8312}, {0x2305, 0x0005},
+	{0x2309, 0x0200}, {0x230a, 0x1b00}, {0x230c, 0x0800}, {0x230d, 0x0400},
+	{0x2325, 0x5000}, {0x2326, 0x0040}, {0x232f, 0x0080}, {0x2332, 0x0100},
+	{0x2333, 0x0020}, {0x2337, 0x0001}, {0x2339, 0x0010}, {0x233c, 0x0040},
+	{0x2348, 0x1000}, {0x2349, 0x1000}, {0x2360, 0x0180}, {0x2361, 0x1800},
+	{0x2362, 0x0200}, {0x2363, 0x0200}, {0x2364, 0x0200}, {0x2365, 0x2000},
+	{0x236e, 0x1000}, {0x236f, 0x0a05}, {0x2370, 0x0f00}, {0x2372, 0x1a00},
+	{0x2373, 0x3000}, {0x2374, 0x2400}, {0x2375, 0x1800}, {0x2380, 0x7fff},
+	{0x2381, 0x4000}, {0x2382, 0x0400}, {0x2383, 0x0400}, {0x2384, 0x0005},
+	{0x2385, 0x0005}, {0x238e, 0x7000}, {0x2393, 0x4444}, {0x2394, 0x4444},
+	{0x2395, 0x4444}, {0x2396, 0x2000}, {0x2397, 0x3000}, {0x2398, 0x0020},
+	{0x23a5, 0x0006}, {0x23a6, 0x7fff}, {0x23b3, 0x000a}, {0x23b4, 0x0006},
+	{0x23b7, 0x0008}, {0x23bb, 0x1000}, {0x23bc, 0x0130}, {0x23bd, 0x0160},
+	{0x23be, 0x2400}, {0x23cf, 0x0800}, {0x23d0, 0x0400}, {0x23d1, 0xff80},
+	{0x23d2, 0xff80}, {0x23d3, 0x2000}, {0x23d4, 0x5000}, {0x23d5, 0x5000},
+	{0x23e7, 0x0c00}, {0x23e8, 0x1400}, {0x23e9, 0x6000}, {0x23ea, 0x7f00},
+	{0x23ed, 0x0300}, {0x23ee, 0x2800}, {0x22fb, 0x0000},
 };
 #define RT5640_DSP_FFP_NUM (sizeof(rt5640_dsp_ffp) / sizeof(rt5640_dsp_ffp[0]))
 
@@ -289,6 +296,11 @@ static unsigned int rt5640_dsp_read(
 		dev_err(codec->dev, "DSP is busy: %d\n", ret);
 		goto err;
 	}
+	ret = snd_soc_write(codec, RT5640_DUMMY3, 0);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to write fc = 0: %d\n", ret);
+		goto err;
+	}
 	ret = snd_soc_write(codec, RT5640_DSP_CTRL1, reg);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to write DSP addr reg: %d\n", ret);
@@ -382,10 +394,63 @@ static int rt5640_dsp_put(struct snd_kcontrol *kcontrol,
 	if (rt5640->dsp_sw != ucontrol->value.integer.value[0])
 		rt5640->dsp_sw = ucontrol->value.integer.value[0];
 
-	if (rt5640->dsp_sw == RT5640_DSP_DIS) {
-		pm_message_t st = { 0 };
-		rt5640_dsp_suspend(codec, st);
+	return 0;
 	}
+
+static int rt5640_dsp_play_bp_get(struct snd_kcontrol *kcontrol, 
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = rt5640->dsp_play_pass;
+
+	return 0;
+}
+
+static int rt5640_dsp_play_bp_put(struct snd_kcontrol *kcontrol, 
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	if (rt5640->dsp_play_pass == ucontrol->value.integer.value[0])
+		return 0;
+	rt5640->dsp_play_pass = ucontrol->value.integer.value[0];
+
+	rt5640_conn_mux_path(codec, "DAC L2 Mux",
+		rt5640->dsp_play_pass ? "IF2" : "TxDC");
+	rt5640_conn_mux_path(codec, "DAC R2 Mux",
+		rt5640->dsp_play_pass ? "IF2" : "TxDC");
+
+	return 0;
+}
+
+static int rt5640_dsp_rec_bp_get(struct snd_kcontrol *kcontrol, 
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = rt5640->dsp_rec_pass;
+
+	return 0;
+}
+
+static int rt5640_dsp_rec_bp_put(struct snd_kcontrol *kcontrol, 
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
+	if (rt5640->dsp_rec_pass == ucontrol->value.integer.value[0])
+		return 0;
+	rt5640->dsp_rec_pass = ucontrol->value.integer.value[0];
+
+	rt5640_conn_mux_path(codec, "IF2 ADC L Mux",
+		rt5640->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
+	rt5640_conn_mux_path(codec, "IF2 ADC R Mux",
+		rt5640->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
 
 	return 0;
 }
@@ -515,6 +580,10 @@ static const struct snd_kcontrol_new rt5640_dsp_snd_controls[] = {
 	/* AEC */
 	SOC_ENUM_EXT("DSP Function Switch", rt5640_dsp_enum,
 		rt5640_dsp_get, rt5640_dsp_put),
+	SOC_SINGLE_EXT("DSP Playback Bypass", 0, 0, 1, 0,
+		rt5640_dsp_play_bp_get, rt5640_dsp_play_bp_put),
+	SOC_SINGLE_EXT("DSP Record Bypass", 0, 0, 1, 0,
+		rt5640_dsp_rec_bp_get, rt5640_dsp_rec_bp_put),
 	SOC_SINGLE_EXT("DAC Switch", 0, 0, 1, 0,
 		rt5640_dac_active_get, rt5640_dac_active_put),
 	SOC_SINGLE_EXT("ADC Switch", 0, 0, 1, 0,
@@ -701,7 +770,8 @@ static int rt5640_dsp_conf(struct snd_soc_codec *codec)
 	mdelay(10);
 
 	ret = snd_soc_update_bits(codec, RT5640_DSP_CTRL3,
-		RT5640_DSP_RST_PIN_MASK, RT5640_DSP_RST_PIN_HI);
+		RT5640_DSP_RST_PIN_MASK | RT5640_DSP_CLK_MASK,
+		RT5640_DSP_RST_PIN_HI | RT5640_DSP_CLK_384K);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to recover DSP: %d\n", ret);
 		goto conf_err;
@@ -849,8 +919,7 @@ static int rt5640_dsp_snd_effect(struct snd_soc_codec *codec)
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	if (rt5640->dsp_sw == RT5640_DSP_DIS)
-		return 0;
+
 
 	ret = rt5640_dsp_conf(codec);
 	if (ret < 0)
@@ -878,17 +947,34 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+	static unsigned int power_on;
+	
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMD:
 		pr_info("%s(): PMD\n", __func__);
+		if (!power_on)
+			return 0;
+		power_on--;
+		if (!power_on) {
+		snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+			RT5640_PWR_I2S_DSP, 0);
 		snd_soc_update_bits(codec, RT5640_DSP_CTRL3,
 			RT5640_DSP_PD_PIN_MASK, RT5640_DSP_PD_PIN_LO);
+		}
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
 		pr_info("%s(): PMU\n", __func__);
+		if (rt5640->dsp_sw == RT5640_DSP_DIS || 2 <= power_on)
+			return 0;
+		if (!power_on) {
+
+		snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+			RT5640_PWR_I2S_DSP, RT5640_PWR_I2S_DSP);
 		rt5640_dsp_snd_effect(codec);
+		}
+		power_on++;
 		break;
 
 	default:
@@ -899,8 +985,11 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt5640_dsp_dapm_widgets[] = {
-	SND_SOC_DAPM_PGA_E("DSP", RT5640_PWR_DIG2,
-		RT5640_PWR_I2S_DSP_BIT, 0, NULL, 0, rt5640_dsp_event,
+	SND_SOC_DAPM_PGA_E("DSP Downstream", SND_SOC_NOPM,
+		0, 0, NULL, 0, rt5640_dsp_event,
+		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_E("DSP Upstream", SND_SOC_NOPM,
+		0, 0, NULL, 0, rt5640_dsp_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_PGA("RxDP", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("RxDC", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -914,10 +1003,10 @@ static const struct snd_soc_dapm_route rt5640_dsp_dapm_routes[] = {
 	{"RxDP", NULL, "IF2 DAC L"},
 	{"RxDP", NULL, "IF2 DAC R"},
 
-	{"DSP", NULL, "RxDP"},
-	{"DSP", NULL, "RxDC"},
-	{"TxDC", NULL, "DSP"},
-	{"TxDP", NULL, "DSP"},
+	{"DSP Downstream", NULL, "RxDP"},
+	{"TxDC", NULL, "DSP Downstream"},
+	{"DSP Upstream", NULL, "RxDC"},
+	{"TxDP", NULL, "DSP Upstream"},
 
 	{"IF2 ADC L Mux", "TxDP", "TxDP"},
 	{"IF2 ADC R Mux", "TxDP", "TxDP"},
@@ -1013,12 +1102,24 @@ int rt5640_dsp_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt5640_dsp_dapm_routes));
 
 	/* Patch DSP rom code if IC version is larger than C version */
-	if (RT5640_VER_C != snd_soc_read(codec, RT5640_VENDOR_ID)) {
+	//if (RT5640_VER_C != snd_soc_read(codec, RT5640_VENDOR_ID)) {
+	ret = snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+		RT5640_PWR_I2S_DSP, RT5640_PWR_I2S_DSP);
+	if (ret < 0) {
+		dev_err(codec->dev,
+			"Failed to power up DSP IIS interface: %d\n", ret);
+	}
+	rt5640_dsp_conf(codec);
+	ret = rt5640_dsp_read(codec, 0x3800);
+	pr_info("DSP version code = 0x%04x\n",ret);
+	if(ret != 0x501a) {
 		rt5640 = snd_soc_codec_get_drvdata(codec);
 		INIT_DELAYED_WORK(&rt5640->patch_work, rt5640_do_dsp_patch);
 		schedule_delayed_work(&rt5640->patch_work,
 				msecs_to_jiffies(100));
 	}
+	snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+		RT5640_PWR_I2S_DSP, 0);
 
 	ret = device_create_file(codec->dev, &dev_attr_dsp_reg);
 	if (ret != 0) {
@@ -1030,6 +1131,32 @@ int rt5640_dsp_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt5640_dsp_probe);
+
+int do_rt5640_dsp_set_mode(struct snd_soc_codec *codec, int mode) {
+	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+	if(DBG) printk("%s mode=%d\n",__func__,mode);
+	if(rt5640->dsp_sw == mode)
+		return 0;
+	rt5640->dsp_sw = mode;
+	if(rt5640->dsp_sw == RT5640_DSP_DIS)
+		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 1;
+	else
+		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 0;
+	rt5640_conn_mux_path(codec, "DAC L2 Mux",
+		rt5640->dsp_play_pass ? "IF2" : "TxDC");
+	rt5640_conn_mux_path(codec, "DAC R2 Mux",
+		rt5640->dsp_play_pass ? "IF2" : "TxDC");
+	rt5640_conn_mux_path(codec, "IF2 ADC L Mux",
+		rt5640->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
+	rt5640_conn_mux_path(codec, "IF2 ADC R Mux",
+		rt5640->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
+	
+	if(rt5640->dsp_sw != RT5640_DSP_DIS)
+	rt5640_dsp_snd_effect(codec);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(do_rt5640_dsp_set_mode);
 
 #ifdef RTK_IOCTL
 int rt56xx_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, unsigned int cmd, unsigned long arg)
@@ -1088,17 +1215,16 @@ int rt56xx_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, unsigned in
 		
 		param.cmd_fmt =  0x00e0;
 		param.cmd =  RT5640_DSP_CMD_MW;
+		p = buf;
 		param.addr = *p;
 		param.data = *(p+rt56xx.number/2);
+		if(codec == NULL)
+		{
+			printk("codec = null\n");
+			break;
+		}
 		for (p = buf; p < buf + rt56xx.number/2; p++)
 			rt5640_dsp_write(codec, &param);
-		break;
-	case RT_SET_CODEC_DSP_MODE_IOCTL:
-		if(DBG) printk("case RT_SET_CODEC_DSP_MODE_IOCTL\n");
-		
-		rt5640->dsp_sw = *buf;
-		if(DBG) printk("rt5640->dsp_sw=%d\n",rt5640->dsp_sw);
-		rt5640_dsp_snd_effect(codec);
 		break;
 	case RT_GET_CODEC_DSP_MODE_IOCTL:
 		if(DBG) printk("case RT_GET_CODEC_DSP_MODE_IOCTL\n");

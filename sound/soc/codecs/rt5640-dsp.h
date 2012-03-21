@@ -30,6 +30,7 @@ struct rt5640_dsp_param {
 };
 
 int rt5640_dsp_probe(struct snd_soc_codec *codec);
+int do_rt5640_dsp_set_mode(struct snd_soc_codec *codec, int mode);
 #ifdef RTK_IOCTL
 int rt56xx_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, 
 	unsigned int cmd, unsigned long arg);

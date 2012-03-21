@@ -2034,6 +2034,8 @@ enum {
 #define RT5640_EQ_PST_VOL_MASK		(0xffff)
 #define RT5640_EQ_PST_VOL_SFT			0
 
+#define RT5640_M_MAMIX_L			(0x1 << 13)
+#define RT5640_M_MAMIX_R			(0x1 << 12)
 /* Vendor ID (0xfd) */
 #define RT5640_VER_C				0x2
 #define RT5640_VER_D				0x3
@@ -2115,7 +2117,11 @@ struct rt5640_priv {
 
 	int dmic_en;
 	int dsp_sw; /* expected parameter setting */
+	bool dsp_play_pass;
+	bool dsp_rec_pass;
 };
 
+int rt5640_conn_mux_path(struct snd_soc_codec *codec,
+		char *widget_name, char *path_name);
 
 #endif /* __RT5640_H__ */
