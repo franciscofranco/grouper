@@ -753,7 +753,7 @@ int enterprise_emc_init(void)
 
 	tegra_get_board_info(&board_info);
 
-	if (board_info.fab == BOARD_FAB_A02)
+	if (board_info.fab <= BOARD_FAB_A02)
 		tegra_init_emc(enterprise_emc_tables_h5tc2g,
 			       ARRAY_SIZE(enterprise_emc_tables_h5tc2g));
 
