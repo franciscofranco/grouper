@@ -442,11 +442,11 @@ static struct tegra_nor_platform_data p852_nor_data = {
 	.chip_parms = {
 		/* FIXME: use characterized clock freq */
 		.timing_default = {
-			.timing0 = 0xA0300243,
+			.timing0 = 0xA0200253,
 			.timing1 = 0x00040406,
 		},
 		.timing_read = {
-			.timing0 = 0xA0300243,
+			.timing0 = 0xA0200253,
 			.timing1 = 0x00000A00,
 		},
 	},
