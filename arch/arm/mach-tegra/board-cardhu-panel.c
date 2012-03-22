@@ -554,6 +554,34 @@ static struct tegra_dc_mode cardhu_panel_modes[] = {
 		.h_front_porch = 64,
 		.v_front_porch = 25,
 	},
+	{
+		/* 1366x768@50Hz */
+		.pclk = 74180000,
+		.h_ref_to_sync = 1,
+		.v_ref_to_sync = 1,
+		.h_sync_width = 30,
+		.v_sync_width = 5,
+		.h_back_porch = 56,
+		.v_back_porch = 80,
+		.h_active = 1366,
+		.v_active = 768,
+		.h_front_porch = 64,
+		.v_front_porch = 125,
+	},
+	{
+		/* 1366x768@48 */
+		.pclk = 74180000,
+		.h_ref_to_sync = 1,
+		.v_ref_to_sync = 1,
+		.h_sync_width = 30,
+		.v_sync_width = 5,
+		.h_back_porch = 52,
+		.v_back_porch = 98,
+		.h_active = 1366,
+		.v_active = 768,
+		.h_front_porch = 64,
+		.v_front_porch = 152,
+	},
 };
 
 static struct tegra_dc_mode cardhu_panel_modes_55hz[] = {
@@ -688,6 +716,7 @@ static struct tegra_fb_data cardhu_hdmi_fb_data = {
 static struct tegra_dc_out cardhu_disp2_out = {
 	.type		= TEGRA_DC_OUT_HDMI,
 	.flags		= TEGRA_DC_OUT_HOTPLUG_HIGH,
+	.parent_clk	= "pll_d2_out0",
 
 	.dcc_bus	= 3,
 	.hotplug_gpio	= cardhu_hdmi_hpd,
@@ -957,9 +986,9 @@ static struct tegra_dc_out cardhu_disp1_out = {
 	.align		= TEGRA_DC_ALIGN_MSB,
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.sd_settings	= &cardhu_sd_settings,
+	.parent_clk	= "pll_d_out0",
 
 #ifndef CONFIG_TEGRA_CARDHU_DSI
-	.parent_clk	= "pll_p",
 	.parent_clk_backup = "pll_d2_out0",
 
 	.type		= TEGRA_DC_OUT_RGB,
@@ -1162,10 +1191,11 @@ int __init cardhu_panel_init(void)
 #endif
 
 #if defined(CONFIG_TEGRA_DC) && !defined(CONFIG_TEGRA_CARDHU_DSI)
-	if (board_info.board_id == BOARD_E1291 &&
-		((board_info.sku & SKU_TOUCHSCREEN_MECH_FIX) == 0)) {
+	if (WARN_ON(board_info.board_id == BOARD_E1291 &&
+		((board_info.sku & SKU_TOUCHSCREEN_MECH_FIX) == 0))) {
 		/* use 55Hz panel timings to reduce noise on sensitive touch */
 		printk("Using cardhu_panel_modes_55hz\n");
+		cardhu_disp1_out.parent_clk = "pll_p";
 		cardhu_disp1_out.modes = cardhu_panel_modes_55hz;
 		cardhu_disp1_out.n_modes = ARRAY_SIZE(cardhu_panel_modes_55hz);
 	}
