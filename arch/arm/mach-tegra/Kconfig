@@ -392,13 +392,6 @@ config TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
 	help
 	 Also will restore to original cpu frequency governor when device is resumed
 
-config TEGRA_LEGACY_AUDIO
-	bool "Enable Tegra Legacy Audio APIs"
-	default n
-	help
-	  Say Y if you want to add support legacy (non-ALSA) audio APIs on
-	  Tegra. This will disable ALSA (ASoC) support.
-
 config TEGRA_STAT_MON
         bool "Enable H/W statistics monitor"
         depends on ARCH_TEGRA_2x_SOC
