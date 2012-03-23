@@ -411,6 +411,13 @@ struct tps80031_clk32k_init_data clk32k_idata[] = {
 	},
 };
 
+static struct tps80031_pupd_init_data pupd_idata[] = {
+	{
+		.input_pin = TPS80031_PREQ1,
+		.setting = TPS80031_PUPD_PULLUP,
+	},
+};
+
 static struct tps80031_platform_data tps_platform = {
 	.irq_base	= ENT_TPS80031_IRQ_BASE,
 	.gpio_base	= ENT_TPS80031_GPIO_BASE,
@@ -739,6 +746,8 @@ int __init enterprise_regulator_init(void)
 	} else {
 		tps_platform.num_subdevs = ARRAY_SIZE(tps80031_devs_a03);
 		tps_platform.subdevs = tps80031_devs_a03;
+		tps_platform.pupd_init_data = pupd_idata;
+		tps_platform.pupd_init_data_size = ARRAY_SIZE(pupd_idata);
 	}
 
 	i2c_register_board_info(4, enterprise_regulators, 1);
