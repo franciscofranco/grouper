@@ -38,8 +38,8 @@
 
 bool flagLoadAl3010Config = false;
 static int calibration_base_lux = 1000;
-static int calibration_regs = 1347; // default K value = 65536*(1000/4863)*10% = 1347
-static int default_calibration_regs = 1347;
+static int calibration_regs = 674; // default K value = 65536*(1000/4863)*5% = 1347
+static int default_calibration_regs = 674;
 
 static struct timeval t_first_poll_time;
 static bool light_sensor_ready = true;
@@ -57,6 +57,8 @@ struct al3010_data {
 	u8 reg_cache[AL3010_NUM_CACHABLE_REGS];
 	u8 power_state_before_suspend;
 };
+
+static int revise_lux_times = 2;
 
 static int al3010_update_calibration();
 /*
@@ -320,7 +322,7 @@ static ssize_t al3010_show_revise_lux(struct device *dev,
 	}
 	//---
 
-	return sprintf(buf, "%d\n", ( al3010_get_adc_value(client) ));
+	return sprintf(buf, "%d\n", ( al3010_get_adc_value(client)*revise_lux_times ));
 }
 
 /* default lux */
