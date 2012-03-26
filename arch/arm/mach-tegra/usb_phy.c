@@ -603,6 +603,12 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 
 #define CONNECT_DETECT_TIMEOUT		25000
 
+#define AHB_MEM_PREFETCH_CFG3		0xe0
+#define AHB_MEM_PREFETCH_CFG4		0xe4
+#define AHB_MEM_PREFETCH_CFG1		0xec
+#define AHB_MEM_PREFETCH_CFG2		0xf0
+#define PREFETCH_ENB			(1 << 31)
+
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
 
@@ -3153,6 +3159,36 @@ int __init tegra_usb_phy_init(struct usb_phy_plat_data *pdata, int size)
 #endif
 
 	return 0;
+}
+
+void tegra_usb_phy_memory_prefetch_on(struct tegra_usb_phy *phy)
+{
+	void __iomem *ahb_gizmo = IO_ADDRESS(TEGRA_AHB_GIZMO_BASE);
+	unsigned long val;
+
+	if (phy->instance == 0 && phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+		val = readl(ahb_gizmo + AHB_MEM_PREFETCH_CFG1);
+		val |= PREFETCH_ENB;
+		writel(val, ahb_gizmo + AHB_MEM_PREFETCH_CFG1);
+		val = readl(ahb_gizmo + AHB_MEM_PREFETCH_CFG2);
+		val |= PREFETCH_ENB;
+		writel(val, ahb_gizmo + AHB_MEM_PREFETCH_CFG2);
+	}
+}
+
+void tegra_usb_phy_memory_prefetch_off(struct tegra_usb_phy *phy)
+{
+	void __iomem *ahb_gizmo = IO_ADDRESS(TEGRA_AHB_GIZMO_BASE);
+	unsigned long val;
+
+	if (phy->instance == 0 && phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+		val = readl(ahb_gizmo + AHB_MEM_PREFETCH_CFG1);
+		val &= ~(PREFETCH_ENB);
+		writel(val, ahb_gizmo + AHB_MEM_PREFETCH_CFG1);
+		val = readl(ahb_gizmo + AHB_MEM_PREFETCH_CFG2);
+		val &= ~(PREFETCH_ENB);
+		writel(val, ahb_gizmo + AHB_MEM_PREFETCH_CFG2);
+	}
 }
 
 /* disable walk and wake events after resume from LP0 */
