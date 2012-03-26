@@ -803,16 +803,21 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_machine;
 
-	machine->spk_reg = regulator_get(&pdev->dev, "vdd_spk_amp");
-	if (IS_ERR(machine->spk_reg)) {
-		dev_info(&pdev->dev, "No speaker regulator found\n");
-		machine->spk_reg = 0;
+	if (machine_is_cardhu() || machine_is_ventana()) {
+		machine->spk_reg = regulator_get(&pdev->dev, "vdd_spk_amp");
+		if (IS_ERR(machine->spk_reg)) {
+			dev_info(&pdev->dev, "No speaker regulator found\n");
+			machine->spk_reg = 0;
+		}
 	}
 
-	machine->dmic_reg = regulator_get(&pdev->dev, "vdd_dmic");
-	if (IS_ERR(machine->dmic_reg)) {
-		dev_info(&pdev->dev, "No digital mic regulator found\n");
-		machine->dmic_reg = 0;
+	if (machine_is_ventana()) {
+		machine->dmic_reg = regulator_get(&pdev->dev, "vdd_dmic");
+		if (IS_ERR(machine->dmic_reg)) {
+			dev_info(&pdev->dev, "No digital mic"
+						" regulator found\n");
+			machine->dmic_reg = 0;
+		}
 	}
 
 	if (machine_is_cardhu()) {
