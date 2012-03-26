@@ -160,6 +160,7 @@ obj-${CONFIG_MACH_CARDHU}               += board-cardhu-memory.o
 obj-${CONFIG_MACH_CARDHU}               += board-cardhu-powermon.o
 
 obj-${CONFIG_MACH_KAI}                  += board-touch-kai-synaptics-spi.o
+obj-${CONFIG_MACH_GROUPER}              += board-touch-grouper-synaptics-spi.o
 obj-y                                   += board-touch-raydium_spi.o
 
 obj-${CONFIG_MACH_P1852}               += board-p1852.o
@@ -185,6 +186,14 @@ obj-${CONFIG_MACH_KAI}                  += board-kai-pinmux.o
 obj-${CONFIG_MACH_KAI}                  += board-kai-power.o
 obj-${CONFIG_MACH_KAI}                  += board-kai-sdhci.o
 obj-${CONFIG_MACH_KAI}                  += board-kai-sensors.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-kbc.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-memory.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-panel.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-pinmux.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-power.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-sdhci.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-sensors.o
 obj-y                                   += eeprom-wifi-mac.o
 
 obj-${CONFIG_TEGRA_BB_XMM_POWER}        += baseband-xmm-power.o
