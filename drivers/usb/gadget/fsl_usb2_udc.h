@@ -725,6 +725,8 @@ void fsl_udc_clk_resume(bool is_dpd);
 void fsl_udc_clk_enable(void);
 void fsl_udc_clk_disable(void);
 bool fsl_udc_charger_detect(void);
+void fsl_udc_dtd_prepare(void);
+void fsl_udc_ep_barrier(void);
 #else
 static inline int fsl_udc_clk_init(struct platform_device *pdev)
 {
@@ -751,6 +753,12 @@ void fsl_udc_clk_disable(void)
 static inline bool fsl_udc_charger_detect(void)
 {
 	return false;
+}
+void fsl_udc_dtd_prepare(void)
+{
+}
+void fsl_udc_ep_barrier(void)
+{
 }
 #endif
 
