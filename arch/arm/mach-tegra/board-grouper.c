@@ -820,6 +820,7 @@ static void __init tegra_grouper_init(void)
 	grouper_regulator_init();
 	grouper_suspend_init();
 	grouper_touch_init();
+	grouper_kbc_init();
 	grouper_keys_init();
 	grouper_panel_init();
 	grouper_bt_st();
@@ -828,7 +829,6 @@ static void __init tegra_grouper_init(void)
 	grouper_pins_state_init();
 	grouper_emc_init();
 	tegra_release_bootloader_fb();
-	grouper_modem_init();
 #ifdef CONFIG_TEGRA_WDT_RECOVERY
 	tegra_wdt_recovery_init();
 #endif
