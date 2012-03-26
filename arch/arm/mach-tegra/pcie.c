@@ -33,6 +33,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/msi.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -343,6 +344,11 @@ static struct tegra_pcie_info tegra_pcie = {
 static struct resource pcie_io_space;
 static struct resource pcie_mem_space;
 static struct resource pcie_prefetch_mem_space;
+/* disable read write while noirq operation
+ * is performed since pcie is powered off */
+static bool is_pcie_noirq_op = false;
+/* used to backup config space registers of all pcie devices */
+static u32 *pbackup_config_space = NULL;
 
 void __iomem *tegra_pcie_io_base;
 EXPORT_SYMBOL(tegra_pcie_io_base);
@@ -400,6 +406,10 @@ static int tegra_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
 	struct tegra_pcie_port *pp = bus_to_port(bus->number);
 	void __iomem *addr;
 
+	/* read reg is disabled without intr to avoid hang in suspend noirq */
+	if (is_pcie_noirq_op)
+		return 0;
+
 	if (pp) {
 		if (devfn != 0) {
 			*val = 0xffffffff;
@@ -432,6 +442,10 @@ static int tegra_pcie_write_conf(struct pci_bus *bus, unsigned int devfn,
 
 	u32 mask;
 	u32 tmp;
+
+	/* write reg is disabled without intr to avoid hang in resume noirq */
+	if (is_pcie_noirq_op)
+		return 0;
 	/* pcie core is supposed to enable bus mastering and io/mem responses
 	 * if its not setting then enable corresponding bits in pci_command
 	 */
@@ -1185,18 +1199,77 @@ static int tegra_pci_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int tegra_pci_suspend(struct platform_device *pdev, pm_message_t state)
+static int tegra_pci_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = NULL;
+	int i, size, ndev = 0;
+
+	for_each_pci_dev(pdev) {
+		/* save state of pcie devices before powering off regulators */
+		pci_save_state(pdev);
+		size = sizeof(pdev->saved_config_space) / sizeof(u32);
+		ndev++;
+	}
+
+	/* backup config space registers of all devices since it gets reset in
+	    save state call from suspend noirq due to disabling of read in it */
+	pbackup_config_space = kzalloc(ndev * size* sizeof(u32), GFP_KERNEL);
+	if (!pbackup_config_space)
+		return -ENODEV;
+	ndev = 0;
+	for_each_pci_dev(pdev) {
+		for (i = 0;i < size;i++) {
+			memcpy(&pbackup_config_space[i + size*ndev],
+				&pdev->saved_config_space[i], sizeof(u32));
+		}
+		ndev++;
+	}
+
+	/* disable read/write registers before powering off */
+	is_pcie_noirq_op = true;
+
 	return tegra_pcie_power_off();
 }
+static int tegra_pci_resume_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = NULL;
 
-static int tegra_pci_resume(struct platform_device *pdev)
+	for_each_pci_dev(pdev) {
+		/* set this flag to avoid restore state in resume noirq */
+		pdev->state_saved = 0;
+	}
+	return 0;
+}
+
+static int tegra_pci_resume(struct device *dev)
 {
 	int ret;
+	int i, size, ndev = 0;
+	struct pci_dev *pdev = NULL;
 
 	ret = tegra_pcie_power_on();
 	tegra_pcie_enable_controller();
 	tegra_pcie_setup_translations();
+
+	/* enable read/write registers after powering on */
+	is_pcie_noirq_op = false;
+
+	for_each_pci_dev(pdev) {
+		/* do fixup here for all dev's since not done in resume noirq */
+		pci_fixup_device(pci_fixup_resume_early, pdev);
+
+		/* set this flag to force restore state in resume */
+		pdev->state_saved = 1;
+
+		/* restore config space registers from backup buffer */
+		size = sizeof(pdev->saved_config_space) / sizeof(u32);
+		for (i = 0;i < size;i++) {
+			memcpy(&pdev->saved_config_space[i],
+				&pbackup_config_space[i + size*ndev], sizeof(u32));
+		}
+		ndev++;
+	}
+	kzfree(pbackup_config_space);
 
 	return ret;
 }
@@ -1205,17 +1278,23 @@ static int tegra_pci_remove(struct platform_device *pdev)
 {
 	return 0;
 }
+#ifdef CONFIG_PM
+static const struct dev_pm_ops tegra_pci_pm_ops = {
+	.suspend = tegra_pci_suspend,
+	.resume = tegra_pci_resume,
+	.resume_noirq = tegra_pci_resume_noirq,
+	};
+#endif
 
 static struct platform_driver tegra_pci_driver = {
 	.probe   = tegra_pci_probe,
 	.remove  = tegra_pci_remove,
-#ifdef CONFIG_PM
-	.suspend = tegra_pci_suspend,
-	.resume  = tegra_pci_resume,
-#endif
 	.driver  = {
 		.name  = "tegra-pcie",
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm    = &tegra_pci_pm_ops,
+#endif
 	},
 };
 
