@@ -152,11 +152,6 @@ static inline bool mmc_op_multi(u32 opcode)
 #define R1_STATE_DIS	8
 
 /*
- * MMC/SD card state
- */
-#define R1_STATE_PRG		0x7
-
-/*
  * MMC/SD in SPI mode reports R1 status always, and R2 for SEND_STATUS
  * R1 is the low order byte; R2 is the next highest byte, when present.
  */
