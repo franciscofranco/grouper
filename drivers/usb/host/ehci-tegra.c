@@ -75,6 +75,7 @@ struct tegra_ehci_hcd {
 	bool timer_event;
 	struct mutex tegra_ehci_hcd_mutex;
 	unsigned int irq;
+	bool bus_suspended_fail;
 };
 
 static void tegra_ehci_power_up(struct usb_hcd *hcd, bool is_dpd)
@@ -822,12 +823,15 @@ static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 	int error_status = 0;
 
 	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
+	tegra->bus_suspended_fail = false;
 	tegra_ehci_disable_phy_interrupt(hcd);
 	/* ehci_shutdown touches the USB controller registers, make sure
 	 * controller has clocks to it */
 	if (!tegra->host_resumed)
 		tegra_ehci_power_up(hcd, false);
 	error_status = ehci_bus_suspend(hcd);
+	if (error_status)
+		tegra->bus_suspended_fail = true;
 	if (!error_status && tegra->power_down_on_bus_suspend) {
 		tegra_usb_suspend(hcd, false);
 		tegra->bus_suspended = 1;
@@ -1225,16 +1229,22 @@ static int tegra_ehci_resume(struct platform_device *pdev)
 {
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
+	int ret;
 
+	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {
 		if (tegra->default_enable)
 			clk_enable(tegra->clk);
+		mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 		return 0;
 	}
 
 	if (tegra->default_enable)
 		clk_enable(tegra->clk);
-	return tegra_usb_resume(hcd, true);
+
+	ret = tegra_usb_resume(hcd, true);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
+	return ret;
 }
 
 static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1244,6 +1254,15 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret;
 	u32 val;
 
+	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
+	/* if bus suspend is failed means there is remote wakeup resume,
+		then abort the PM suspend */
+	if (tegra->bus_suspended_fail) {
+		tegra->bus_suspended_fail = false;
+		pr_err("%s: bus suspend failed, aborting driver suspend\n", __func__);
+		mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
+		return -EBUSY;
+	}
 	if (tegra->phy->hotplug) {
 		/* Disable PHY clock valid interrupts while going into suspend*/
 		val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
@@ -1254,6 +1273,7 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {
 		if (tegra->default_enable)
 			clk_disable(tegra->clk);
+		mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 		return 0;
 	}
 
@@ -1263,6 +1283,7 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 	ret = tegra_usb_suspend(hcd, true);
 	if (tegra->default_enable)
 		clk_disable(tegra->clk);
+	mutex_unlock(&tegra->tegra_ehci_hcd_mutex);
 	return ret;
 }
 #endif
