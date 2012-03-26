@@ -328,6 +328,18 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
+	static int prev_state = 0;
+
+	if (button->code == KEY_POWER) {
+		if (!prev_state && (prev_state == state)) {
+			pr_info("gpio_keys: Reported pressed KEY_POWER\n");
+			input_event(input, type, button->code, 1);
+			input_sync(input);
+		}
+		prev_state = state;
+		pr_info("gpio_keys: %s KEY_POWER\n",
+			state ? "Pressed" : "Released");
+	}
 
 	if (type == EV_ABS) {
 		if (state)
@@ -701,6 +713,8 @@ static int gpio_keys_suspend(struct device *dev)
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
 	int i;
 
+	dev_info(dev, "suspending");
+
 	if (device_may_wakeup(dev)) {
 		for (i = 0; i < ddata->n_buttons; i++) {
 			struct gpio_keys_button *button = ddata->data[i].button;
@@ -710,6 +724,8 @@ static int gpio_keys_suspend(struct device *dev)
 			}
 		}
 	}
+
+	dev_info(dev, "suspended");
 
 	return 0;
 }
@@ -721,6 +737,8 @@ static int gpio_keys_resume(struct device *dev)
 	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	int wakeup_key = KEY_RESERVED;
 	int i;
+
+	dev_info(dev, "resuming");
 
 	if (pdata && pdata->wakeup_key)
 		wakeup_key = pdata->wakeup_key();
@@ -740,10 +758,10 @@ static int gpio_keys_resume(struct device *dev)
 				input_sync(ddata->input);
 			}
 		}
-
-		gpio_keys_report_event(&ddata->data[i]);
 	}
 	input_sync(ddata->input);
+
+	dev_info(dev, "resumed");
 
 	return 0;
 }

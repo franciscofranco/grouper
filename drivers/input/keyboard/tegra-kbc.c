@@ -371,8 +371,23 @@ static void tegra_kbc_keypress_timer(unsigned long data)
 		mod_timer(&kbc->timer, jiffies + msecs_to_jiffies(dly));
 	} else {
 		/* Release any pressed keys and exit the polling loop */
-		for (i = 0; i < kbc->num_pressed_keys; i++)
+		for (i = 0; i < kbc->num_pressed_keys; i++) {
+			/* printout key information */
+			switch (kbc->current_keys[i]) {
+			case KEY_POWER:
+				pr_info("KBC: KEY_POWER\n");
+				break;
+			case KEY_VOLUMEUP:
+				pr_info("KBC: KEY_VOLUMEUP\n");
+				break;
+			case KEY_VOLUMEDOWN:
+				pr_info("KBC: KEY_VOLUMEDOWN\n");
+				break;
+			default:
+				pr_info("KBC: keycode:%u\n", kbc->current_keys[i]);
+			}
 			input_report_key(kbc->idev, kbc->current_keys[i], 0);
+		}
 		input_sync(kbc->idev);
 
 		kbc->num_pressed_keys = 0;
@@ -790,6 +805,8 @@ static int tegra_kbc_suspend(struct device *dev)
 	int timeout;
 	unsigned long int_st;
 
+	dev_info(dev, "suspending");
+
 	dev_dbg(&pdev->dev, "KBC: tegra_kbc_suspend\n");
 
 	if (!kbc->is_open)
@@ -824,6 +841,8 @@ static int tegra_kbc_suspend(struct device *dev)
 		mutex_unlock(&kbc->idev->mutex);
 	}
 
+	dev_info(dev, "suspended");
+
 	return 0;
 }
 
@@ -831,7 +850,10 @@ static int tegra_kbc_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
+
 	int err = 0;
+
+	dev_info(dev, "resuming\n");
 
 	if (!kbc->is_open)
 		return tegra_kbc_start(kbc);
@@ -845,6 +867,8 @@ static int tegra_kbc_resume(struct device *dev)
 			err = tegra_kbc_start(kbc);
 		mutex_unlock(&kbc->idev->mutex);
 	}
+
+	dev_info(dev, "resumed\n");
 
 	return err;
 }
