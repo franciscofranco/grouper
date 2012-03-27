@@ -95,9 +95,6 @@ struct suspend_context {
 };
 
 #ifdef CONFIG_PM_SLEEP
-#if USE_TEGRA_CPU_SUSPEND
-void *tegra_cpu_context;	/* non-cacheable page for CPU context */
-#endif
 phys_addr_t tegra_pgd_phys;	/* pgd used by hotplug & LP2 bootup */
 static pgd_t *tegra_pgd;
 static DEFINE_SPINLOCK(tegra_lp2_lock);
@@ -273,52 +270,7 @@ static __init int create_suspend_pgtable(void)
  */
 static __init int alloc_suspend_context(void)
 {
-#if USE_TEGRA_CPU_SUSPEND
-	pgprot_t prot = __pgprot_modify(pgprot_kernel, L_PTE_MT_MASK,
-					L_PTE_MT_BUFFERABLE | L_PTE_XN);
-	struct page *ctx_page;
-	unsigned long ctx_virt = 0;
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	ctx_page = alloc_pages(GFP_KERNEL, 0);
-	if (IS_ERR_OR_NULL(ctx_page))
-		goto fail;
-
-	tegra_cpu_context = vm_map_ram(&ctx_page, 1, -1, prot);
-	if (IS_ERR_OR_NULL(tegra_cpu_context))
-		goto fail;
-
-	/* Add the context page to our private pgd. */
-	ctx_virt = (unsigned long)tegra_cpu_context;
-
-	pgd = tegra_pgd + pgd_index(ctx_virt);
-	if (!pgd_present(*pgd))
-		goto fail;
-	pmd = pmd_offset(pgd, ctx_virt);
-	if (!pmd_none(*pmd))
-		goto fail;
-	pte = pte_alloc_kernel(pmd, ctx_virt);
-	if (!pte)
-		goto fail;
-
-	set_pte_ext(pte, mk_pte(ctx_page, prot), 0);
-
-	outer_clean_range(__pa(pmd), __pa(pmd + 1));
-
 	return 0;
-
-fail:
-	if (ctx_page)
-		__free_page(ctx_page);
-	if (ctx_virt)
-		vm_unmap_ram((void*)ctx_virt, 1);
-	tegra_cpu_context = NULL;
-	return -ENOMEM;
-#else
-	return 0;
-#endif
 }
 
 /* ensures that sufficient time is passed for a register write to

@@ -25,11 +25,6 @@
 
 #include <mach/iomap.h>
 
-#ifdef CONFIG_CACHE_L2X0
-#define USE_TEGRA_CPU_SUSPEND	1
-#else
-#define USE_TEGRA_CPU_SUSPEND	0
-#endif
 #ifndef CONFIG_TRUSTED_FOUNDATIONS
 /* FIXME: The code associated with this should be removed if our change to
    save the diagnostic regsiter in the CPU context is accepted. */

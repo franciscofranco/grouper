@@ -229,18 +229,8 @@ ENTRY(tegra2_sleep_wfi)
 
 	bl	tegra_pen_unlock
 
-#if USE_TEGRA_CPU_SUSPEND
-	/* Enable the data cache and SMP coherency */
-	mrc	p15, 0, r10, c1, c0, 0
-	orr	r10, r10, #CR_C
-	dsb
-	mcr	p15, 0, r10, c1, c0, 0
-	isb
 	mcr	p15, 0, r11, c1, c0, 1	@ reenable coherency
 
-#else
-	mcr	p15, 0, r11, c1, c0, 1	@ reenable coherency
-#endif
 	/* Invalidate the TLBs & BTAC */
 	mov	r1, #0
 	mcr	p15, 0, r1, c8, c3, 0	@ invalidate shared TLBs
