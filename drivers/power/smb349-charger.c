@@ -511,6 +511,7 @@ static int __devinit smb349_probe(struct i2c_client *client,
 	if (!smb349_battery_online()) {
 		dev_err(&client->dev, "%s() No Battery present, exiting..\n",
 					__func__);
+		ret = -ENODEV;
 		goto error;
 	}
 
@@ -541,7 +542,6 @@ static int __devinit smb349_probe(struct i2c_client *client,
 
 	return 0;
 error:
-	free_irq(irq_num, charger);
 	kfree(charger);
 	return ret;
 }
