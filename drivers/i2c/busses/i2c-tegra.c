@@ -626,12 +626,15 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 	i2c_dev->payload_size = msg->len - 1;
 	i2c_writel(i2c_dev, i2c_dev->payload_size, I2C_TX_FIFO);
 
-	i2c_dev->io_header = msg->addr << I2C_HEADER_SLAVE_ADDR_SHIFT;
-	i2c_dev->io_header |= I2C_HEADER_IE_ENABLE;
+	i2c_dev->io_header = I2C_HEADER_IE_ENABLE;
 	if (!stop)
 		i2c_dev->io_header |= I2C_HEADER_REPEAT_START;
-	if (msg->flags & I2C_M_TEN)
+	if (msg->flags & I2C_M_TEN) {
+		i2c_dev->io_header |= msg->addr;
 		i2c_dev->io_header |= I2C_HEADER_10BIT_ADDR;
+	} else {
+		i2c_dev->io_header |= (msg->addr << I2C_HEADER_SLAVE_ADDR_SHIFT);
+	}
 	if (msg->flags & I2C_M_IGNORE_NAK)
 		i2c_dev->io_header |= I2C_HEADER_CONT_ON_NAK;
 	if (msg->flags & I2C_M_RD)
@@ -751,7 +754,7 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
 }
 
 static const struct i2c_algorithm tegra_i2c_algo = {
