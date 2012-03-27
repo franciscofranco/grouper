@@ -549,6 +549,12 @@ config BCM4329_RFKILL
 	---help---
 	Adds BCM4329 RFKILL driver for Broadcom BCM4329 chipset
 
+config BCM4330_RFKILL
+	bool "Enable BCM4330 RFKILL driver"
+	default n
+	---help---
+	Adds BCM4330 RFKILL driver for Broadcom BCM4330 chipset
+
 config TEGRA_CRYPTO_DEV
 	bool "Device node to access tegra aes hardware"
 	---help---

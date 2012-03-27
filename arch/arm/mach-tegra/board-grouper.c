@@ -120,6 +120,58 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 	},
 };
 
+static struct resource grouper_bcm4330_rfkill_resources[] = {
+	{
+		.name   = "bcm4330_nshutdown_gpio",
+		.start  = TEGRA_GPIO_PU0,
+		.end    = TEGRA_GPIO_PU0,
+		.flags  = IORESOURCE_IO,
+	},
+};
+
+static struct platform_device grouper_bcm4330_rfkill_device = {
+	.name = "bcm4330_rfkill",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(grouper_bcm4330_rfkill_resources),
+	.resource       = grouper_bcm4330_rfkill_resources,
+};
+
+static struct resource grouper_bluesleep_resources[] = {
+	[0] = {
+		.name = "gpio_host_wake",
+			.start  = TEGRA_GPIO_PU6,
+			.end    = TEGRA_GPIO_PU6,
+			.flags  = IORESOURCE_IO,
+	},
+	[1] = {
+		.name = "gpio_ext_wake",
+			.start  = TEGRA_GPIO_PU1,
+			.end    = TEGRA_GPIO_PU1,
+			.flags  = IORESOURCE_IO,
+	},
+	[2] = {
+		.name = "host_wake",
+			.start  = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
+			.end    = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
+			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct platform_device grouper_bluesleep_device = {
+	.name           = "bluesleep",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(grouper_bluesleep_resources),
+	.resource       = grouper_bluesleep_resources,
+};
+
+static noinline void __init grouper_setup_bluesleep(void)
+{
+	platform_device_register(&grouper_bluesleep_device);
+	tegra_gpio_enable(TEGRA_GPIO_PU6);
+	tegra_gpio_enable(TEGRA_GPIO_PU1);
+	return;
+}
+
 static __initdata struct tegra_clk_init_table grouper_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "pll_m",	NULL,		0,		false},
@@ -564,6 +616,7 @@ static struct platform_device *grouper_devices[] __initdata = {
 	&tegra_spdif_device,
 	&spdif_dit_device,
 	&bluetooth_dit_device,
+	&grouper_bcm4330_rfkill_device,
 	&tegra_pcm_device,
 	&grouper_audio_device,
 	&grouper_leds_gpio_device,
@@ -836,6 +889,7 @@ static void __init tegra_grouper_init(void)
 	grouper_panel_init();
 	grouper_nfc_init();
 	grouper_sensors_init();
+	grouper_setup_bluesleep();
 	grouper_pins_state_init();
 	grouper_emc_init();
 	tegra_release_bootloader_fb();
