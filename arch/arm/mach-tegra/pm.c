@@ -368,14 +368,6 @@ static void restore_cpu_complex(u32 mode)
 
 	BUG_ON(cpu != 0);
 
-	/* restore original PLL settings */
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	writel(tegra_sctx.pllp_misc, clk_rst + CLK_RESET_PLLP_MISC);
-	writel(tegra_sctx.pllp_base, clk_rst + CLK_RESET_PLLP_BASE);
-	writel(tegra_sctx.pllp_outa, clk_rst + CLK_RESET_PLLP_OUTA);
-	writel(tegra_sctx.pllp_outb, clk_rst + CLK_RESET_PLLP_OUTB);
-#endif
-
 	/* Is CPU complex already running on PLLX? */
 	reg = readl(clk_rst + CLK_RESET_CCLK_BURST);
 	policy = (reg >> CLK_RESET_CCLK_BURST_POLICY_SHIFT) & 0xF;
