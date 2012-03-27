@@ -5,7 +5,7 @@
  * Author: Li Yang <leoli@freescale.com>
  *         Jiang Bo <tanya.jiang@freescale.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * Description:
  * Freescale high-speed USB SOC DR module device controller driver.
@@ -3049,9 +3049,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	/* Get the regulator for drawing the vbus current in udc driver */
 	udc_controller->vbus_regulator = regulator_get(NULL, "usb_bat_chg");
 	if (IS_ERR(udc_controller->vbus_regulator)) {
-		dev_err(&pdev->dev,
-			"can't get charge regulator,err:%ld\n",
-			PTR_ERR(udc_controller->vbus_regulator));
+		dev_info(&pdev->dev,
+			"usb_bat_chg regulator not registered:"
+				" USB charging will not be enabled\n");
 		udc_controller->vbus_regulator = NULL;
 	}
 
