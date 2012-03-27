@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/include/mach/sleep-t3.S
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -235,6 +235,16 @@ ENDPROC(tegra3_sleep_core_finish)
  */
 ENTRY(tegra3_sleep_cpu_secondary_finish)
 	mov	r6, lr
+
+	dsb
+#ifdef MULTI_CACHE
+	mov32	r10, cpu_cache
+	mov	lr, pc
+	ldr	pc, [r10, #CACHE_FLUSH_KERN_ALL]
+#else
+	bl	__cpuc_flush_kern_all
+#endif
+
 	bl	tegra_cpu_exit_coherency
 
 	/* Powergate this CPU. */
