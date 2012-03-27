@@ -633,6 +633,10 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 
 	tegra_i2c_flush_fifos(i2c_dev);
 
+	/* Toggle the direction flag if rev dir is selected */
+	if (msg->flags & I2C_M_REV_DIR_ADDR)
+		msg->flags ^= I2C_M_RD;
+
 	i2c_dev->msg_buf = msg->buf;
 	i2c_dev->msg_buf_remaining = msg->len;
 	i2c_dev->msg_err = I2C_ERR_NONE;
@@ -689,6 +693,10 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_bus *i2c_bus,
 
 	if (i2c_dev->is_dvc)
 		dvc_i2c_mask_irq(i2c_dev, DVC_CTRL_REG3_I2C_DONE_INTR_EN);
+
+	/* Restore the message flag */
+	if (msg->flags & I2C_M_REV_DIR_ADDR)
+		msg->flags ^= I2C_M_RD;
 
 	if (WARN_ON(ret == 0)) {
 		dev_err(i2c_dev->dev,
@@ -783,7 +791,8 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
+			I2C_FUNC_PROTOCOL_MANGLING;
 }
 
 static const struct i2c_algorithm tegra_i2c_algo = {
