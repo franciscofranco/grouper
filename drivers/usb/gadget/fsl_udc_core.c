@@ -83,6 +83,38 @@ static struct usb_sys_interface *usb_sys_regs;
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
 
+/* Enable or disable the callback for the battery driver. */
+#define BATTERY_CALLBACK_ENABLED 0
+
+struct cable_info {
+	/*
+	* The cable status:
+	* 0000: no cable
+	* 0001: USB cable
+	* 0011: AC apdater
+	*/
+	unsigned int cable_status;
+	int is_active;
+	int udc_vbus_active;
+	int ac_connected;
+	struct delayed_work cable_detection_work;
+	struct mutex cable_info_mutex;
+};
+
+static struct cable_info s_cable_info;
+
+#if BATTERY_CALLBACK_ENABLED
+extern void battery_callback(unsigned cable_status);
+#endif
+
+/* Export the function "unsigned int get_usb_cable_status(void)" for others to query the USB cable status. */
+unsigned int get_usb_cable_status(void)
+{
+	printk(KERN_INFO "The USB cable status = %x\n", s_cable_info.cable_status);
+	return s_cable_info.cable_status;
+}
+EXPORT_SYMBOL(get_usb_cable_status);
+
 static const struct usb_endpoint_descriptor
 fsl_ep0_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -187,6 +219,63 @@ static const u8 fsl_udc_test_packet[53] = {
 	/* JKKKKKKK x10, JK */
 	0xfc, 0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd, 0x7e
 };
+
+static void cable_detection_work_handler(struct work_struct *w)
+{
+	mutex_lock(&s_cable_info.cable_info_mutex);
+	s_cable_info.cable_status = 0x00; //0000
+
+	printk(KERN_INFO "%s(): vbus_active = %d and is_active = %d\n", __func__, s_cable_info.udc_vbus_active, s_cable_info.is_active);
+
+	if (s_cable_info.udc_vbus_active && !s_cable_info.is_active) {
+		if(!s_cable_info.ac_connected)
+			printk(KERN_INFO "The USB cable is disconnected.\n");
+		else
+			printk(KERN_INFO "The AC adapter is disconnected.\n");
+
+		s_cable_info.ac_connected = 0;
+#if BATTERY_CALLBACK_ENABLED
+		battery_callback(s_cable_info.cable_status);
+#endif
+
+	} else if (!s_cable_info.udc_vbus_active && s_cable_info.is_active) {
+		switch (fsl_readl(&dr_regs->portsc1) & PORTSCX_LINE_STATUS_BITS) {
+			case PORTSCX_LINE_STATUS_SE0:
+				s_cable_info.ac_connected = 0; break;
+			case PORTSCX_LINE_STATUS_JSTATE:
+				s_cable_info.ac_connected = 0; break;
+			case PORTSCX_LINE_STATUS_KSTATE:
+				s_cable_info.ac_connected = 0; break;
+			case PORTSCX_LINE_STATUS_UNDEF:
+				s_cable_info.ac_connected = 1; break;
+			default:
+				s_cable_info.ac_connected = 0; break;
+		}
+
+		if(!s_cable_info.ac_connected) {
+			printk(KERN_INFO "The USB cable is connected\n");
+			s_cable_info.cable_status = 0x01; //0001
+		} else {
+			printk(KERN_INFO "AC adapter connect\n");
+			s_cable_info.cable_status = 0x03; //0011
+		}
+#if BATTERY_CALLBACK_ENABLED
+		battery_callback(s_cable_info.cable_status);
+#endif
+
+	}
+	mutex_unlock(&s_cable_info.cable_info_mutex);
+}
+
+static void cable_status_init(void)
+{
+	mutex_init(&s_cable_info.cable_info_mutex);
+	s_cable_info.cable_status = 0x0;
+	s_cable_info.is_active = 0;
+	s_cable_info.udc_vbus_active = 0;
+	s_cable_info.ac_connected = 0;
+	INIT_DELAYED_WORK(&s_cable_info.cable_detection_work, cable_detection_work_handler);
+}
 
 /********************************************************************
  *	Internal Used Function
@@ -1361,6 +1450,11 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 	VDBG("VBUS %s", is_active ? "on" : "off");
 
 	if (udc->transceiver) {
+		mutex_lock(&s_cable_info.cable_info_mutex);
+		s_cable_info.is_active = is_active;
+		s_cable_info.udc_vbus_active = udc->vbus_active;
+		mutex_unlock(&s_cable_info.cable_info_mutex);
+		printk(KERN_INFO "%s(): vbus_active = %d and  is_active = %d\n", __func__, s_cable_info.udc_vbus_active, s_cable_info.is_active);
 		if (udc->vbus_active && !is_active) {
 			/* If cable disconnected, cancel any delayed work */
 			cancel_delayed_work(&udc->work);
@@ -1379,6 +1473,7 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 				regulator_set_current_limit(
 					udc->vbus_regulator, 0, 0);
 			}
+			schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
 		} else if (!udc->vbus_active && is_active) {
 			fsl_udc_clk_resume(false);
 			/* setup the controller in the device mode */
@@ -1401,6 +1496,11 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 			 * charger if setup packet is not received */
 			schedule_delayed_work(&udc->work,
 				USB_CHARGER_DETECTION_WAIT_TIME_MS);
+#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
+			pm_qos_update_request(&boost_cpu_freq_req,
+				(s32)CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ * 1000);
+#endif
+			schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
 		}
 
 #ifndef CONFIG_USB_G_ANDROID
@@ -3185,6 +3285,13 @@ static int fsl_udc_resume(struct platform_device *pdev)
 		if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS)) {
 			/* if there is no VBUS then power down the clocks and return */
 			fsl_udc_clk_suspend(false);
+			if(s_cable_info.udc_vbus_active == 0 && s_cable_info.is_active == 1) {
+				mutex_lock(&s_cable_info.cable_info_mutex);
+				s_cable_info.udc_vbus_active = 1;
+				s_cable_info.is_active = 0;
+				mutex_unlock(&s_cable_info.cable_info_mutex);
+				schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
+			}
 			return 0;
 		} else {
 			fsl_udc_clk_suspend(false);
@@ -3211,6 +3318,13 @@ static int fsl_udc_resume(struct platform_device *pdev)
 	if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS))
 		fsl_udc_clk_suspend(false);
 
+	if((s_cable_info.udc_vbus_active == 1 && s_cable_info.is_active == 0) || (s_cable_info.udc_vbus_active == 0 && s_cable_info.is_active == 0)) {
+		mutex_lock(&s_cable_info.cable_info_mutex);
+		s_cable_info.udc_vbus_active = 0;
+		s_cable_info.is_active = 1;
+		mutex_unlock(&s_cable_info.cable_info_mutex);
+		schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
+	}
 	return 0;
 }
 
@@ -3232,6 +3346,7 @@ static struct platform_driver udc_driver = {
 static int __init udc_init(void)
 {
 	printk(KERN_INFO "%s (%s)\n", driver_desc, DRIVER_VERSION);
+	cable_status_init();
 	return platform_driver_probe(&udc_driver, fsl_udc_probe);
 }
 
