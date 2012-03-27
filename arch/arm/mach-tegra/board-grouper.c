@@ -37,7 +37,6 @@
 #include <linux/spi-tegra.h>
 #include <linux/nfc/pn544.h>
 #include <linux/skbuff.h>
-#include <linux/ti_wilink_st.h>
 #include <linux/regulator/consumer.h>
 #include <linux/smb349-charger.h>
 #include <linux/max17048_battery.h>
@@ -120,63 +119,6 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 			.xcvr_lsrslew = 2,
 	},
 };
-
-
-static unsigned long retry_suspend;
-
-static int plat_kim_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct kim_data_s *kim_gdata;
-	struct st_data_s *core_data;
-	kim_gdata = dev_get_drvdata(&pdev->dev);
-	core_data = kim_gdata->core_data;
-	if (st_ll_getstate(core_data) != ST_LL_INVALID) {
-		/* Prevent suspend until sleep indication from chip */
-		while (st_ll_getstate(core_data) != ST_LL_ASLEEP &&
-			(retry_suspend++ < 5)) {
-				return -1;
-		}
-	}
-	return 0;
-}
-
-static int plat_kim_resume(struct platform_device *pdev)
-{
-	retry_suspend = 0;
-	return 0;
-}
-
-
-/* wl128x BT, FM, GPS connectivity chip */
-struct ti_st_plat_data wilink_pdata = {
-	.nshutdown_gpio	= TEGRA_GPIO_PU0,
-	.dev_name	= BLUETOOTH_UART_DEV_NAME,
-	.flow_cntrl	= 1,
-	.baud_rate	= 3000000,
-	.suspend	= plat_kim_suspend,
-	.resume		= plat_kim_resume,
-};
-
-static struct platform_device wl128x_device = {
-	.name		= "kim",
-	.id		= -1,
-	.dev.platform_data = &wilink_pdata,
-};
-
-static struct platform_device btwilink_device = {
-	.name = "btwilink",
-	.id = -1,
-};
-
-static noinline void __init grouper_bt_st(void)
-{
-	pr_info("grouper_bt_st");
-
-	platform_device_register(&wl128x_device);
-	platform_device_register(&btwilink_device);
-	tegra_gpio_enable(TEGRA_GPIO_PU0);
-	return;
-}
 
 static __initdata struct tegra_clk_init_table grouper_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -822,7 +764,6 @@ static void __init tegra_grouper_init(void)
 	grouper_kbc_init();
 	grouper_keys_init();
 	grouper_panel_init();
-	grouper_bt_st();
 	grouper_nfc_init();
 	grouper_sensors_init();
 	grouper_pins_state_init();
