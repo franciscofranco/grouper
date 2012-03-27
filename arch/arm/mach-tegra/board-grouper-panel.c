@@ -161,7 +161,7 @@ static struct platform_pwm_backlight_data grouper_backlight_data = {
 	.pwm_id		= 0,
 	.max_brightness	= 255,
 	.dft_brightness	= 224,
-	.pwm_period_ns	= 100000,
+	.pwm_period_ns	= 50000,
 	.init		= grouper_backlight_init,
 	.exit		= grouper_backlight_exit,
 	.notify		= grouper_backlight_notify,
@@ -365,17 +365,17 @@ static struct resource grouper_disp2_resources[] = {
 static struct tegra_dc_mode grouper_panel_modes[] = {
 	{
 		/* 1024x600@60Hz */
-		.pclk = 51206000,
-		.h_ref_to_sync = 11,
-		.v_ref_to_sync = 1,
-		.h_sync_width = 10,
+		.pclk = 68000000,
+		.h_ref_to_sync = 4,
+		.v_ref_to_sync = 2,
+		.h_sync_width = 30,
 		.v_sync_width = 5,
-		.h_back_porch = 10,
-		.v_back_porch = 15,
-		.h_active = 1024,
-		.v_active = 600,
-		.h_front_porch = 300,
-		.v_front_porch = 15,
+		.h_back_porch = 18,
+		.v_back_porch = 12,
+		.h_active = 800,
+		.v_active = 1280,
+		.h_front_porch = 48,
+		.v_front_porch = 3,
 	},
 };
 
@@ -474,16 +474,16 @@ static struct tegra_dc_sd_settings grouper_sd_settings = {
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_fb_data grouper_fb_data = {
 	.win		= 0,
-	.xres		= 1024,
-	.yres		= 600,
+	.xres		= 800,
+	.yres		= 1280,
 	.bits_per_pixel	= 32,
-	.flags		= TEGRA_FB_FLIP_ON_PROBE,
+//	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
 
 static struct tegra_fb_data grouper_hdmi_fb_data = {
 	.win		= 0,
-	.xres		= 1024,
-	.yres		= 600,
+	.xres		= 800,
+	.yres		= 1280,
 	.bits_per_pixel	= 32,
 	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
@@ -717,8 +717,8 @@ int __init grouper_panel_init(void)
 #endif
 
 	/* Copy the bootloader fb to the fb. */
-	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
-				min(tegra_fb_size, tegra_bootloader_fb_size));
+//	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
+//				min(tegra_fb_size, tegra_bootloader_fb_size));
 
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
 	if (!err)
