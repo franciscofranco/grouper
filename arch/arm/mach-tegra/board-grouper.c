@@ -812,7 +812,6 @@ static void __init tegra_grouper_init(void)
 	grouper_edp_init();
 #endif
 	grouper_uart_init();
-	grouper_tsensor_init();
 	grouper_audio_init();
 	platform_add_devices(grouper_devices, ARRAY_SIZE(grouper_devices));
 	tegra_ram_console_debug_init();
