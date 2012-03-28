@@ -21,6 +21,7 @@
 #include <asm/mach/mmc.h>
 
 struct tegra_sdhci_platform_data {
+	int wow_gpio;
 	int cd_gpio;
 	int wp_gpio;
 	int power_gpio;

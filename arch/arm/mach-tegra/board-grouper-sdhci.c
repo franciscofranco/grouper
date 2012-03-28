@@ -37,6 +37,7 @@
 #define GROUPER_WLAN_PWR	TEGRA_GPIO_PD4
 #define GROUPER_WLAN_RST	TEGRA_GPIO_PD3
 #define GROUPER_WLAN_WOW	TEGRA_GPIO_PO4
+#define GROUPER_SDIO_WOW	TEGRA_GPIO_PB6
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
@@ -131,6 +132,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 		.embedded_sdio = &embedded_sdio_data2,
 		.built_in = 1,
 	},
+	.wow_gpio = GROUPER_SDIO_WOW,
 	.cd_gpio = -1,
 	.wp_gpio = -1,
 	.power_gpio = -1,
@@ -145,6 +147,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 };
 
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
+	.wow_gpio = -1,
 	.cd_gpio = KAI_SD_CD,
 	.wp_gpio = -1,
 	.power_gpio = -1,
@@ -159,6 +162,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
 };
 
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
+	.wow_gpio = -1,
 	.cd_gpio = -1,
 	.wp_gpio = -1,
 	.power_gpio = -1,

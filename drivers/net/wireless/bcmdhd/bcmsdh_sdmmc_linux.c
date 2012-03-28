@@ -168,9 +168,9 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 	if (func->num != 2)
 		return 0;
+#if defined(OOB_INTR_ONLY)
 	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
 		return -EBUSY;
-#if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif
 	smp_mb();
