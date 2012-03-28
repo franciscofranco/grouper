@@ -338,7 +338,7 @@ static void grouper_i2c_init(void)
 	i2c_register_board_info(4, grouper_i2c4_max17048_board_info,
 		ARRAY_SIZE(grouper_i2c4_max17048_board_info));
 
-	i2c_register_board_info(0, grouper_nfc_board_info, 1);
+	i2c_register_board_info(2, grouper_nfc_board_info, 1);
 }
 
 static struct platform_device *grouper_uart_devices[] __initdata = {
@@ -859,8 +859,8 @@ static void grouper_gps_init(void)
 static void grouper_nfc_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PX0);
-	tegra_gpio_enable(TEGRA_GPIO_PP3);
-	tegra_gpio_enable(TEGRA_GPIO_PO7);
+	tegra_gpio_enable(TEGRA_GPIO_PS7);
+	tegra_gpio_enable(TEGRA_GPIO_PR3);
 }
 
 static void __init tegra_grouper_init(void)
