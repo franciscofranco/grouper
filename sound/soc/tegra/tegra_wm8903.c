@@ -690,6 +690,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+#ifdef WM8903_SET_BIAS_LEVEL
 static int tegra30_soc_set_bias_level(struct snd_soc_card *card,
 					enum snd_soc_bias_level level)
 {
@@ -715,6 +716,7 @@ static int tegra30_soc_set_bias_level_post(struct snd_soc_card *card,
 
 	return 0 ;
 }
+#endif
 
 static struct snd_soc_dai_link tegra_wm8903_dai[] = {
 	{
@@ -747,15 +749,17 @@ static struct snd_soc_dai_link tegra_wm8903_dai[] = {
 	},
 };
 
-void tegra_wm8903_suspend_post(struct snd_soc_card *card)
+static int tegra_wm8903_suspend_post(struct snd_soc_card *card)
 {
 	struct snd_soc_jack_gpio *gpio = &tegra_wm8903_hp_jack_gpio;
 
 	if (gpio_is_valid(gpio->gpio))
 		disable_irq(gpio_to_irq(gpio->gpio));
+
+	return 0;
 }
 
-void tegra_wm8903_resume_pre(struct snd_soc_card *card)
+static int tegra_wm8903_resume_pre(struct snd_soc_card *card)
 {
 	int val;
 	struct snd_soc_jack_gpio *gpio = &tegra_wm8903_hp_jack_gpio;
@@ -766,6 +770,8 @@ void tegra_wm8903_resume_pre(struct snd_soc_card *card)
 		snd_soc_jack_report(gpio->jack, val, gpio->report);
 		enable_irq(gpio_to_irq(gpio->gpio));
 	}
+
+	return 0;
 }
 
 static struct snd_soc_card snd_soc_tegra_wm8903 = {
