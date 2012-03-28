@@ -11,6 +11,13 @@ config TEGRA_CAMERA
 
           If unsure, say Y
 
+
+config VIDEO_MI1040
+        tristate "MI1040 camera sensor support"
+        depends on I2C && ARCH_TEGRA
+        ---help---
+          This is a driver for the Aptina mi1040 camera sensor
+          for use with the tegra isp.
 config TEGRA_DTV
         bool "Enable support for tegra dtv interface"
         depends on ARCH_TEGRA

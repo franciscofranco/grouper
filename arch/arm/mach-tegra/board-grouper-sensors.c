@@ -26,13 +26,21 @@
 #include <linux/regulator/consumer.h>
 #include <asm/mach-types.h>
 #include <mach/gpio.h>
+#ifdef CONFIG_VIDEO_OV2710
 #include <media/ov2710.h>
+#endif
+#include <media/yuv_sensor.h>
 #include "board.h"
 #include "board-grouper.h"
 #include "cpu-tegra.h"
 #include <linux/nct1008.h>
 #include <mach/thermal.h>
 #include <linux/slab.h>
+
+#define CAM1_LDO_EN_GPIO		TEGRA_GPIO_PR6
+#define FRONT_YUV_SENSOR_RST_GPIO	TEGRA_GPIO_PO0
+
+static struct regulator *grouper_1v8_ldo5;
 static struct regulator *grouper_1v8_cam3;
 static struct regulator *grouper_vdd_cam3;
 
@@ -58,6 +66,7 @@ static struct i2c_board_info grouper_i2c0_cm3217_board_info[] = {
 
 static int grouper_camera_init(void)
 {
+#if 0
 	int ret;
 
 	tegra_gpio_enable(CAM2_POWER_DWN_GPIO);
@@ -79,10 +88,11 @@ static int grouper_camera_init(void)
 
 	gpio_direction_output(CAM2_RST_GPIO, 0);
 	mdelay(5);
-
+#endif
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_OV2710
 static int grouper_ov2710_power_on(void)
 {
 	gpio_direction_output(CAM2_POWER_DWN_GPIO, 0);
@@ -149,7 +159,106 @@ static struct i2c_board_info grouper_i2c2_board_info[] = {
 		.platform_data = &grouper_ov2710_data,
 	},
 };
+#endif
 
+static int yuv_front_sensor_power_on(void)
+{
+	int ret;
+	printk("yuv_front_sensor_power_on+\n");
+
+	/* AVDD_CAM1, 2.85V, controlled by CAM1_LDO_EN */
+	pr_info("gpio %d read as %d\n",CAM1_LDO_EN_GPIO, gpio_get_value(CAM1_LDO_EN_GPIO));
+	tegra_gpio_enable(CAM1_LDO_EN_GPIO);
+	ret = gpio_request(CAM1_LDO_EN_GPIO, "cam1_ldo_en");
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %s, ret= %d\n",
+			__func__, "CAM1_LDO_EN_GPIO", ret);
+	pr_info("gpio %d: %d", CAM1_LDO_EN_GPIO, gpio_get_value(CAM1_LDO_EN_GPIO));
+	gpio_set_value(CAM1_LDO_EN_GPIO, 1);
+	gpio_direction_output(CAM1_LDO_EN_GPIO, 1);
+	pr_info("--> %d\n", gpio_get_value(CAM1_LDO_EN_GPIO));
+
+	msleep(5);
+
+	if (!grouper_1v8_ldo5) {
+		grouper_1v8_ldo5 = regulator_get(NULL, "vdd_sensor_1v8");
+		if (IS_ERR_OR_NULL(grouper_1v8_ldo5)) {
+			grouper_1v8_ldo5 = NULL;
+			pr_err("Can't get grouper_1v8_ldo5.\n");
+			goto fail_to_get_reg;
+		}
+		regulator_set_voltage(grouper_1v8_ldo5, 1800000, 1800000);
+		regulator_enable(grouper_1v8_ldo5);
+	}
+
+	tegra_pinmux_set_tristate(TEGRA_PINGROUP_CAM_MCLK, TEGRA_TRI_NORMAL);
+
+	/* yuv_sensor_rst_lo*/
+	tegra_gpio_enable(FRONT_YUV_SENSOR_RST_GPIO);
+	ret = gpio_request(FRONT_YUV_SENSOR_RST_GPIO, "yuv_sensor_rst_lo");
+
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %s, ret= %d\n",
+			__func__, "FRONT_YUV_SENSOR_RST_GPIO", ret);
+	pr_info("gpio %d: %d", FRONT_YUV_SENSOR_RST_GPIO, gpio_get_value(FRONT_YUV_SENSOR_RST_GPIO));
+	gpio_set_value(FRONT_YUV_SENSOR_RST_GPIO, 1);
+	gpio_direction_output(FRONT_YUV_SENSOR_RST_GPIO, 1);
+	pr_info("--> %d\n", gpio_get_value(FRONT_YUV_SENSOR_RST_GPIO));
+
+	printk("yuv_front_sensor_power_on-\n");
+	return 0;
+
+fail_to_get_reg:
+	if (grouper_1v8_ldo5) {
+		regulator_put(grouper_1v8_ldo5);
+		grouper_1v8_ldo5 = NULL;
+	}
+
+	gpio_set_value(CAM1_LDO_EN_GPIO, 0);
+	gpio_direction_output(CAM1_LDO_EN_GPIO, 0);
+	gpio_free(CAM1_LDO_EN_GPIO);
+
+	printk("yuv_front_sensor_power_on- : -ENODEV\n");
+	return -ENODEV;
+}
+
+static int yuv_front_sensor_power_off(void)
+{
+	printk("yuv_front_sensor_power_off+\n");
+
+	gpio_set_value(FRONT_YUV_SENSOR_RST_GPIO, 0);
+	gpio_direction_output(FRONT_YUV_SENSOR_RST_GPIO, 0);
+	gpio_free(FRONT_YUV_SENSOR_RST_GPIO);
+
+	tegra_pinmux_set_tristate(TEGRA_PINGROUP_CAM_MCLK, TEGRA_TRI_TRISTATE);
+
+	if (grouper_1v8_ldo5) {
+		regulator_disable(grouper_1v8_ldo5);
+		regulator_put(grouper_1v8_ldo5);
+		grouper_1v8_ldo5 = NULL;
+	}
+
+	msleep(5);
+
+	gpio_set_value(CAM1_LDO_EN_GPIO, 0);
+	gpio_direction_output(CAM1_LDO_EN_GPIO, 0);
+	gpio_free(CAM1_LDO_EN_GPIO);
+
+	printk("yuv_front_sensor_power_off-\n");
+	return 0;
+}
+
+struct yuv_sensor_platform_data yuv_front_sensor_data = {
+	.power_on = yuv_front_sensor_power_on,
+	.power_off = yuv_front_sensor_power_off,
+};
+
+static struct i2c_board_info front_sensor_i2c2_board_info[] = {  //ddebug
+	{
+		I2C_BOARD_INFO("mi1040", 0x48),
+		.platform_data = &yuv_front_sensor_data,
+	},
+};
 /* MPU board file definition */
 
 #if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
@@ -365,8 +474,15 @@ int __init grouper_sensors_init(void)
 {
 	grouper_camera_init();
 
+#ifdef CONFIG_VIDEO_OV2710
 	i2c_register_board_info(2, grouper_i2c2_board_info,
 		ARRAY_SIZE(grouper_i2c2_board_info));
+
+#endif
+/* Front Camera mi1040 + */
+    pr_info("mi1040 i2c_register_board_info");
+	i2c_register_board_info(2, front_sensor_i2c2_board_info,
+		ARRAY_SIZE(front_sensor_i2c2_board_info));
 
 	i2c_register_board_info(0, grouper_i2c0_cm3217_board_info,
 		ARRAY_SIZE(grouper_i2c0_cm3217_board_info));

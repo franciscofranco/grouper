@@ -7,6 +7,7 @@ obj-$(CONFIG_TEGRA_MEDIASERVER)	+= mediaserver/
 obj-$(CONFIG_TEGRA_NVAVP)	+= nvavp/
 obj-$(CONFIG_TEGRA_DTV)		+= tegra_dtv.o
 obj-$(CONFIG_TEGRA_CAMERA)	+= tegra_camera.o
+obj-$(CONFIG_VIDEO_MI1040)	+= mi1040.o
 obj-$(CONFIG_VIDEO_AR0832)	+= ar0832_main.o
 obj-$(CONFIG_VIDEO_OV5650)	+= ov5650.o
 obj-$(CONFIG_VIDEO_OV14810)	+= ov14810.o

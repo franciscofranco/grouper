@@ -104,7 +104,7 @@ static struct regulator_consumer_supply max77663_ldo4_supply[] = {
 };
 
 static struct regulator_consumer_supply max77663_ldo5_supply[] = {
-	REGULATOR_SUPPLY("vdd_sensor_2v8", NULL),
+	REGULATOR_SUPPLY("vdd_sensor_1v8", NULL),
 };
 
 static struct regulator_consumer_supply max77663_ldo6_supply[] = {
@@ -205,7 +205,7 @@ MAX77663_PDATA_INIT(ldo4, 800000, 1587500, NULL, 0, 0, 0,
 		    1, 1, 1000000, FPS_SRC_0, -1, -1, LDO4_EN_TRACKING);
 
 MAX77663_PDATA_INIT(ldo5, 800000, 2800000, NULL, 0, 0, 0,
-		    1, 1, -1, FPS_SRC_NONE, -1, -1, 0);
+		    0, 0, -1, FPS_SRC_NONE, -1, -1, 0);
 
 MAX77663_PDATA_INIT(ldo6, 800000, 3950000, NULL, 0, 0, 0,
 		    0, 0, -1, FPS_SRC_NONE, -1, -1, 0);
