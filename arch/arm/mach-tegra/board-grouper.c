@@ -80,7 +80,7 @@ static struct tegra_thermal_data thermal_data = {
 	.tc2 = 1,
 	.passive_delay = 2000,
 #else
-	.hysteresis_throttle = 1000,
+	.hysteresis_throttle = 10000,
 #endif
 };
 
