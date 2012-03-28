@@ -22,6 +22,7 @@ struct mmc_cid {
 	unsigned char		hwrev;
 	unsigned char		fwrev;
 	unsigned char		month;
+	unsigned int		prv;
 };
 
 struct mmc_csd {
@@ -83,6 +84,7 @@ struct mmc_ext_csd {
 	u8			out_of_int_time;	/* out of int time */
 	bool			bk_ops;			/* BK ops support bit */
 	bool			bk_ops_en;		/* BK ops enable bit */
+	unsigned int		sec_count;
 };
 
 struct sd_scr {
