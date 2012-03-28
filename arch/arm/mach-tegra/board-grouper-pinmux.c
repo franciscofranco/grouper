@@ -324,7 +324,7 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(GPIO_PU4,        PWM1,            NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(GPIO_PU5,        PWM2,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(GPIO_PU6,        RSVD1,           NORMAL,    NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_ROW14,        KBC,             NORMAL,    TRISTATE,   OUTPUT),
+	//DEFAULT_PINMUX(KB_ROW14,        KBC,             NORMAL,    TRISTATE,   OUTPUT),
 
 	/* LCD GPIO */
 	DEFAULT_PINMUX(GMI_AD0,         RSVD1,           NORMAL,    NORMAL,     OUTPUT),
@@ -353,6 +353,8 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(GMI_CS2_N,       RSVD1,           NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(GMI_CS3_N,       RSVD1,           NORMAL,    NORMAL,     INPUT),
 
+	/* HALL SENSOR, LID# */
+	DEFAULT_PINMUX(KB_ROW14,        KBC,             PULL_UP,   NORMAL,     INPUT),
 	/* OTHERS */
 	DEFAULT_PINMUX(KB_ROW3,         KBC,             NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(GMI_DQS,         RSVD1,           NORMAL,    NORMAL,     INPUT),
