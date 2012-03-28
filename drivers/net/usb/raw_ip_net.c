@@ -3,7 +3,7 @@
  *
  * USB network driver for RAW-IP modems.
  *
- * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -704,10 +704,28 @@ static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 			skb_reserve(skb, NET_IP_ALIGN);
 			dst = skb_put(skb, 14);
 			memcpy(dst, ethernet_header, 14);
+			if ((((unsigned char *) urb->transfer_buffer)[0]
+				& 0xf0) == 0x60) {
+				/* ipv6 ether type */
+				dst[12] = 0x86;
+				dst[13] = 0xdd;
+			}
 			dst = skb_put(skb, urb->actual_length);
 			memcpy(dst, urb->transfer_buffer, urb->actual_length);
 			skb->protocol = eth_type_trans(skb,
 				usb_net_raw_ip_dev[i]);
+			pr_debug("%s: ntohs(skb->protocol) %04x (%s)\n",
+				__func__, ntohs(skb->protocol),
+				(ntohs(skb->protocol) == 0x0800)
+					? "IPv4"
+					: (ntohs(skb->protocol) == 0x86dd)
+					? "IPv6"
+					: "unknown");
+			pr_debug("%s: %02x %02x %02x %02x\n", __func__,
+				((unsigned char *)urb->transfer_buffer)[0],
+				((unsigned char *)urb->transfer_buffer)[1],
+				((unsigned char *)urb->transfer_buffer)[2],
+				((unsigned char *)urb->transfer_buffer)[3]);
 			/* pass skb to network stack */
 			if (netif_rx(skb) < 0) {
 				pr_err("usb_net_raw_ip_rx_urb_comp_work - "
@@ -850,6 +868,18 @@ static int usb_net_raw_ip_tx_urb_submit(struct baseband_usb *usb,
 		usb_net_raw_ip_tx_urb_comp,
 		usb);
 	urb->transfer_flags = URB_ZERO_PACKET;
+	pr_debug("%s: ntohs(skb->protocol) %04x (%s)\n",
+		__func__, ntohs(skb->protocol),
+		(ntohs(skb->protocol) == 0x0800)
+			? "IPv4"
+			: (ntohs(skb->protocol) == 0x86dd)
+			? "IPv6"
+			: "unknown");
+	pr_debug("%s: %02x %02x %02x %02x\n", __func__,
+		((unsigned char *)urb->transfer_buffer)[0],
+		((unsigned char *)urb->transfer_buffer)[1],
+		((unsigned char *)urb->transfer_buffer)[2],
+		((unsigned char *)urb->transfer_buffer)[3]);
 
 	/* queue tx urb work */
 	usb_anchor_urb(urb, &usb->usb.tx_urb_deferred);
