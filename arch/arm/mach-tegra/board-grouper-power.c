@@ -656,3 +656,82 @@ int __init grouper_edp_init(void)
 	return 0;
 }
 #endif
+
+unsigned int boot_reason=0;
+void tegra_booting_info(void )
+{
+	static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+	unsigned int reg;
+	#define PMC_RST_STATUS_WDT (1)
+	#define PMC_RST_STATUS_SW   (3)
+
+	reg = readl(pmc +0x1b4);
+	printk("tegra_booting_info reg=%x\n",reg );
+
+	if (reg ==PMC_RST_STATUS_SW){
+		boot_reason=PMC_RST_STATUS_SW;
+		printk("tegra_booting_info-SW reboot\n");
+	} else if (reg ==PMC_RST_STATUS_WDT){
+		boot_reason=PMC_RST_STATUS_WDT;
+		printk("tegra_booting_info-watchdog reboot\n");
+	} else{
+		boot_reason=0;
+		printk("tegra_booting_info-normal\n");
+	}
+}
+static void __iomem *watchdog_timer  = IO_ADDRESS(TEGRA_TMR10_BASE);
+static void __iomem *watchdog_source = IO_ADDRESS(TEGRA_WDT0_BASE);
+#define TIMER_PTV			0
+#define TIMER_EN			(1 << 31)
+#define TIMER_PERIODIC			(1 << 30)
+#define TIMER_PCR			0x4
+#define TIMER_PCR_INTR			(1 << 30)
+#define WDT_CFG				(0)
+#define WDT_CFG_TMR_SRC		(0 << 0) /* for TMR10. */
+#define WDT_CFG_PERIOD			(1 << 4)
+#define WDT_CFG_INT_EN			(1 << 12)
+#define WDT_CFG_SYS_RST_EN		(1 << 14)
+#define WDT_CFG_PMC2CAR_RST_EN		(1 << 15)
+#define WDT_CMD				(8)
+#define WDT_CMD_START_COUNTER		(1 << 0)
+#define WDT_CMD_DISABLE_COUNTER	(1 << 1)
+#define WDT_UNLOCK			(0xC)
+#define WDT_UNLOCK_PATTERN		(0xC45A << 0)
+
+void tegra_watchdog_enable(unsigned int timeout)
+{
+#ifdef ENABLE_HW_WATCHDOG//#ifndef CONFIG_DEBUG_SLAB
+	u32 val;
+	printk("tegra_watchdog_enable timeout=%u\n",timeout);
+	if (timeout<=0)
+		return;
+	val = (timeout * 1000000ul) / 4;
+	val |= (TIMER_EN | TIMER_PERIODIC);
+	writel(val, watchdog_timer + TIMER_PTV);
+
+	val = WDT_CFG_TMR_SRC | WDT_CFG_PERIOD | WDT_CFG_INT_EN |
+		/*WDT_CFG_SYS_RST_EN|*/ WDT_CFG_PMC2CAR_RST_EN;
+	writel(val, watchdog_source  + WDT_CFG);
+	writel(WDT_CMD_START_COUNTER, watchdog_source  + WDT_CMD);
+#endif
+}
+
+ void tegra_watchdog_disable(void )
+{
+#ifdef ENABLE_HW_WATCHDOG//#ifndef CONFIG_DEBUG_SLAB
+	printk("tegra_watchdog_disable\n");
+	writel(WDT_UNLOCK_PATTERN, watchdog_source + WDT_UNLOCK);
+	writel(WDT_CMD_DISABLE_COUNTER, watchdog_source  + WDT_CMD);
+
+	writel(0, watchdog_timer+ TIMER_PTV);
+#endif
+}
+void tegra_watchdog_touch( unsigned int timeout )
+{
+#ifdef ENABLE_HW_WATCHDOG//#ifndef CONFIG_DEBUG_SLAB
+	u32 val;
+	printk("tegra_watchdog_touch\n");
+	writel(WDT_CMD_START_COUNTER, watchdog_source + WDT_CMD);
+#endif
+}
+
