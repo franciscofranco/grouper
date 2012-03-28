@@ -675,29 +675,27 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			goto free_card;
 	}
 
-	if (!oldcard) {
-		/*
-		 * Fetch and process extended CSD.
-		 */
+	/*
+	 * Fetch and process extended CSD.
+	 */
 
-		err = mmc_get_ext_csd(card, &ext_csd);
-		if (err)
-			goto free_card;
-		err = mmc_read_ext_csd(card, ext_csd);
-		if (err)
-			goto free_card;
+	err = mmc_get_ext_csd(card, &ext_csd);
+	if (err)
+		goto free_card;
+	err = mmc_read_ext_csd(card, ext_csd);
+	if (err)
+		goto free_card;
 
-		/* If doing byte addressing, check if required to do sector
-		 * addressing.  Handle the case of <2GB cards needing sector
-		 * addressing.  See section 8.1 JEDEC Standard JED84-A441;
-		 * ocr register has bit 30 set for sector addressing.
-		 */
-		if (!(mmc_card_blockaddr(card)) && (rocr & (1<<30)))
-			mmc_card_set_blockaddr(card);
+	/* If doing byte addressing, check if required to do sector
+	 * addressing.  Handle the case of <2GB cards needing sector
+	 * addressing.  See section 8.1 JEDEC Standard JED84-A441;
+	 * ocr register has bit 30 set for sector addressing.
+	 */
+	if (!(mmc_card_blockaddr(card)) && (rocr & (1<<30)))
+		mmc_card_set_blockaddr(card);
 
-		/* Erase size depends on CSD and Extended CSD */
-		mmc_set_erase_size(card);
-	}
+	/* Erase size depends on CSD and Extended CSD */
+	mmc_set_erase_size(card);
 
 	/*
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
