@@ -35,6 +35,9 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <asm/uaccess.h>
+#include <linux/fs.h>
+#include <linux/workqueue.h>
 #include "mpu-dev.h"
 
 #include "ami_hw.h"
@@ -69,7 +72,11 @@
 #define AMI_STANDARD_OFFSET		(0x800)
 #define AMI_GAIN_COR_DEFAULT		(1000)
 
-/* -------------------------------------------------------------------------- */
+#define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
+static int gain_x = 100, gain_y = 100, gain_z = 100;
+bool flagLoadConfig = false;
+EXPORT_SYMBOL(flagLoadConfig);
+
 struct ami306_private_data {
 	int isstandby;
 	unsigned char fine[3];
@@ -83,6 +90,57 @@ static inline unsigned short little_u8_to_u16(unsigned char *p_u8)
 	return p_u8[0] | (p_u8[1] << 8);
 }
 
+static int access_calibration_file(void)
+{
+	char buf[256];
+       int ret = 0;
+	struct file *fp = NULL;
+	mm_segment_t oldfs;
+	int data[23];
+
+	oldfs=get_fs();
+	set_fs(get_ds());
+	memset(buf, 0, sizeof(u8)*256);
+
+	fp=filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
+	if (!IS_ERR(fp)) {
+		printk("ami306 open config file success\n");
+		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
+		printk("ami306 config content is :%s\n", buf);
+		sscanf(buf,"%6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d",
+			&data[0],
+			&data[1], &data[2], &data[3],
+			&data[4], &data[5], &data[6],
+			&data[7], &data[8], &data[9],
+			&data[10], &data[11], &data[12],
+			&data[13], &data[14], &data[15],
+			&data[16], &data[17], &data[18],
+			&data[19], &data[20], &data[21],
+			&data[22]);
+
+		printk("%d %d %d\n", data[19], data[20], data[21]);
+		if((data[19] > 150) || (data[19] < 50) ||
+		   (data[20] > 150) || (data[20] < 50) ||
+		   (data[21] > 150) || (data[21] < 50)){
+			gain_x = 100;
+			gain_y = 100;
+			gain_z = 100;
+		}else{
+			gain_x = data[19];
+			gain_y = data[20];
+			gain_z = data[21];
+		}
+		printk("gain: %d %d %d\n", gain_x, gain_y, gain_z);
+
+	}
+	else
+	{
+		printk("No ami306 calibration file\n");
+		set_fs(oldfs);
+		return -1;
+	}
+
+}
 static int ami306_set_bits8(void *mlsl_handle,
 			    struct ext_slave_platform_data *pdata,
 			    unsigned char reg, unsigned char bits)
@@ -567,6 +625,7 @@ static int ami306_suspend(void *mlsl_handle,
 			  struct ext_slave_descr *slave,
 			  struct ext_slave_platform_data *pdata)
 {
+	printk("ami306: OFF +\n");
 	int result;
 	unsigned char reg;
 	result = inv_serial_read(mlsl_handle, pdata->address,
@@ -584,6 +643,7 @@ static int ami306_suspend(void *mlsl_handle,
 		return result;
 	}
 
+	printk("ami306: OFF -\n");
 	return result;
 }
 
@@ -591,6 +651,7 @@ static int ami306_resume(void *mlsl_handle,
 			 struct ext_slave_descr *slave,
 			 struct ext_slave_platform_data *pdata)
 {
+	printk("ami306: ON +\n");
 	int result = INV_SUCCESS;
 	unsigned char regs[] = {
 		AMI306_REG_CNTL4_1,
@@ -633,7 +694,7 @@ static int ami306_resume(void *mlsl_handle,
 	result = inv_serial_single_write(mlsl_handle, pdata->address,
 					 AMI306_REG_CNTL3,
 					 AMI306_BIT_CNTL3_F0RCE);
-
+	printk("ami306: ON -\n");
 	return result;
 }
 
@@ -642,10 +703,38 @@ static int ami306_read(void *mlsl_handle,
 		       struct ext_slave_platform_data *pdata,
 		       unsigned char *data)
 {
+	unsigned char stat;
 	int result = INV_SUCCESS;
 	int ii;
 	short val[COMPASS_NUM_AXES];
+	result =
+	    inv_serial_read(mlsl_handle, pdata->address, AMI306_REG_STAT1,
+			   1, &stat);
+	if (result) {
+		LOG_RESULT_LOCATION(result);
+	}
 
+	if (stat & 0x40) {
+		if(!flagLoadConfig)
+		{
+			access_calibration_file();
+			flagLoadConfig = true;
+		}
+		result = inv_serial_read(mlsl_handle, pdata->address, AMI306_REG_DATAX, 6, (unsigned char *) data);
+		if (result) {
+			LOG_RESULT_LOCATION(result);
+		}
+		/* start another measurement */
+		result = inv_serial_single_write(mlsl_handle, pdata->address, AMI306_REG_CNTL3, AMI306_BIT_CNTL3_F0RCE);
+		if (result) {
+			LOG_RESULT_LOCATION(result);
+		}
+
+		val[0] =  ((short)(data[1] << 8 | data[0]))*gain_x/100;
+		val[1] =  ((short)(data[3] << 8 | data[2]))*gain_y/100;
+		val[2] =  ((short)(data[5] << 8 | data[4]))*gain_z/100;
+
+	}
 	result = ami306_mea(mlsl_handle, pdata, val);
 	if (result) {
 		LOG_RESULT_LOCATION(result);
@@ -663,6 +752,7 @@ static int ami306_init(void *mlsl_handle,
 		       struct ext_slave_descr *slave,
 		       struct ext_slave_platform_data *pdata)
 {
+	printk(KERN_INFO "%s+ #####\n", __FUNCTION__);
 	int result;
 	struct ami306_private_data *private_data;
 	private_data = (struct ami306_private_data *)
@@ -708,7 +798,7 @@ static int ami306_init(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-
+	printk(KERN_INFO "%s- #####\n", __FUNCTION__);
 	return INV_SUCCESS;
 }
 
@@ -716,7 +806,9 @@ static int ami306_exit(void *mlsl_handle,
 		       struct ext_slave_descr *slave,
 		       struct ext_slave_platform_data *pdata)
 {
+	printk("%s_shutdown+\n",__FUNCTION__);
 	kfree(pdata->private_data);
+	printk("%s_shutdown - and return INV_SUCCESS\n",__FUNCTION__);
 	return INV_SUCCESS;
 }
 
@@ -994,10 +1086,12 @@ static struct i2c_driver ami306_mod_driver = {
 
 static int __init ami306_mod_init(void)
 {
+	printk(KERN_INFO "%s+ #####\n", __func__);
 	int res = i2c_add_driver(&ami306_mod_driver);
 	pr_info("%s: Probe name %s\n", __func__, "ami306_mod");
 	if (res)
 		pr_err("%s failed\n", __func__);
+	printk(KERN_INFO "%s- #####\n", __func__);
 	return res;
 }
 

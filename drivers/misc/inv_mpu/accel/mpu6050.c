@@ -314,6 +314,7 @@ static int mpu6050_init(void *mlsl_handle,
 		       struct ext_slave_descr *slave,
 		       struct ext_slave_platform_data *pdata)
 {
+	printk(KERN_INFO "%s+ #####\n", __FUNCTION__);
 	int result;
 	struct mpu6050_private_data *private_data;
 
@@ -388,6 +389,7 @@ static int mpu6050_init(void *mlsl_handle,
 		return result;
 	}
 
+	printk(KERN_INFO "%s- #####\n", __FUNCTION__);
 	return 0;
 }
 
@@ -395,8 +397,10 @@ static int mpu6050_exit(void *mlsl_handle,
 		       struct ext_slave_descr *slave,
 		       struct ext_slave_platform_data *pdata)
 {
+	printk("%s_shutdown+\n",__FUNCTION__);
 	kfree(pdata->private_data);
 	pdata->private_data = NULL;
+	printk("%s_shutdown-\n",__FUNCTION__);
 	return 0;
 }
 

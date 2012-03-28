@@ -268,6 +268,7 @@ static struct i2c_board_info front_sensor_i2c2_board_info[] = {  //ddebug
 #define MPU_GYRO_NAME		"mpu6050"
 #endif
 
+#ifdef CONFIG_MPU_SENSORS_MPU6050B1
 static struct mpu_platform_data mpu_gyro_data = {
 	.int_config	= 0x10,
 	.level_shifter	= 0,
@@ -292,7 +293,7 @@ static struct ext_slave_platform_data mpu_compass_data = {
 	.orientation	= MPU_COMPASS_ORIENTATION,
 };
 
-static struct i2c_board_info __initdata inv_mpu_i2c0_board_info[] = {
+static struct i2c_board_info __initdata inv_mpu_i2c2_board_info[] = {
 	{
 		I2C_BOARD_INFO(MPU_GYRO_NAME, MPU_GYRO_ADDR),
 		.irq = TEGRA_GPIO_TO_IRQ(MPU_GYRO_IRQ_GPIO),
@@ -309,7 +310,7 @@ static struct i2c_board_info __initdata inv_mpu_i2c0_board_info[] = {
 #endif
 	{
 		I2C_BOARD_INFO(MPU_COMPASS_NAME, MPU_COMPASS_ADDR),
-#if MPU_COMPASS_IRQ_GPIO
+#if	0
 		.irq = TEGRA_GPIO_TO_IRQ(MPU_COMPASS_IRQ_GPIO),
 #endif
 		.platform_data = &mpu_compass_data,
@@ -357,9 +358,10 @@ static void mpuirq_init(void)
 	}
 	pr_info("*** MPU END *** mpuirq_init...\n");
 
-	i2c_register_board_info(MPU_GYRO_BUS_NUM, inv_mpu_i2c0_board_info,
-		ARRAY_SIZE(inv_mpu_i2c0_board_info));
+	i2c_register_board_info(MPU_GYRO_BUS_NUM, inv_mpu_i2c2_board_info,
+		ARRAY_SIZE(inv_mpu_i2c2_board_info));
 }
+#endif
 
 #ifndef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 static int nct_get_temp(void *_data, long *temp)
@@ -490,7 +492,9 @@ int __init grouper_sensors_init(void)
 	i2c_register_board_info(4, grouper_i2c4_nct1008_board_info,
 		ARRAY_SIZE(grouper_i2c4_nct1008_board_info));
 
+#ifdef CONFIG_MPU_SENSORS_MPU6050B1
 	mpuirq_init();
+#endif
 
 	i2c_register_board_info(2, cardhu_i2c1_board_info_al3010,
 		ARRAY_SIZE(cardhu_i2c1_board_info_al3010));

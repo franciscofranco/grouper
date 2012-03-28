@@ -142,7 +142,8 @@ static int mpu_dev_open(struct inode *inode, struct file *file)
 	dev_dbg(&client->adapter->dev, "current->pid %d\n", current->pid);
 
 	result = mutex_lock_interruptible(&mpu->mutex);
-	if (mpu->pid) {
+	//if (mpu->pid) {
+	if(result) {
 		mutex_unlock(&mpu->mutex);
 		return -EBUSY;
 	}
@@ -813,8 +814,10 @@ void mpu_shutdown(struct i2c_client *client)
 	dev_dbg(&client->adapter->dev, "%s\n", __func__);
 }
 
-int mpu_dev_suspend(struct i2c_client *client, pm_message_t mesg)
+int mpu_dev_suspend(struct device *dev, pm_message_t mesg)
 {
+	printk("%s+\n", __FUNCTION__);
+	struct i2c_client *client = i2c_verify_client(dev);
 	struct mpu_private_data *mpu =
 	    (struct mpu_private_data *)i2c_get_clientdata(client);
 	struct mldl_cfg *mldl_cfg = &mpu->mldl_cfg;
@@ -846,11 +849,14 @@ int mpu_dev_suspend(struct i2c_client *client, pm_message_t mesg)
 			"%s: Already suspended %d\n", __func__, mesg.event);
 	}
 	mutex_unlock(&mpu->mutex);
+	printk("%s-\n", __FUNCTION__);
 	return 0;
 }
 
-int mpu_dev_resume(struct i2c_client *client)
+int mpu_dev_resume(struct device *dev)
 {
+	printk("%s+\n", __FUNCTION__);
+	struct i2c_client *client = i2c_verify_client(dev);
 	struct mpu_private_data *mpu =
 	    (struct mpu_private_data *)i2c_get_clientdata(client);
 	struct mldl_cfg *mldl_cfg = &mpu->mldl_cfg;
@@ -879,6 +885,7 @@ int mpu_dev_resume(struct i2c_client *client)
 			"%s for pid %d\n", __func__, mpu->pid);
 	}
 	mutex_unlock(&mpu->mutex);
+	printk("%s-\n", __FUNCTION__);
 	return 0;
 }
 
@@ -1002,7 +1009,7 @@ out_slavedescr_exit:
 out_unlock_mutex:
 	mutex_unlock(&mpu->mutex);
 
-	if (!result && irq_name && (slave_pdata->irq > 0)) {
+	if (!result && irq_name && (slave_pdata->irq >= 0)) {
 		int warn_result;
 		dev_info(&slave_client->adapter->dev,
 			"Installing %s irq using %d\n",
@@ -1077,6 +1084,7 @@ MODULE_DEVICE_TABLE(i2c, mpu_id);
 
 int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 {
+	printk(KERN_INFO "%s+ #####\n", __func__);
 	struct mpu_platform_data *pdata;
 	struct mpu_private_data *mpu;
 	struct mldl_cfg *mldl_cfg;
@@ -1162,12 +1170,7 @@ int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if (client->irq) {
 		dev_info(&client->adapter->dev,
 			 "Installing irq using %d\n", client->irq);
-		if (BIT_ACTL_LOW == ((mldl_cfg->pdata->int_config) & BIT_ACTL))
-			irq_flags = IRQF_TRIGGER_FALLING;
-		else
-			irq_flags = IRQF_TRIGGER_RISING;
-		res = mpuirq_init(client, mldl_cfg, irq_flags);
-
+		res = mpuirq_init(client, mldl_cfg);
 		if (res)
 			goto out_mpuirq_failed;
 	} else {
@@ -1196,6 +1199,7 @@ int mpu_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 			goto out_slave_pdata_kzalloc_failed;
 		}
 	}
+	printk(KERN_INFO "%s- #####\n", __func__);
 	return res;
 
 out_slave_pdata_kzalloc_failed:
@@ -1269,6 +1273,11 @@ static int mpu_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct dev_pm_ops mpu_dev_pm_ops={
+	.suspend = mpu_dev_suspend,
+	.resume = mpu_dev_resume,
+};
+
 static struct i2c_driver mpu_driver = {
 	.class = I2C_CLASS_HWMON,
 	.probe = mpu_probe,
@@ -1277,20 +1286,20 @@ static struct i2c_driver mpu_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = MPU_NAME,
+		   .pm = &mpu_dev_pm_ops,
 		   },
 	.address_list = normal_i2c,
 	.shutdown = mpu_shutdown,	/* optional */
-	.suspend = mpu_dev_suspend,	/* optional */
-	.resume = mpu_dev_resume,	/* optional */
-
 };
 
 static int __init mpu_init(void)
 {
+	printk(KERN_INFO "%s+ #####\n", __func__);
 	int res = i2c_add_driver(&mpu_driver);
 	pr_info("%s: Probe name %s\n", __func__, MPU_NAME);
 	if (res)
 		pr_err("%s failed\n", __func__);
+	printk(KERN_INFO "%s- #####\n", __func__);
 	return res;
 }
 

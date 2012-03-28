@@ -249,7 +249,6 @@ out_request_irq:
 
 	return res;
 }
-EXPORT_SYMBOL(slaveirq_init);
 
 void slaveirq_exit(struct ext_slave_platform_data *pdata)
 {
@@ -265,4 +264,3 @@ void slaveirq_exit(struct ext_slave_platform_data *pdata)
 	kfree(pdata->irq_data);
 	pdata->irq_data = NULL;
 }
-EXPORT_SYMBOL(slaveirq_exit);

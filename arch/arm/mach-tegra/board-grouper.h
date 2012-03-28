@@ -101,20 +101,20 @@ int __init touch_init_synaptics_grouper(void);
 #define MPU_GYRO_TYPE		MPU_TYPE_MPU6050
 #define MPU_GYRO_IRQ_GPIO	TEGRA_GPIO_PX1
 #define MPU_GYRO_ADDR		0x68
-#define MPU_GYRO_BUS_NUM	0
-#define MPU_GYRO_ORIENTATION	{ 0, -1, 0, -1, 0, 0, 0, 0, -1 }
+#define MPU_GYRO_BUS_NUM	2
+#define MPU_GYRO_ORIENTATION	{ 0, 1, 0, 1, 0, 0, 0, 0, -1 }
 #if (MPU_GYRO_TYPE == MPU_TYPE_MPU3050)
 #define MPU_ACCEL_NAME		"kxtf9"
-#define MPU_ACCEL_IRQ_GPIO	TEGRA_GPIO_PL1
+#define MPU_ACCEL_IRQ_GPIO	0	// No kxtf9 irq-PIN
 #define MPU_ACCEL_ADDR		0x0F
-#define MPU_ACCEL_BUS_NUM	0
-#define MPU_ACCEL_ORIENTATION	{ 0, -1, 0, -1, 0, 0, 0, 0, -1 }
+#define MPU_ACCEL_BUS_NUM	2
+#define MPU_ACCEL_ORIENTATION	{ 0, 1, 0, 1, 0, 0, 0, 0, -1 }
 #endif
-#define MPU_COMPASS_NAME	"ak8975"
-#define MPU_COMPASS_IRQ_GPIO	0
-#define MPU_COMPASS_ADDR	0x0C
+#define MPU_COMPASS_NAME	"ami306"
+#define MPU_COMPASS_IRQ_GPIO	TEGRA_GPIO_PW0
+#define MPU_COMPASS_ADDR	0x0E
 #define MPU_COMPASS_BUS_NUM	2
-#define MPU_COMPASS_ORIENTATION	{ 1, 0, 0, 0, 1, 0, 0, 0, 1 }
+#define MPU_COMPASS_ORIENTATION	{ 0, -1, 0, -1, 0, 0, 0, 0, -1 }
 
 #define TDIODE_OFFSET	(10000) /* in millicelsius */
 

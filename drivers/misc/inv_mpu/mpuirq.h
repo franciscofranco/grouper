@@ -31,7 +31,6 @@
 #define MPUIRQ_SET_FREQUENCY_DIVIDER _IOW(MPU_IOCTL, 0x43, unsigned long)
 
 void mpuirq_exit(void);
-int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg,
-		unsigned long irq_flags);
+int mpuirq_init(struct i2c_client *mpu_client, struct mldl_cfg *mldl_cfg);
 
 #endif

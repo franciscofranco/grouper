@@ -320,6 +320,8 @@ static struct prod_rev_map_t prod_rev_map[] = {
 	{MPL_PROD_KEY(4,  1), MPU_SILICON_REV_B1, 131,  8192},	/* (B3/F1)   */
 	{MPL_PROD_KEY(4,  3), MPU_SILICON_REV_B1, 131,  8192},	/* (B4/F1)   */
 	/* prod_ver = 5 */
+	{MPL_PROD_KEY(5, 3), MPU_SILICON_REV_B1, 131, 16384},	/* (B5/E2)   */
+	/* prod_ver = 6 */
 	{MPL_PROD_KEY(6, 19), MPU_SILICON_REV_B1, 131, 16384},	/* (B5/E2)   */
 	/* prod_ver = 7 */
 	{MPL_PROD_KEY(7, 19), MPU_SILICON_REV_B1, 131, 16384},	/* (B5/E2)   */
@@ -384,7 +386,6 @@ static int inv_get_silicon_rev_mpu6050(
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-	prod_ver &= 0xF;
 
 	result = inv_serial_read_mem(mlsl_handle, mldl_cfg->mpu_chip_info->addr,
 				     memAddr, 1, &prod_rev);
@@ -413,7 +414,8 @@ static int inv_get_silicon_rev_mpu6050(
 	index = index_of_key(key);
 	if (index == -1 || index >= NUM_OF_PROD_REVS) {
 		MPL_LOGE("Unsupported product key %d in MPL\n", key);
-		return INV_ERROR_INVALID_MODULE;
+		index=NUM_OF_PROD_REVS-1;
+//		return INV_ERROR_INVALID_MODULE;
 	}
 	/* check MPL is compiled for this device */
 	if (prod_rev_map[index].silicon_rev != MPU_SILICON_REV_B1) {
