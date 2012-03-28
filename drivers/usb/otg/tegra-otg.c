@@ -92,13 +92,18 @@ static void tegra_otg_disable_clk(void)
 
 static const char *tegra_state_name(enum usb_otg_state state)
 {
-	if (state == OTG_STATE_A_HOST)
-		return "HOST";
-	if (state == OTG_STATE_B_PERIPHERAL)
-		return "PERIPHERAL";
-	if (state == OTG_STATE_A_SUSPEND)
-		return "SUSPEND";
-	return "INVALID";
+	switch (state) {
+		case OTG_STATE_A_HOST:
+			return "HOST";
+		case OTG_STATE_B_PERIPHERAL:
+			return "PERIPHERAL";
+		case OTG_STATE_A_SUSPEND:
+			return "SUSPEND";
+		case OTG_STATE_UNDEFINED:
+			return "UNDEFINED";
+		default:
+			return "INVALID";
+	}
 }
 
 static struct platform_device *
