@@ -662,7 +662,7 @@ static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
 			.instance = 0,
 			.vbus_gpio = -1,
 			.vbus_irq = MAX77663_IRQ_BASE +
-							MAX77663_IRQ_ACOK_RISING,
+							MAX77663_IRQ_ACOK_FALLING,
 	},
 	[1] = {
 			.instance = 1,
