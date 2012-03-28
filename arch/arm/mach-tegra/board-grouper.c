@@ -293,6 +293,12 @@ static struct i2c_board_info grouper_eeprom_mac_add = {
 	.platform_data = &eeprom_info,
 };
 
+static struct i2c_board_info cardhu_i2c4_bq27541_board_info[] = {
+	{
+		I2C_BOARD_INFO("bq27541-battery", 0x55),
+	}
+};
+
 static struct i2c_board_info grouper_i2c4_smb349_board_info[] = {
 	{
 		I2C_BOARD_INFO("smb349", 0x1B),
@@ -327,6 +333,9 @@ static void grouper_i2c_init(void)
 	platform_device_register(&tegra_i2c_device3);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device1);
+
+	i2c_register_board_info(4, cardhu_i2c4_bq27541_board_info,
+		ARRAY_SIZE(cardhu_i2c4_bq27541_board_info));
 
 	i2c_register_board_info(4, grouper_i2c4_smb349_board_info,
 		ARRAY_SIZE(grouper_i2c4_smb349_board_info));
