@@ -858,6 +858,12 @@ static void grouper_audio_init(void)
 	}
 }
 
+static void grouper_gps_init(void)
+{
+	tegra_gpio_enable(TEGRA_GPIO_PU2);
+	tegra_gpio_enable(TEGRA_GPIO_PU3);
+}
+
 static void grouper_nfc_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PX0);
@@ -884,6 +890,7 @@ static void __init tegra_grouper_init(void)
 	grouper_regulator_init();
 	grouper_suspend_init();
 	grouper_touch_init();
+	grouper_gps_init();
 	grouper_kbc_init();
 	grouper_keys_init();
 	grouper_panel_init();
