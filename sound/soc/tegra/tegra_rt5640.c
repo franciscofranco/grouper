@@ -571,7 +571,7 @@ static struct snd_soc_dai_link tegra_rt5640_dai[] = {
 		.stream_name = "BT SCO PCM",
 		.codec_name = "spdif-dit.1",
 		.platform_name = "tegra-pcm-audio",
-		.cpu_dai_name = "tegra30-i2s.4",
+		.cpu_dai_name = "tegra30-i2s.3",
 		.codec_dai_name = "dit-hifi",
 		.ops = &tegra_rt5640_bt_sco_ops,
 	},
