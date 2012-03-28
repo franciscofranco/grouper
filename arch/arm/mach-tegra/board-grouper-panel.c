@@ -40,7 +40,6 @@
 
 /* grouper default display board pins */
 #define grouper_lvds_avdd_en		TEGRA_GPIO_PH6
-#define grouper_lvds_stdby			TEGRA_GPIO_PG5
 #define grouper_lvds_rst			TEGRA_GPIO_PG7
 #define grouper_lvds_shutdown		TEGRA_GPIO_PN6
 #define grouper_lvds_rs			TEGRA_GPIO_PV6
@@ -202,7 +201,7 @@ static int grouper_panel_enable(void)
 	gpio_set_value(grouper_lvds_avdd_en, 1);
 	mdelay(5);
 
-	gpio_set_value(grouper_lvds_stdby, 1);
+	//gpio_set_value(grouper_lvds_stdby, 1);
 	gpio_set_value(grouper_lvds_rst, 1);
 	gpio_set_value(grouper_lvds_shutdown, 1);
 	gpio_set_value(grouper_lvds_lr, 1);
@@ -217,7 +216,7 @@ static int grouper_panel_disable(void)
 	gpio_set_value(grouper_lvds_lr, 0);
 	gpio_set_value(grouper_lvds_shutdown, 0);
 	gpio_set_value(grouper_lvds_rst, 0);
-	gpio_set_value(grouper_lvds_stdby, 0);
+	//gpio_set_value(grouper_lvds_stdby, 0);
 	mdelay(5);
 
 	gpio_set_value(grouper_lvds_avdd_en, 0);
@@ -663,9 +662,9 @@ int __init grouper_panel_init(void)
 	gpio_direction_output(grouper_lvds_avdd_en, 1);
 	tegra_gpio_enable(grouper_lvds_avdd_en);
 
-	gpio_request(grouper_lvds_stdby, "lvds_stdby");
-	gpio_direction_output(grouper_lvds_stdby, 1);
-	tegra_gpio_enable(grouper_lvds_stdby);
+	//gpio_request(grouper_lvds_stdby, "lvds_stdby");
+	//gpio_direction_output(grouper_lvds_stdby, 1);
+	//tegra_gpio_enable(grouper_lvds_stdby);
 
 	gpio_request(grouper_lvds_rst, "lvds_rst");
 	gpio_direction_output(grouper_lvds_rst, 1);
