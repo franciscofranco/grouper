@@ -279,7 +279,7 @@ static int tegra_rt5640_jack_notifier(struct notifier_block *self,
 	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
 	enum headset_state state = BIT_NO_HEADSET;
 	unsigned char status_jack;
-
+/*
 	if (jack == &tegra_rt5640_hp_jack) {
 		if (action) {
 			if (!strncmp(machine->pdata->codec_name, "rt5639", 6))
@@ -312,7 +312,7 @@ static int tegra_rt5640_jack_notifier(struct notifier_block *self,
 			machine->jack_status &= ~SND_JACK_MICROPHONE;
 		}
 	}
-
+*/
 	switch (machine->jack_status) {
 	case SND_JACK_HEADPHONE:
 		state = BIT_HEADSET_NO_MIC;
@@ -427,10 +427,10 @@ static int tegra_rt5640_event_ext_mic(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget cardhu_dapm_widgets[] = {
-	SND_SOC_DAPM_SPK("Int Spk", tegra_rt5640_event_int_spk),
-	SND_SOC_DAPM_HP("Headphone Jack", tegra_rt5640_event_hp),
-	SND_SOC_DAPM_MIC("Mic Jack", tegra_rt5640_event_ext_mic),
-	SND_SOC_DAPM_MIC("Int Mic", tegra_rt5640_event_int_mic),
+	SND_SOC_DAPM_SPK("Int Spk", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_MIC("Int Mic", NULL),
 };
 
 static const struct snd_soc_dapm_route cardhu_audio_map[] = {
@@ -440,11 +440,10 @@ static const struct snd_soc_dapm_route cardhu_audio_map[] = {
 	{"Int Spk", NULL, "SPORN"},
 	{"Int Spk", NULL, "SPOLP"},
 	{"Int Spk", NULL, "SPOLN"},
-	{"micbias1", NULL, "Mic Jack"},
-	{"IN1P", NULL, "micbias1"},
-	{"IN1N", NULL, "micbias1"},
-	{"micbias1", NULL, "Int Mic"},
-	{"IN2P", NULL, "micbias1"},
+	{"DMIC L1", NULL, "Int Mic"},
+	{"DMIC R1", NULL, "Int Mic"},
+	{"micbias2", NULL, "Mic Jack"},
+	{"MIC2", NULL, "micbias2"},
 };
 
 static const struct snd_kcontrol_new cardhu_controls[] = {
@@ -463,69 +462,16 @@ static int tegra_rt5640_init(struct snd_soc_pcm_runtime *rtd)
 	struct tegra_rt5640_platform_data *pdata = machine->pdata;
 	int ret;
 
-	if (gpio_is_valid(pdata->gpio_spkr_en)) {
-		ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
-		if (ret) {
-			dev_err(card->dev, "cannot get spkr_en gpio\n");
-			return ret;
-		}
-		machine->gpio_requested |= GPIO_SPKR_EN;
 
-		gpio_direction_output(pdata->gpio_spkr_en, 0);
-	}
 
-	if (gpio_is_valid(pdata->gpio_hp_mute)) {
-		ret = gpio_request(pdata->gpio_hp_mute, "hp_mute");
-		if (ret) {
-			dev_err(card->dev, "cannot get hp_mute gpio\n");
-			return ret;
-		}
-		machine->gpio_requested |= GPIO_HP_MUTE;
 
-		gpio_direction_output(pdata->gpio_hp_mute, 0);
-	}
 
-	if (gpio_is_valid(pdata->gpio_int_mic_en)) {
-		ret = gpio_request(pdata->gpio_int_mic_en, "int_mic_en");
-		if (ret) {
-			dev_err(card->dev, "cannot get int_mic_en gpio\n");
-			return ret;
-		}
-		machine->gpio_requested |= GPIO_INT_MIC_EN;
 
 		/* Disable int mic; enable signal is active-high */
-		gpio_direction_output(pdata->gpio_int_mic_en, 0);
-	}
 
-	if (gpio_is_valid(pdata->gpio_ext_mic_en)) {
-		ret = gpio_request(pdata->gpio_ext_mic_en, "ext_mic_en");
-		if (ret) {
-			dev_err(card->dev, "cannot get ext_mic_en gpio\n");
-			return ret;
-		}
-		machine->gpio_requested |= GPIO_EXT_MIC_EN;
 
 		/* Enable ext mic; enable signal is active-low */
-		gpio_direction_output(pdata->gpio_ext_mic_en, 0);
-	}
 
-	if (gpio_is_valid(pdata->gpio_hp_det)) {
-		tegra_rt5640_hp_jack_gpio.gpio = pdata->gpio_hp_det;
-		snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-				&tegra_rt5640_hp_jack);
-#ifndef CONFIG_SWITCH
-		snd_soc_jack_add_pins(&tegra_rt5640_hp_jack,
-					ARRAY_SIZE(tegra_rt5640_hp_jack_pins),
-					tegra_rt5640_hp_jack_pins);
-#else
-		snd_soc_jack_notifier_register(&tegra_rt5640_hp_jack,
-					&tegra_rt5640_jack_detect_nb);
-#endif
-		snd_soc_jack_add_gpios(&tegra_rt5640_hp_jack,
-					1,
-					&tegra_rt5640_hp_jack_gpio);
-		machine->gpio_requested |= GPIO_HP_DET;
-	}
 
 	ret = snd_soc_add_controls(codec, cardhu_controls,
 			ARRAY_SIZE(cardhu_controls));
@@ -540,6 +486,10 @@ static int tegra_rt5640_init(struct snd_soc_pcm_runtime *rtd)
 	/* FIXME: Calculate automatically based on DAPM routes? */
 	snd_soc_dapm_nc_pin(dapm, "LOUTL");
 	snd_soc_dapm_nc_pin(dapm, "LOUTR");
+	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
+	snd_soc_dapm_disable_pin(dapm, "Int Spk");
+	snd_soc_dapm_disable_pin(dapm, "Mic Jack");
+	snd_soc_dapm_disable_pin(dapm, "Int Mic");
 
 	snd_soc_dapm_sync(dapm);
 
@@ -613,27 +563,9 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_machine;
 
-	machine->cdc_en = regulator_get(NULL, "cdc_en");
-	if (WARN_ON(IS_ERR(machine->cdc_en))) {
-		dev_err(&pdev->dev, "Couldn't get regulator cdc_en: %ld\n",
-						PTR_ERR(machine->cdc_en));
-		machine->cdc_en = 0;
-	} else {
-		regulator_enable(machine->cdc_en);
-	}
 
-	machine->spk_reg = regulator_get(&pdev->dev, "vdd_spk_amp");
-	if (IS_ERR(machine->spk_reg)) {
-		dev_info(&pdev->dev, "No speaker regulator found\n");
-		machine->spk_reg = 0;
-	}
 
-#ifdef CONFIG_SWITCH
 	/* Addd h2w swith class support */
-	ret = switch_dev_register(&tegra_rt5640_headset_switch);
-	if (ret < 0)
-		goto err_fini_utils;
-#endif
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -643,7 +575,7 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		goto err_unregister_switch;
+		goto err_fini_utils;
 	}
 
 	if (!card->instantiated) {
@@ -657,11 +589,7 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 
 err_unregister_card:
 	snd_soc_unregister_card(card);
-err_unregister_switch:
-#ifdef CONFIG_SWITCH
-	switch_dev_unregister(&tegra_rt5640_headset_switch);
 err_fini_utils:
-#endif
 	tegra_asoc_utils_fini(&machine->util_data);
 err_free_machine:
 	kfree(machine);

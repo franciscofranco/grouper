@@ -331,10 +331,7 @@ static void grouper_i2c_init(void)
 	i2c_register_board_info(4, grouper_i2c4_smb349_board_info,
 		ARRAY_SIZE(grouper_i2c4_smb349_board_info));
 
-	if (board_info.fab == BOARD_FAB_A00)
-		i2c_register_board_info(4, &rt5640_board_info, 1);
-	else
-		i2c_register_board_info(4, &rt5639_board_info, 1);
+	i2c_register_board_info(4, &rt5640_board_info, 1);
 
 	i2c_register_board_info(4, &grouper_eeprom_mac_add, 1);
 
@@ -849,13 +846,8 @@ static void grouper_audio_init(void)
 
 	tegra_get_board_info(&board_info);
 
-	if (board_info.fab == BOARD_FAB_A01) {
-		grouper_audio_pdata.codec_name = "rt5639.4-001c";
-		grouper_audio_pdata.codec_dai_name = "rt5639-aif1";
-	} else if (board_info.fab == BOARD_FAB_A00) {
-		grouper_audio_pdata.codec_name = "rt5640.4-001c";
-		grouper_audio_pdata.codec_dai_name = "rt5640-aif1";
-	}
+	grouper_audio_pdata.codec_name = "rt5640.4-001c";
+	grouper_audio_pdata.codec_dai_name = "rt5640-aif1";
 }
 
 static void grouper_gps_init(void)

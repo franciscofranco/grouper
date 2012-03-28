@@ -144,6 +144,11 @@
 
 
 /* Index of Codec Private Register definition */
+#define RT5640_BIAS_CUR1			0x12
+#define RT5640_BIAS_CUR3			0x14
+#define RT5640_CLSD_INT_REG1			0x1c
+#define RT5640_MAMP_INT_REG2			0x37
+#define RT5640_CHOP_DAC_ADC			0x3d
 #define RT5640_3D_SPK				0x63
 #define RT5640_WND_1				0x6c
 #define RT5640_WND_2				0x6d
@@ -152,6 +157,7 @@
 #define RT5640_WND_5				0x70
 #define RT5640_WND_8				0x73
 #define RT5640_DIP_SPK_INF			0x75
+#define RT5640_HP_DCC_INT1			0x77
 #define RT5640_EQ_BW_LOP			0xa0
 #define RT5640_EQ_GN_LOP			0xa1
 #define RT5640_EQ_FC_BP1			0xa2
@@ -191,7 +197,9 @@
 
 /* IN1 and IN2 Control (0x0d) */
 /* IN3 and IN4 Control (0x0e) */
+#define RT5640_BST_MASK1			(0xf<<12)
 #define RT5640_BST_SFT1				12
+#define RT5640_BST_MASK2			(0xf<<8)
 #define RT5640_BST_SFT2				8
 #define RT5640_IN_DF1				(0x1 << 7)
 #define RT5640_IN_SFT1				7
@@ -977,8 +985,7 @@
 #define RT5640_SCLK_SRC_SFT			14
 #define RT5640_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5640_SCLK_SRC_PLL1			(0x1 << 14)
-#define RT5640_SCLK_SRC_PLL1T			(0x2 << 14)
-#define RT5640_SCLK_SRC_RCCLK			(0x3 << 14) /* 15MHz */
+#define RT5640_SCLK_SRC_RCCLK			(0x2 << 14) /* 15MHz */
 #define RT5640_PLL1_SRC_MASK			(0x3 << 12)
 #define RT5640_PLL1_SRC_SFT			12
 #define RT5640_PLL1_SRC_MCLK			(0x0 << 12)
@@ -1205,6 +1212,14 @@
 #define RT5640_CP_FQ2_SFT			4
 #define RT5640_CP_FQ3_MASK			(0x7)
 #define RT5640_CP_FQ3_SFT			0
+#define RT5640_CP_FQ_1_5_KHZ			0
+#define RT5640_CP_FQ_3_KHZ			1
+#define RT5640_CP_FQ_6_KHZ			2
+#define RT5640_CP_FQ_12_KHZ			3
+#define RT5640_CP_FQ_24_KHZ			4
+#define RT5640_CP_FQ_48_KHZ			5
+#define RT5640_CP_FQ_96_KHZ			6
+#define RT5640_CP_FQ_192_KHZ			7
 
 /* HPOUT charge pump (0x91) */
 #define RT5640_OSW_L_MASK			(0x1 << 11)
@@ -1699,15 +1714,15 @@
 #define RT5640_DSP_RST_PIN_LO			(0x0 << 10)
 #define RT5640_DSP_RST_PIN_HI			(0x1 << 10)
 #define RT5640_DSP_R_EN				(0x1 << 9)
-#define RT5640_DSP_R_EN_BIT			9
 #define RT5640_DSP_W_EN			(0x1 << 8)
-#define RT5640_DSP_W_EN_BIT			8
 #define RT5640_DSP_CMD_MASK			(0xff)
-#define RT5640_DSP_CMD_SFT			0
-#define RT5640_DSP_CMD_MW			(0x3B)	/* Memory Write */
+#define RT5640_DSP_CMD_PE			(0x0d)	/* Patch Entry */
+#define RT5640_DSP_CMD_MW			(0x3b)	/* Memory Write */
 #define RT5640_DSP_CMD_MR			(0x37)	/* Memory Read */
 #define RT5640_DSP_CMD_RR			(0x60)	/* Register Read */
 #define RT5640_DSP_CMD_RW			(0x68)	/* Register Write */
+#define RT5640_DSP_REG_DATHI			(0x26)	/* High Data Addr */
+#define RT5640_DSP_REG_DATLO			(0x25)	/* Low Data Addr */
 
 /* Programmable Register Array Control 1 (0xc8) */
 #define RT5640_REG_SEQ_MASK			(0xf << 12)
@@ -2019,24 +2034,33 @@ enum {
 #define RT5640_EQ_PST_VOL_MASK		(0xffff)
 #define RT5640_EQ_PST_VOL_SFT			0
 
-#define RT5640_NO_JACK		BIT(0)
-#define RT5640_HEADSET_DET	BIT(1)
-#define RT5640_HEADPHO_DET	BIT(2)
+/* Vendor ID (0xfd) */
+#define RT5640_VER_C				0x2
+#define RT5640_VER_D				0x3
 
-int rt5640_headset_detect(struct snd_soc_codec *codec, int jack_insert);
+
+
+
+/* Volume Rescale */
+#define RT5640_VOL_RSCL_MAX 0x27
+#define RT5640_VOL_RSCL_RANGE 0x1F
+/* Debug String Length */
+#define RT5640_REG_DISP_LEN 10
 
 /* System Clock Source */
-#define RT5640_SCLK_S_MCLK 0
-#define RT5640_SCLK_S_PLL1 1
-#define RT5640_SCLK_S_PLL1_TK 2
-#define RT5640_SCLK_S_RCCLK 3
+enum {
+	RT5640_SCLK_S_MCLK,
+	RT5640_SCLK_S_PLL1,
+	RT5640_SCLK_S_RCCLK,
+};
 
 /* PLL1 Source */
-#define RT5640_PLL1_S_MCLK 0
-#define RT5640_PLL1_S_BCLK1 1
-#define RT5640_PLL1_S_BCLK2 2
-#define RT5640_PLL1_S_BCLK3 3
-
+enum {
+	RT5640_PLL1_S_MCLK,
+	RT5640_PLL1_S_BCLK1,
+	RT5640_PLL1_S_BCLK2,
+	RT5640_PLL1_S_BCLK3,
+};
 
 enum {
 	RT5640_AIF1,
@@ -2045,11 +2069,9 @@ enum {
 	RT5640_AIFS,
 };
 
-enum {
-	RT5640_U_IF1 = 0x1,
-	RT5640_U_IF2 = 0x2,
-	RT5640_U_IF3 = 0x4,
-};
+#define RT5640_U_IF1 (0x1)
+#define RT5640_U_IF2 (0x1 << 1)
+#define RT5640_U_IF3 (0x1 << 2)
 
 enum {
 	RT5640_IF_123,
@@ -2078,6 +2100,7 @@ struct rt5640_pll_code {
 
 struct rt5640_priv {
 	struct snd_soc_codec *codec;
+	struct delayed_work patch_work;
 
 	int aif_pu;
 	int sysclk;
@@ -2091,7 +2114,7 @@ struct rt5640_priv {
 	int pll_out;
 
 	int dmic_en;
-	int dsp_sw;
+	int dsp_sw; /* expected parameter setting */
 };
 
 

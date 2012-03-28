@@ -187,6 +187,7 @@ config SND_SOC_TEGRA_RT5640
 	select SND_SOC_TEGRA30_I2S if ARCH_TEGRA_3x_SOC
 	select SND_SOC_TEGRA30_SPDIF if ARCH_TEGRA_3x_SOC
 	select SND_SOC_RT5640
+	select SND_SOC_RT5642
 	select SND_SOC_SPDIF
 	select SND_SOC_TEGRA30_DAM if ARCH_TEGRA_3x_SOC
 	help
@@ -215,3 +216,6 @@ config SND_SOC_TEGRA_MAX98095
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the MAX98095 codec. Currently, only supported board is
 	  Cardhu.
+config HEADSET_FUNCTION
+    tristate "Headset detection function"
+    default n
