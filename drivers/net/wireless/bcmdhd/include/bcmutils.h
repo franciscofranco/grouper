@@ -330,6 +330,9 @@ extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
 extern void bcm_mdelay(uint ms);
 
+#define NVRAM_RECLAIM_CHECK(name)
+
+
 extern char *getvar(char *vars, const char *name);
 extern int getintvar(char *vars, const char *name);
 extern int getintvararray(char *vars, const char *name, int index);

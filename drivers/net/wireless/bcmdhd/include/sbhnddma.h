@@ -217,7 +217,7 @@ typedef volatile struct {
 #define D64_XC_BL_SHIFT		18
 
 
-#define	D64_XP_LD_MASK		0x00000fff	
+#define	D64_XP_LD_MASK		0x00001fff	
 
 
 #define	D64_XS0_CD_MASK		0x00001fff	
@@ -260,7 +260,7 @@ typedef volatile struct {
 #define DMA_CTRL_USB_BOUNDRY4KB_WAR (1 << 4)
 
 
-#define	D64_RP_LD_MASK		0x00000fff	
+#define	D64_RP_LD_MASK		0x00001fff	
 
 
 #define	D64_RS0_CD_MASK		0x00001fff	

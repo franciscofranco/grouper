@@ -1292,6 +1292,11 @@ typedef struct wl_po {
 #define WL_CHAN_FREQ_RANGE_5GMH_5BAND    7
 #define WL_CHAN_FREQ_RANGE_5GH_5BAND     8
 
+#define WL_CHAN_FREQ_RANGE_5G_BAND0     1
+#define WL_CHAN_FREQ_RANGE_5G_BAND1     2
+#define WL_CHAN_FREQ_RANGE_5G_BAND2     3
+#define WL_CHAN_FREQ_RANGE_5G_BAND3     4
+
 
 #define WLC_PHY_TYPE_A      0
 #define WLC_PHY_TYPE_B      1

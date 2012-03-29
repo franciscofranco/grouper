@@ -477,12 +477,16 @@ typedef struct {
 
 
 #ifdef DHD_DEBUG
-#define DBG_THR(x) printk x
+#define DBG_THR(x) printf x
 #else
 #define DBG_THR(x)
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
+#else
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
+#endif
 
 
 #define PROC_START(thread_func, owner, tsk_ctl, flags) \

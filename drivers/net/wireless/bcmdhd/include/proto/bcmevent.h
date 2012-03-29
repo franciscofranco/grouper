@@ -226,6 +226,8 @@ extern const int		bcmevent_names_size;
 #define WLC_E_REASON_TSPEC_REJECTED	7	
 #define WLC_E_REASON_BETTER_AP		8	
 
+#define WLC_E_REASON_REQUESTED_ROAM 11	
+
 
 #define WLC_E_PRUNE_ENCR_MISMATCH	1	
 #define WLC_E_PRUNE_BCAST_BSSID		2	

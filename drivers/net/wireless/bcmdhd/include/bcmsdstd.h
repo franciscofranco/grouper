@@ -78,6 +78,7 @@ extern void sdstd_osfree(sdioh_info_t *sd);
 #define SDIOH_CMD7_EXP_STATUS   0x00001E00
 
 #define RETRIES_LARGE 100000
+#define sdstd_os_yield(sd)	do {} while (0)
 #define RETRIES_SMALL 100
 
 
@@ -254,6 +255,7 @@ extern void sdstd_3_disable_retuning_int(sdioh_info_t *sd);
 extern bool sdstd_3_is_retuning_int_set(sdioh_info_t *sd);
 extern bool sdstd_3_check_and_set_retuning(sdioh_info_t *sd);
 extern int sdstd_3_get_tune_state(sdioh_info_t *sd);
+extern int sdstd_3_get_data_state(sdioh_info_t *sd);
 extern void sdstd_3_set_tune_state(sdioh_info_t *sd, int state);
 extern uint8 sdstd_3_get_tuning_exp(sdioh_info_t *sd);
 extern uint32 sdstd_3_get_uhsi_clkmode(sdioh_info_t *sd);

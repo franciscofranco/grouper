@@ -352,7 +352,7 @@ int wl_android_wifi_on(struct net_device *dev)
 {
 	int ret = 0;
 
-	printk("%s in\n", __FUNCTION__);
+	printf("%s in\n", __FUNCTION__);
 	if (!dev) {
 		DHD_ERROR(("%s: dev is null\n", __FUNCTION__));
 		return -EINVAL;
@@ -377,21 +377,25 @@ int wl_android_wifi_off(struct net_device *dev)
 {
 	int ret = 0;
 
-	printk("%s in\n", __FUNCTION__);
+	printf("%s in\n", __FUNCTION__);
 	if (!dev) {
-		DHD_TRACE(("%s: dev is null\n", __FUNCTION__));
-		return -EINVAL;
+		DHD_ERROR(("%s: dev is null\n", __FUNCTION__));
+		//return -EINVAL;
+                if (g_wifi_on) {
+                        sdioh_stop(NULL);
+                        dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
+                        g_wifi_on = 0;
+                }
+	} else {
+		dhd_net_if_lock(dev);
+		if (g_wifi_on) {
+			ret = dhd_dev_reset(dev, TRUE);
+			sdioh_stop(NULL);
+			dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
+			g_wifi_on = 0;
+		}
+		dhd_net_if_unlock(dev);
 	}
-
-	dhd_net_if_lock(dev);
-	if (g_wifi_on) {
-		ret = dhd_dev_reset(dev, TRUE);
-		sdioh_stop(NULL);
-		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
-		g_wifi_on = 0;
-	}
-	dhd_net_if_unlock(dev);
-
 	return ret;
 }
 
@@ -558,8 +562,9 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK");
 	}
-
-	if (bytes_written > 0) {
+	if (bytes_written >= 0) {
+		if (bytes_written == 0)
+			command[0] = '\0';
 		if (bytes_written > priv_cmd.total_len) {
 			DHD_ERROR(("%s: bytes_written = %d\n", __FUNCTION__, bytes_written));
 			bytes_written = priv_cmd.total_len;
@@ -615,7 +620,9 @@ int wl_android_post_init(void)
 	char buf[IFNAMSIZ];
 	if (!dhd_download_fw_on_driverload) {
 		/* Call customer gpio to turn off power with WL_REG_ON signal */
+#if !defined(OOB_INTR_ONLY)
 		sdioh_stop(NULL);
+#endif /* !defined(OOB_INTR_ONLY) */
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
 	} else {

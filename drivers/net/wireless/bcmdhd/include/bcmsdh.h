@@ -182,7 +182,7 @@ typedef struct {
 	/* attach to device */
 	void *(*attach)(uint16 vend_id, uint16 dev_id, uint16 bus, uint16 slot,
 	                uint16 func, uint bustype, void * regsva, osl_t * osh,
-	                void * param, void *dev);
+	                void * param);
 	/* detach from device */
 	void (*detach)(void *ch);
 } bcmsdh_driver_t;
@@ -207,5 +207,13 @@ extern uint32 bcmsdh_cur_sbwad(void *sdh);
 /* Function to pass chipid and rev to lower layers for controlling pr's */
 extern void bcmsdh_chipinfo(void *sdh, uint32 chip, uint32 chiprev);
 
+
+extern int bcmsdh_sleep(void *sdh, bool enab);
+
+/* GPIO support */
+extern int bcmsdh_gpio_init(void *sd);
+extern bool bcmsdh_gpioin(void *sd, uint32 gpio);
+extern int bcmsdh_gpioouten(void *sd, uint32 gpio);
+extern int bcmsdh_gpioout(void *sd, uint32 gpio, bool enab);
 
 #endif	/* _bcmsdh_h_ */

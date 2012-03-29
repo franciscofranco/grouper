@@ -13,7 +13,7 @@ config BCMDHD
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"
-        default "/system/vendor/firmware/fw_bcmdhd.bin"
+	default "/system/etc/firmware/fw_bcmdhd.bin"
 	---help---
 	  Path to the firmware file.
 
@@ -46,17 +46,3 @@ config BCMDHD_HW_OOB
 	default n
 	---help---
 	  Use out of band interrupt for card interrupt and wake on wireless.
-
-config BCMDHD_CSCAN_ENABLE
-	bool "Enable Combo Scan"
-	depends on BCMDHD
-	default n
-	---help---
-	Enable Combo Scan
-
-config BCMDHD_INSMOD_NO_FW_LOAD
-	bool "Enable delayed firmware load"
-	depends on BCMDHD
-	default n
-	---help---
-	Enable delayes firmware

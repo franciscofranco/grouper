@@ -345,7 +345,7 @@ static const uint firstread = DHD_FIRSTREAD;
 #define HDATLEN (firstread - (SDPCM_HDRLEN))
 
 /* Retry count for register access failures */
-static const uint retry_limit = 2;
+static const uint retry_limit = 20;
 
 /* Force even SD lengths (some host controllers mess up on odd bytes) */
 static bool forcealign;
@@ -382,7 +382,7 @@ static bool dhd_readahead;
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
-	(((uint8)(bus->tx_max - bus->tx_seq) > 2) && \
+	(((uint8)(bus->tx_max - bus->tx_seq) > 1) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
 
 /* To check if there's window offered for ctrl frame */
@@ -398,6 +398,8 @@ do { \
 	do { \
 		regvar = R_REG(bus->dhd->osh, regaddr); \
 	} while (bcmsdh_regfail(bus->sdh) && (++retryvar <= retry_limit)); \
+	if(retryvar > 1)  \
+		DHD_ERROR(("%s: regvar[ %d ], retryvar[ %d ], regfails[ %d ], bcmsdh_regfail[ %d ] \n",__FUNCTION__,regvar, retryvar ,bus->regfails, bcmsdh_regfail(bus->sdh))); \
 	if (retryvar) { \
 		bus->regfails += (retryvar-1); \
 		if (retryvar > retry_limit) { \
@@ -2209,7 +2211,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, const ch
 	int32 int_val = 0;
 	bool bool_val = 0;
 
-	DHD_ERROR(("%s: Enter, action %d name %s params %p plen %d arg %p len %d val_size %d\n",
+	DHD_TRACE(("%s: Enter, action %d name %s params %p plen %d arg %p len %d val_size %d\n",
 	           __FUNCTION__, actionid, name, params, plen, arg, len, val_size));
 
 	if ((bcmerror = bcm_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid))) != 0)
@@ -5198,7 +5200,7 @@ dhdsdio_chipmatch(uint16 chipid)
 
 static void *
 dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
-	uint16 func, uint bustype, void *regsva, osl_t * osh, void *sdh, void *dev)
+	uint16 func, uint bustype, void *regsva, osl_t * osh, void *sdh)
 {
 	int ret;
 	dhd_bus_t *bus;
@@ -5305,7 +5307,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	bus->usebufpool = FALSE; /* Use bufpool if allocated, else use locally malloced rxbuf */
 
 	/* attach the common module */
-	if (!(cmn = dhd_common_init(bus->cl_devid, osh))) {
+	if (!(cmn = dhd_common_init(osh))) {
 		DHD_ERROR(("%s: dhd_common_init failed\n", __FUNCTION__));
 		goto fail;
 	}
@@ -5318,7 +5320,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	}
 
 	/* Attach to the dhd/OS/network interface */
-	if (!(bus->dhd = dhd_attach(osh, bus, SDPCM_RESERVE, dev))) {
+	if (!(bus->dhd = dhd_attach(osh, bus, SDPCM_RESERVE))) {
 		DHD_ERROR(("%s: dhd_attach failed\n", __FUNCTION__));
 		goto fail;
 	}
@@ -6048,7 +6050,6 @@ static int
 _dhdsdio_download_firmware(struct dhd_bus *bus)
 {
 	int bcmerror = -1;
-	char *p;
 
 	bool embed = FALSE;	/* download embedded firmware */
 	bool dlok = FALSE;	/* download firmware succeeded */
@@ -6070,19 +6071,7 @@ _dhdsdio_download_firmware(struct dhd_bus *bus)
 
 	/* External image takes precedence if specified */
 	if ((bus->fw_path != NULL) && (bus->fw_path[0] != '\0')) {
-
-		/* replace bcm43xx with bcm4330 or bcm4329 */
-		if ((p = strstr(bus->fw_path, "bcm43xx"))) {
-			if (bus->cl_devid == 0x4329) {
-				*(p + 5)='2';
-				*(p + 6)='9';
-			}
-			if (bus->cl_devid == 0x4330) {
-				*(p + 5)='3';
-				*(p + 6)='0';
-			}
-		}
-
+		printf("%s: fw_path = %s, nv_path=%s\n", __FUNCTION__, bus->fw_path, bus->nv_path);
 		if (dhdsdio_download_code_file(bus, bus->fw_path)) {
 			DHD_ERROR(("%s: dongle image file download failed\n", __FUNCTION__));
 #ifdef BCMEMBEDIMAGE
