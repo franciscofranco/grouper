@@ -533,6 +533,7 @@ static struct tegra_asoc_platform_data enterprise_audio_aic326x_pdata = {
 	.baseband_param		= {
 		.rate = 8000,
 		.channels = 1,
+		.bit_format = TEGRA_DAIFMT_DSP_A,
 	},
 };
 
