@@ -42,8 +42,7 @@
 #include "sdio_ops.h"
 #include "../debug_mmc.h"
 
-static struct workqueue_struct *mmc_workqueue;
-static struct workqueue_struct *wifi_workqueue;
+static struct workqueue_struct *workqueue;
 
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
@@ -74,18 +73,9 @@ MODULE_PARM_DESC(
  * Internal function. Schedule delayed work in the MMC work queue.
  */
 static int mmc_schedule_delayed_work(struct delayed_work *work,
-				     unsigned long delay, struct mmc_host *host)
+				     unsigned long delay)
 {
-	int ret = 0;
-
-	MMC_printk("%s: delay %d", mmc_hostname(host), delay);
-
-	if (!strcmp(mmc_hostname(host), "mmc0"))
-		ret = queue_delayed_work(mmc_workqueue, work, delay);
-	else if (!strcmp(mmc_hostname(host), "mmc1"))
-		ret = queue_delayed_work(wifi_workqueue, work, delay);
-
-	return ret;
+	return queue_delayed_work(workqueue, work, delay);
 }
 
 /*
@@ -93,8 +83,7 @@ static int mmc_schedule_delayed_work(struct delayed_work *work,
  */
 static void mmc_flush_scheduled_work(void)
 {
-	flush_workqueue(mmc_workqueue);
-	flush_workqueue(wifi_workqueue);
+	flush_workqueue(workqueue);
 }
 
 /**
@@ -638,7 +627,7 @@ static int mmc_host_do_disable(struct mmc_host *host, int lazy)
 		if (err > 0) {
 			unsigned long delay = msecs_to_jiffies(err);
 
-			mmc_schedule_delayed_work(&host->disable, delay, host);
+			mmc_schedule_delayed_work(&host->disable, delay);
 		}
 	}
 	host->enabled = 0;
@@ -802,7 +791,7 @@ int mmc_host_lazy_disable(struct mmc_host *host)
 
 	if (host->disable_delay) {
 		mmc_schedule_delayed_work(&host->disable,
-				msecs_to_jiffies(host->disable_delay), host);
+				msecs_to_jiffies(host->disable_delay));
 		return 0;
 	} else
 		return mmc_host_do_disable(host, 1);
@@ -1434,7 +1423,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 #endif
 
 	wake_lock(&host->detect_wake_lock);
-	mmc_schedule_delayed_work(&host->detect, delay, host);
+	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -1983,10 +1972,8 @@ void mmc_rescan(struct work_struct *work)
 		wake_unlock(&host->detect_wake_lock);
 	if (host->caps & MMC_CAP_NEEDS_POLL) {
 		wake_lock(&host->detect_wake_lock);
-		mmc_schedule_delayed_work(&host->detect, HZ, host);
+		mmc_schedule_delayed_work(&host->detect, HZ);
 	}
-
-	MMC_printk("%s: extend_wakelock %d", mmc_hostname(host), extend_wakelock);
 }
 
 void mmc_start_host(struct mmc_host *host)
@@ -2306,12 +2293,8 @@ static int __init mmc_init(void)
 {
 	int ret;
 
-	mmc_workqueue = alloc_ordered_workqueue("kmmcd", 0);
-	if (!mmc_workqueue)
-		return -ENOMEM;
-
-	wifi_workqueue = alloc_ordered_workqueue("kwifi", 0);
-	if (!wifi_workqueue)
+	workqueue = alloc_ordered_workqueue("kmmcd", 0);
+	if (!workqueue)
 		return -ENOMEM;
 
 	ret = mmc_register_bus();
@@ -2333,8 +2316,7 @@ unregister_host_class:
 unregister_bus:
 	mmc_unregister_bus();
 destroy_workqueue:
-	destroy_workqueue(mmc_workqueue);
-	destroy_workqueue(wifi_workqueue);
+	destroy_workqueue(workqueue);
 
 	return ret;
 }
@@ -2344,8 +2326,7 @@ static void __exit mmc_exit(void)
 	sdio_unregister_bus();
 	mmc_unregister_host_class();
 	mmc_unregister_bus();
-	destroy_workqueue(mmc_workqueue);
-	destroy_workqueue(wifi_workqueue);
+	destroy_workqueue(workqueue);
 }
 
 subsys_initcall(mmc_init);
