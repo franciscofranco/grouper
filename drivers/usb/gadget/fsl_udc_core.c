@@ -84,7 +84,7 @@ static struct usb_sys_interface *usb_sys_regs;
 static struct fsl_udc *udc_controller = NULL;
 
 /* Enable or disable the callback for the battery driver. */
-#define BATTERY_CALLBACK_ENABLED 0
+#define BATTERY_CALLBACK_ENABLED 1
 
 struct cable_info {
 	/*
