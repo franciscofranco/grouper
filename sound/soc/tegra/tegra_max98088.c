@@ -1142,6 +1142,12 @@ static __devinit int tegra_max98088_driver_probe(struct platform_device *pdev)
 
 	machine->codec_info[BASEBAND].rate = pdata->baseband_param.rate;
 	machine->codec_info[BASEBAND].channels = pdata->baseband_param.channels;
+	machine->codec_info[BASEBAND].is_format_dsp = 0;
+
+	if ((pdata->baseband_param.bit_format == TEGRA_DAIFMT_DSP_A) ||
+	(pdata->baseband_param.bit_format == TEGRA_DAIFMT_DSP_B)) {
+			machine->codec_info[BASEBAND].is_format_dsp = 1;
+	}
 
 	tegra_max98088_dai[DAI_LINK_HIFI].cpu_dai_name =
 	tegra_max98088_i2s_dai_name[machine->codec_info[HIFI_CODEC].i2s_id];
