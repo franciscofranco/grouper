@@ -72,19 +72,6 @@ static struct platform_device grouper_wifi_device = {
 	},
 };
 
-static struct resource sdhci_resource0[] = {
-	[0] = {
-		.start	= INT_SDMMC1,
-		.end	= INT_SDMMC1,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[1] = {
-		.start	= TEGRA_SDMMC1_BASE,
-		.end	= TEGRA_SDMMC1_BASE + TEGRA_SDMMC1_SIZE-1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
 static struct resource sdhci_resource2[] = {
 	[0] = {
 		.start	= INT_SDMMC3,
@@ -146,21 +133,6 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 	.is_8bit_supported = false, */
 };
 
-static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
-	.wow_gpio = -1,
-	.cd_gpio = KAI_SD_CD,
-	.wp_gpio = -1,
-	.power_gpio = -1,
-/*	.tap_delay = 6,
-	.is_voltage_switch_supported = true,
-	.vdd_rail_name = "vddio_sdmmc1",
-	.slot_rail_name = "vddio_sd_slot",
-	.vdd_max_uv = 3320000,
-	.vdd_min_uv = 3280000,
-	.max_clk = 208000000,
-	.is_8bit_supported = false, */
-};
-
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 	.wow_gpio = -1,
 	.cd_gpio = -1,
@@ -179,16 +151,6 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 	.vdd_min_uv = -1,
 	.max_clk = 48000000,
 	.is_8bit_supported = true, */
-};
-
-static struct platform_device tegra_sdhci_device0 = {
-	.name		= "sdhci-tegra",
-	.id		= 0,
-	.resource	= sdhci_resource0,
-	.num_resources	= ARRAY_SIZE(sdhci_resource0),
-	.dev = {
-		.platform_data = &tegra_sdhci_platform_data0,
-	},
 };
 
 static struct platform_device tegra_sdhci_device2 = {
@@ -285,7 +247,6 @@ int __init grouper_sdhci_init(void)
 {
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device2);
-	platform_device_register(&tegra_sdhci_device0);
 
 	grouper_wifi_init();
 	return 0;
