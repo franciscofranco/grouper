@@ -1049,8 +1049,12 @@ static void cardhu_pci_init(void)
 		cardhu_pci_platform_data.use_dock_detect = 1;
 		cardhu_pci_platform_data.gpio = DOCK_DETECT_GPIO;
 	}
-	tegra_pci_device.dev.platform_data = &cardhu_pci_platform_data;
-	platform_device_register(&tegra_pci_device);
+	if ((board_info.board_id == BOARD_E1186) ||
+		(board_info.board_id == BOARD_E1187) ||
+		(board_info.board_id == BOARD_E1291)) {
+		tegra_pci_device.dev.platform_data = &cardhu_pci_platform_data;
+		platform_device_register(&tegra_pci_device);
+	}
 }
 
 static void cardhu_modem_init(void)
