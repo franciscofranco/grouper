@@ -637,6 +637,10 @@ static void grouper_panel_early_suspend(struct early_suspend *h)
 		SET_CONSERVATIVE_GOVERNOR_FREQ_STEP);
 #endif
 
+#ifdef CONFIG_PM_DEBUG
+	pr_info("%sed\n", __func__);
+#endif
+
 }
 
 static void grouper_panel_late_resume(struct early_suspend *h)
@@ -647,6 +651,10 @@ static void grouper_panel_late_resume(struct early_suspend *h)
 #endif
 	for (i = 0; i < num_registered_fb; i++)
 		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
+
+#ifdef CONFIG_PM_DEBUG
+	pr_info("%sd\n", __func__);
+#endif
 }
 #endif
 
