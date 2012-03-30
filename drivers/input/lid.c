@@ -116,6 +116,7 @@ static void lid_report_function(struct work_struct *dat)
 		input_report_switch(lid_indev, SW_LID, 0);
 	else
 		input_report_switch(lid_indev, SW_LID, 1);
+	input_sync(lid_indev);
 	LID_NOTICE("SW_LID report value = %d\n", value);
 }
 
