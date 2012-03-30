@@ -66,7 +66,7 @@ ENTRY(tegra_resume)
 
 	cpu_id	r0
 	cmp	r0, #0				@ CPU0?
-	bne	tegra_cpu_resume_phys		@ no
+	bne	cpu_resume			@ no
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	@ Clear the flow controller flags for this CPU.
@@ -92,7 +92,7 @@ ENTRY(tegra_resume)
 	bl	tegra_generic_smc
 #endif
 
-	b	tegra_cpu_resume_phys
+	b	cpu_resume
 ENDPROC(tegra_resume)
 #endif
 

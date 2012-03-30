@@ -201,14 +201,13 @@ ENDPROC(tegra3_cpu_reset)
 #ifdef CONFIG_PM_SLEEP
 
 /*
- * tegra3_sleep_core(unsigned long v2p)
+ * tegra3_sleep_core_finish(unsigned long int)
  *
  * enters suspend in LP0 or LP1 by turning off the mmu and jumping to
  * tegra3_tear_down_core in IRAM
  */
-ENTRY(tegra3_sleep_core)
-	mov	r12, pc 		@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra3_sleep_core_finish)
+	bl	tegra_cpu_exit_coherency
 
 	/* preload all the address literals that are needed for the
 	 * CPU power-gating process, to avoid loads from SDRAM (which are
@@ -227,22 +226,23 @@ ENTRY(tegra3_sleep_core)
 	mov32	r2, TEGRA_IRAM_CODE_AREA
 	add	r1, r1, r2
 	b	tegra_turn_off_mmu
-ENDPROC(tegra3_sleep_core)
+ENDPROC(tegra3_sleep_core_finish)
 
 /*
- * tegra3_sleep_cpu_secondary(unsigned long v2p)
+ * tegra3_sleep_cpu_secondary_finish(unsigned long v2p)
  *
  * Enters LP2 on secondary CPU by exiting coherency and powergating the CPU.
  */
-ENTRY(tegra3_sleep_cpu_secondary)
-	mov	r12, pc 			@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra3_sleep_cpu_secondary_finish)
+	mov	r6, lr
+	bl	tegra_cpu_exit_coherency
 
 	/* Powergate this CPU. */
 	mov	r0, #0				@ power mode flags (!hotplug)
 	bl	tegra3_cpu_reset
-	b	.				@ should never get here
-ENDPROC(tegra3_sleep_cpu_secondary)
+	mov	r0, #1				@ never return here
+	mov	pc, r6
+ENDPROC(tegra3_sleep_cpu_secondary_finish)
 
 /*
  * tegra3_tear_down_cpu

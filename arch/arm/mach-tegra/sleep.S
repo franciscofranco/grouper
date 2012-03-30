@@ -131,84 +131,13 @@ ENDPROC(tegra_cpu_exit_coherency)
 
 #ifdef CONFIG_PM_SLEEP
 /*
- * Restore CPU state for a suspend
- *
- * NOTE: This is a copy of cpu_resume in arch/arm/sleep.S that has been
- *	 modified to work with an L2 cache.
- */
-	.align	L1_CACHE_SHIFT
-ENTRY(tegra_cpu_resume_phys)
-	/* Use the standard cpu_resume. */
-	b	cpu_resume
-ENDPROC(tegra_cpu_resume_phys)
-
-/*
- * tegra_cpu_suspend
- *
- * Save CPU suspend state
- * NOTE: This is a copy of cpu_suspend in arch/arm/sleep.S that has been
- *	 modified to work with an L2 cache.
- *
- * Input:
- *	r1 = v:p offset
- *	lr = return to the caller of this function
- * Output:
- *	sp is decremented to allocate space for CPU state on stack
- * r0-r3,r8,r9,ip,lr corrupted
- */
-	.align	L1_CACHE_SHIFT
-ENTRY(tegra_cpu_suspend)
-	mov	r9, lr
-	adr	lr, tegra_cpu_resume
-	/* Use the standard cpu_suspend. */
-	adr	r3, BSYM(tegra_finish_suspend)
-	b	__cpu_suspend
-
-tegra_finish_suspend:
-	/* Turn off SMP coherency */
-	exit_smp r1, r6
-	mov	pc, r9
-ENDPROC(tegra_cpu_suspend)
-
-/*
- * tegra_cpu_save
- *
- * Input:
- *	r0 = v:p offset
- *	r12 = return to the caller of this function
- * Output:
- *	r0 = v:p offset
- *	r7 = SP after saving the registers but before cpu_suspend, suitable
- *	     for restoring an aborted suspend
- *	sp = SP after tegra_cpu_suspend (the 'real' SP)
- * Saves r4-r11 on the stack
- * Corrupts r1, r3-r11
- */
-
-ENTRY(tegra_cpu_save)
-	push_ctx_regs r1		@ save context registers
-
-	mov	r7, sp			@ SP after reg save, before suspend
-
-	mov	r4, r12
-	mov	r8, r0
-	mov	r11, r2
-	mov	r1, r0
-	bl	tegra_cpu_suspend
-	mov	r0, r8
-	mov	r2, r11
-	mov	pc, r4
-ENDPROC(tegra_cpu_save)
-
-/*
- * tegra_sleep_cpu_save(unsigned long v2p)
+ * tegra_sleep_cpu_finish(unsigned long int)
  *
  * enters suspend in LP2 by turning off the mmu and jumping to
  * tegra?_tear_down_cpu
  */
-ENTRY(tegra_sleep_cpu_save)
-	mov	r12, pc 		@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra_sleep_cpu_finish)
+	bl	tegra_cpu_exit_coherency
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	mov32	r1, tegra2_tear_down_cpu
@@ -217,28 +146,7 @@ ENTRY(tegra_sleep_cpu_save)
 #endif
 	add	r1, r1, r0
 	b	tegra_turn_off_mmu
-ENDPROC(tegra_sleep_cpu_save)
-
-/*
- * tegra_cpu_resume
- *
- * reloads the volatile CPU state from the context area
- * initializes the processor mode stacks
- * the mmu should be on and the CPU should be coherent before this is called
- */
-	.align L1_CACHE_SHIFT
-tegra_cpu_resume:
-	mov	r0, #0
-	mcr	p15, 0, r0, c8, c3, 0	@ invalidate TLB
-	mcr	p15, 0, r0, c7, c5, 6	@ flush BTAC
-	mcr	p15, 0, r0, c7, c5, 0	@ flush instruction cache
-	dsb
-	isb
-
-	bl	cpu_init
-
-	pop_ctx_regs r1, r2		@ restore context registers
-	mov	pc, lr
+ENDPROC(tegra_sleep_cpu_finish)
 
 /*
  * tegra_turn_off_mmu
