@@ -93,17 +93,20 @@ static int max17048_write_word(struct i2c_client *client, int reg, u16 value)
 	return ret;
 }
 
-static uint16_t max17048_read_word(struct i2c_client *client, int reg)
+static int max17048_read_word(struct i2c_client *client, int reg)
 {
-	uint16_t ret;
+	int ret;
 
 	ret = i2c_smbus_read_word_data(client, reg);
 
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in reading register"
 					"0x%02x err %d\n", __func__, reg, ret);
-
-	return swab16(ret);
+		return ret;
+	} else {
+		ret = (int)swab16((uint16_t)(ret & 0x0000ffff));
+		return ret;
+	}
 }
 
 static int max17048_get_property(struct power_supply *psy,
@@ -168,25 +171,26 @@ static int max17048_usb_get_property(struct power_supply *psy,
 static void max17048_get_vcell(struct i2c_client *client)
 {
 	struct max17048_chip *chip = i2c_get_clientdata(client);
-	uint16_t vcell;
+	int vcell;
 
 	vcell = max17048_read_word(client, MAX17048_VCELL);
 	if (vcell < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, vcell);
-
-	chip->vcell = vcell;
+	else
+		chip->vcell = (uint16_t)vcell;
 }
 
 static void max17048_get_soc(struct i2c_client *client)
 {
 	struct max17048_chip *chip = i2c_get_clientdata(client);
-	uint16_t soc;
+	int soc;
 
 	soc = max17048_read_word(client, MAX17048_SOC);
 	if (soc < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, soc);
+	else
+		chip->soc = (uint16_t)soc >> 9;
 
-	chip->soc = soc >> 9;
 	if (chip->soc > MAX17048_BATTERY_FULL) {
 		chip->soc = MAX17048_BATTERY_FULL;
 		chip->status = POWER_SUPPLY_STATUS_FULL;
@@ -305,7 +309,12 @@ static int max17048_load_model_data(struct max17048_chip *chip)
 	int i, ret = 0;
 
 	/* read OCV */
-	ocv = max17048_read_word(client, MAX17048_OCV);
+	ret = max17048_read_word(client, MAX17048_OCV);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+		return ret;
+	}
+	ocv = (uint16_t)ret;
 	if (ocv == 0xffff) {
 		dev_err(&client->dev, "%s: Failed in unlocking"
 					"max17048 err: %d\n", __func__, ocv);
@@ -346,7 +355,12 @@ static int max17048_load_model_data(struct max17048_chip *chip)
 	mdelay(200);
 
 	/* Read SOC Register and compare to expected result */
-	soc_tst = max17048_read_word(client, MAX17048_SOC);
+	ret = max17048_read_word(client, MAX17048_SOC);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+		return ret;
+	}
+	soc_tst = (uint16_t)ret;
 	if (!((soc_tst >> 8) >= mdata->soccheck_A &&
 				(soc_tst >> 8) <=  mdata->soccheck_B)) {
 		dev_err(&client->dev, "%s: soc comparison failed %d\n",
