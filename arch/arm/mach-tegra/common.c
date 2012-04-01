@@ -194,12 +194,12 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "pll_p_out2",	"pll_p",	48000000,	false },
 	{ "pll_p_out3",	"pll_p",	72000000,	true },
 	{ "pll_m_out1",	"pll_m",	275000000,	true },
-	{ "pll_c",	NULL,		ULONG_MAX,	false },
-	{ "pll_c_out1",	"pll_c",	208000000,	false },
 	{ "pll_p_out4",	"pll_p",	108000000,	false },
 	{ "sclk",	"pll_p_out4",	108000000,	true },
 	{ "hclk",	"sclk",		108000000,	true },
 	{ "pclk",	"hclk",		54000000,	true },
+	{ "pll_c",	NULL,		ULONG_MAX,	false },
+	{ "pll_c_out1",	"pll_c",	208000000,	false },
 #endif
 #ifdef CONFIG_TEGRA_SLOW_CSITE
 	{ "csite",	"clk_m",	1000000, 	true },
