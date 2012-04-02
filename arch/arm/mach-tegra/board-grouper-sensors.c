@@ -453,7 +453,7 @@ static int grouper_nct1008_init(void)
 	int nct1008_port = -1;
 	int ret = 0;
 
-	nct1008_port = TEGRA_GPIO_PCC2;
+	nct1008_port = TEGRA_GPIO_PS3;
 	if (nct1008_port >= 0) {
 		/* FIXME: enable irq when throttling is supported */
 		grouper_i2c4_nct1008_board_info[0].irq = TEGRA_GPIO_TO_IRQ(nct1008_port);
@@ -474,6 +474,7 @@ static int grouper_nct1008_init(void)
 
 int __init grouper_sensors_init(void)
 {
+	int err;
 	grouper_camera_init();
 
 #ifdef CONFIG_VIDEO_OV2710
@@ -489,6 +490,9 @@ int __init grouper_sensors_init(void)
 	i2c_register_board_info(0, grouper_i2c0_cm3217_board_info,
 		ARRAY_SIZE(grouper_i2c0_cm3217_board_info));
 
+	err = grouper_nct1008_init();
+	if (err)
+		printk("[Error] Thermal: Configure GPIO_PCC2 as an irq fail!");
 	i2c_register_board_info(4, grouper_i2c4_nct1008_board_info,
 		ARRAY_SIZE(grouper_i2c4_nct1008_board_info));
 

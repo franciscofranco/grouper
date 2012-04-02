@@ -381,12 +381,13 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(SPI2_MISO,       SPI2,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(SPI2_MOSI,       SPI2,            NORMAL,    NORMAL,     INPUT),
 
-	DEFAULT_PINMUX(KB_ROW11,        KBC,             NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(KB_ROW12,        KBC,             NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(KB_ROW13,        KBC,             NORMAL,    TRISTATE,   OUTPUT),
 	/*memory bootstrap*/
 	DEFAULT_PINMUX(GMI_AD4,         NAND,           NORMAL,     NORMAL,     INPUT),
 	DEFAULT_PINMUX(GMI_AD5,         NAND,           NORMAL,     NORMAL,    INPUT),
+	/*nct temp alert*/
+	DEFAULT_PINMUX(KB_ROW11,        KBC,             NORMAL,    NORMAL,     INPUT),
 
 };
 
