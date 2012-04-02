@@ -1564,11 +1564,13 @@ static void utmi_phy_enable_obs_bus(struct tegra_usb_phy *phy,
 		writel(val, base + UTMIP_MISC_CFG0);
 		return;
 	}
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Force DP/DM pulldown active for Host mode */
 	val = readl(base + UTMIP_MISC_CFG0);
 	val |= FORCE_PULLDN_DM | FORCE_PULLDN_DP |
 			COMB_TERMS | ALWAYS_FREE_RUNNING_TERMS;
 	writel(val, base + UTMIP_MISC_CFG0);
+#endif
 	val = readl(base + UTMIP_MISC_CFG0);
 	val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
 	if (port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
@@ -1606,11 +1608,13 @@ static void utmi_phy_disable_obs_bus(struct tegra_usb_phy *phy)
 		val &= ~UTMIP_DPDM_OBSERVE;
 		writel(val, base + UTMIP_MISC_CFG0);
 
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 		/* Release DP/DM pulldown for Host mode */
 		val = readl(base + UTMIP_MISC_CFG0);
 		val &= ~(FORCE_PULLDN_DM | FORCE_PULLDN_DP |
 				COMB_TERMS | ALWAYS_FREE_RUNNING_TERMS);
 		writel(val, base + UTMIP_MISC_CFG0);
+#endif
 	}
 }
 
@@ -1627,6 +1631,16 @@ static int utmi_phy_preresume(struct tegra_usb_phy *phy, bool remote_wakeup)
 	writel(val, base + UTMIP_TX_CFG0);
 
 	port_speed = (readl(base + USB_PORTSC1) >> 26) & 0x3;
+	if (remote_wakeup && (port_speed == TEGRA_USB_PHY_PORT_SPEED_HIGH)) {
+		val = readl(base + USB_USBCMD);
+		val &= ~USB_USBCMD_RS;
+		writel(val, base + USB_USBCMD);
+		if (utmi_wait_register(base + USB_USBSTS,
+			USB_USBSTS_HCH, USB_USBSTS_HCH) < 0) {
+			pr_err("%s: timeout waiting for stopping controller\n", __func__);
+			return -ETIMEDOUT;
+		}
+	}
 	utmi_phy_enable_obs_bus(phy, port_speed);
 
 #else
@@ -1663,13 +1677,28 @@ static int utmi_phy_postresume(struct tegra_usb_phy *phy, bool is_dpd)
 	if (val & UTMIP_MASTER_ENABLE(inst)) {
 		utmip_phy_disable_pmc_bus_ctrl(phy);
 	}
+	utmi_phy_disable_obs_bus(phy);
 #else
+	val = readl(base + USB_USBCMD);
+	if (val & USB_USBCMD_RS) {
+		val &= ~USB_USBCMD_RS;
+		writel(val, base + USB_USBCMD);
+		if (utmi_wait_register(base + USB_USBSTS,
+			USB_USBSTS_HCH, USB_USBSTS_HCH) < 0) {
+			pr_err("%s: timeout waiting for stopping controller\n", __func__);
+			return -ETIMEDOUT;
+		}
+	}
+	writel(val, base + USB_USBCMD);
+	utmi_phy_disable_obs_bus(phy);
+	val = readl(base + USB_USBCMD);
+	val |= USB_USBCMD_RS;
+	writel(val, base + USB_USBCMD);
 	val = readl(base + UTMIP_TX_CFG0);
 	val &= ~UTMIP_HS_DISCON_DISABLE;
 	writel(val, base + UTMIP_TX_CFG0);
 #endif
 
-	utmi_phy_disable_obs_bus(phy);
 
 	return 0;
 }
