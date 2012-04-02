@@ -74,6 +74,7 @@ enum tegra_dma_mode {
 
 /*
  * tegra_dma_req_status: Dma request status
+ * TEGRA_DMA_REQ_PENDING: Request is pending and not programmed in hw.
  * TEGRA_DMA_REQ_SUCCESS: The request has been successfully completed.
  *	  	The byte_transferred tells number of bytes transferred.
  * TEGRA_DMA_REQ_ERROR_ABORTED: The request is aborted by client after
@@ -96,7 +97,8 @@ enum tegra_dma_mode {
  */
 
 enum tegra_dma_req_status {
-	TEGRA_DMA_REQ_SUCCESS = 0,
+	TEGRA_DMA_REQ_PENDING = 0,
+	TEGRA_DMA_REQ_SUCCESS,
 	TEGRA_DMA_REQ_ERROR_ABORTED,
 	TEGRA_DMA_REQ_ERROR_STOPPED,
 	TEGRA_DMA_REQ_INFLIGHT,

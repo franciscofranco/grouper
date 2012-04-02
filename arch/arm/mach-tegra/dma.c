@@ -212,9 +212,17 @@ static void resume_dma(void)
 static void start_head_req(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *head_req;
+	struct tegra_dma_req *next_req;
 	if (!list_empty(&ch->list)) {
 		head_req = list_entry(ch->list.next, typeof(*head_req), node);
 		tegra_dma_update_hw(ch, head_req);
+
+		/* Set next request to idle. */
+		if (!list_is_last(&head_req->node, &ch->list)) {
+			next_req = list_entry(head_req->node.next,
+					typeof(*head_req), node);
+			next_req->status = TEGRA_DMA_REQ_PENDING;
+		}
 	}
 }
 
@@ -501,7 +509,7 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	}
 
 	req->bytes_transferred = 0;
-	req->status = 0;
+	req->status = TEGRA_DMA_REQ_PENDING;
 	/* STATUS_EMPTY just means the DMA hasn't processed the buf yet. */
 	req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_EMPTY;
 	if (list_empty(&ch->list))
