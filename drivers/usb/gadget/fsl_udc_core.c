@@ -85,6 +85,8 @@ static struct fsl_udc *udc_controller = NULL;
 
 /* Enable or disable the callback for the battery driver. */
 #define BATTERY_CALLBACK_ENABLED 1
+/* Enable or disable the callback for the battery driver. */
+#define TOUCH_CALLBACK_ENABLED 1
 
 struct cable_info {
 	/*
@@ -105,6 +107,9 @@ static struct cable_info s_cable_info;
 
 #if BATTERY_CALLBACK_ENABLED
 extern void battery_callback(unsigned cable_status);
+#endif
+#if TOUCH_CALLBACK_ENABLED
+extern void touch_callback(unsigned cable_status);
 #endif
 
 /* Export the function "unsigned int get_usb_cable_status(void)" for others to query the USB cable status. */
@@ -237,6 +242,10 @@ static void cable_detection_work_handler(struct work_struct *w)
 #if BATTERY_CALLBACK_ENABLED
 		battery_callback(s_cable_info.cable_status);
 #endif
+#if TOUCH_CALLBACK_ENABLED
+		touch_callback(s_cable_info.cable_status);
+#endif
+
 
 	} else if (!s_cable_info.udc_vbus_active && s_cable_info.is_active) {
 		switch (fsl_readl(&dr_regs->portsc1) & PORTSCX_LINE_STATUS_BITS) {
@@ -261,6 +270,9 @@ static void cable_detection_work_handler(struct work_struct *w)
 		}
 #if BATTERY_CALLBACK_ENABLED
 		battery_callback(s_cable_info.cable_status);
+#endif
+#if TOUCH_CALLBACK_ENABLED
+		touch_callback(s_cable_info.cable_status);
 #endif
 
 	}

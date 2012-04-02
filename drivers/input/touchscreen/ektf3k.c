@@ -16,7 +16,7 @@
 #define ELAN_BUFFER_MODE
 
 #include <linux/module.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/earlysuspend.h>
 #include <linux/platform_device.h>
@@ -63,6 +63,8 @@
 #define CALIB_PKT			0xA8
 
 #define IDX_FINGER			3
+#define MAX_FINGER_SIZE          31
+#define MAX_FINGER_PRESSURE  255
 
 #define ABS_MT_POSITION         0x2a    /* Group a set of X and Y */
 #define ABS_MT_AMPLITUDE        0x2b    /* Group a set of Z and W */
@@ -141,6 +143,7 @@ static int elan_ktf3k_ts_rough_calibrate(struct i2c_client *client);
 static int elan_ktf3k_ts_hw_reset(struct i2c_client *client);
 static int elan_ktf3k_ts_resume(struct i2c_client *client);
 static struct semaphore pSem;
+static int mTouchStatus[FINGER_NUM] = {0};
 
 // For Firmware Update 
 /* Todo: (1) Need to Add the lock mechanism
@@ -797,7 +800,7 @@ static void update_power_source(){
       elan_ktf3k_ts_get_power_source(private_ts->client);  
 }
 
-void touch_callback_elan(unsigned cable_status){ 
+void touch_callback(unsigned cable_status){ 
       now_usb_cable_status = cable_status;
       update_power_source();
 }
@@ -827,79 +830,49 @@ static void elan_ktf3k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 {
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
 	struct input_dev *idev = ts->input_dev;
-	uint16_t x, y, touch_size;
+	uint16_t x, y, touch_size, pressure_size;
 	uint16_t fbits=0, checksum=0;
 	uint8_t i, num;
-	uint8_t reported = 0;
 	static uint8_t size_index[10] = {35, 35, 36, 36, 37, 37, 38, 38, 39, 39};
+	uint16_t active = 0;
+	uint8_t idx=IDX_FINGER;
 
-        num = buf[2] & 0xf; 
-
+      num = buf[2] & 0xf; 
 	for (i=0; i<34;i++)
 		checksum +=buf[i];
-
-	if ( (num < 3) || ((checksum & 0x00ff) == buf[34])) {   
-     	   switch (buf[0]) {
-	   case NORMAL_PKT:
-	   case TEN_FINGERS_PKT:
-		fbits = buf[2] & 0x30;	
-		fbits = (fbits << 4) | buf[1];  
-		input_report_key(idev, BTN_TOUCH, 1);
-		if (num == 0) {
-			if(unlikely(gPrint_point)) dev_info(&client->dev, "no press\n");
-		} else {
-			uint8_t idx;
-			if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] %d fingers\n", num);
-                        idx=IDX_FINGER;
-                   input_report_key(idev, BTN_TOUCH, 1);
-			for (i = 0; i < FINGER_NUM; i++) {
-			  if ((fbits & 0x1)) {
-			     elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);  
-			     x = ts->abs_x_max - x;
-			     touch_size = ((i & 0x01) ? buf[size_index[i]] : (buf[size_index[i]] >> 4)) & 0x0F;
-			     if(touch_size == 0) touch_size = 1;
-			     if (touch_size <= 7)
-			         touch_size = touch_size << 5;
-			     else
-			         touch_size = 255;
-				 
-			     if (!((x<=0) || (y<=0) || (x>=ts->abs_x_max) || (y>=ts->abs_y_max))) {   
-    				input_report_abs(idev, ABS_MT_TRACKING_ID, i);
-				input_report_abs(idev, ABS_MT_TOUCH_MAJOR, touch_size);
-				input_report_abs(idev, ABS_MT_PRESSURE, touch_size);
-				input_report_abs(idev, ABS_MT_POSITION_X, y);
-				input_report_abs(idev, ABS_MT_POSITION_Y, x);
-				input_mt_sync(idev);
-				if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d\n", i, x, y, touch_size);
-				reported++;
-			     } // end if border
- 			  } // end if finger status
-
-			  fbits = fbits >> 1;
-			  idx += 3;
-			} // end for
-		}
-
-	      if (reported)
-		    input_sync(idev);
-		else {
-		    input_mt_sync(idev);
-		    input_sync(idev);
-		}
-
-		break;
-	   default:
-		dev_err(&client->dev,
-			"[elan] %s: unknown packet type: %0x\n", __func__, buf[0]);
-		break;
-	   } // end switch
-
+	
+       if ((num < 3) || ((checksum & 0x00ff) == buf[34])) { 
+	    fbits = buf[2] & 0x30;	
+	    fbits = (fbits << 4) | buf[1]; 
+          for(i = 0; i < FINGER_NUM; i++){
+              active = fbits & 0x1;
+              if(active || mTouchStatus[i]){
+		     input_mt_slot(ts->input_dev, i);
+                  input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, active);
+                  if(active){
+                      elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);
+			   x = x > ts->abs_x_max ? 0 : ts->abs_x_max - x;
+			   y = y > ts->abs_y_max ? ts->abs_y_max : y; 
+		         touch_size = ((i & 0x01) ? buf[size_index[i]] : (buf[size_index[i]] >> 4)) & 0x0F;
+			   pressure_size = touch_size << 4; // shift left touch size value to 4 bits for max pressure value 255   
+                      input_report_abs(idev, ABS_MT_TOUCH_MAJOR, touch_size);
+                      input_report_abs(idev, ABS_MT_PRESSURE, pressure_size);
+                      input_report_abs(idev, ABS_MT_POSITION_X, y);
+                      input_report_abs(idev, ABS_MT_POSITION_Y, x);
+                      if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
+		     }
+		 }
+		 mTouchStatus[i] = active;
+              fbits = fbits >> 1;
+              idx += 3;
+	    }
+          input_sync(idev);
 	} // checksum
 	else {
 		checksum_err +=1;
 		printk("[elan] Checksum Error %d byte[2]=%X\n", checksum_err, buf[2]);
-	} 
-
+	}   
+     	
 	return;
 }
 
@@ -910,52 +883,40 @@ static void elan_ktf3k_ts_report_data2(struct i2c_client *client, uint8_t *buf)
 	uint16_t x, y, touch_size, pressure_size;
 	uint16_t fbits=0, checksum=0;
 	uint8_t i, num;
-	uint8_t reported = 0;
+	uint16_t active = 0; 
+	uint8_t idx=IDX_FINGER;
 
-        num = buf[2] & 0xf;
+      num = buf[2] & 0xf;
 	for (i=0; i<34;i++)
 		checksum +=buf[i];
-
+	
 	if ( (num < 3) || ((checksum & 0x00ff) == buf[34])) {   
           fbits = buf[2] & 0x30;	
-	    fbits = (fbits << 4) | buf[1];  
-	    input_report_key(idev, BTN_TOUCH, 1);
-	    if (num == 0) {
-	        if(unlikely(gPrint_point)) dev_info(&client->dev, "no press\n");
-		} else {
-		    uint8_t idx;
-		    if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] %d fingers\n", num);
-                     idx=IDX_FINGER;
-                 input_report_key(idev, BTN_TOUCH, 1);
-		    for (i = 0; i < FINGER_NUM; i++) {
-		        if ((fbits & 0x1)) {
-	                  elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);  
-			     x = ts->abs_x_max - x;
-			     touch_size = buf[35 + i] << 3;
-			     pressure_size = buf[45 + i];	 
-			     if (!((x<=0) || (y<=0) || (x>=ts->abs_x_max) || (y>=ts->abs_y_max))) {   
-    			         input_report_abs(idev, ABS_MT_TRACKING_ID, i);
-                            input_report_abs(idev, ABS_MT_TOUCH_MAJOR, touch_size);
-                            input_report_abs(idev, ABS_MT_PRESSURE, pressure_size);
-                            input_report_abs(idev, ABS_MT_POSITION_X, y);
-                            input_report_abs(idev, ABS_MT_POSITION_Y, x);
-                            input_mt_sync(idev);
-                            if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
-                            reported++;
-			     } // end if border
- 			  } // end if finger status
-
-			  fbits = fbits >> 1;
-			  idx += 3;
-		    } // end for
-		}
-
-	      if(reported)
-	          input_sync(idev);
-		else {
-		    input_mt_sync(idev);
-		    input_sync(idev);
-		}
+	    fbits = (fbits << 4) | buf[1]; 
+	    //input_report_key(idev, BTN_TOUCH, 1);
+          for(i = 0; i < FINGER_NUM; i++){
+              active = fbits & 0x1;
+              if(active || mTouchStatus[i]){
+		     input_mt_slot(ts->input_dev, i);
+                  input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, active);
+                  if(active){
+		         elan_ktf3k_ts_parse_xy(&buf[idx], &x, &y);
+                      x = x > ts->abs_x_max ? 0 : ts->abs_x_max - x;
+			   y = y > ts->abs_y_max ? ts->abs_y_max : y;
+			   touch_size = buf[35 + i];
+			   pressure_size = buf[45 + i];	 
+			   input_report_abs(idev, ABS_MT_TOUCH_MAJOR, touch_size);
+			   input_report_abs(idev, ABS_MT_PRESSURE, pressure_size);
+			   input_report_abs(idev, ABS_MT_POSITION_X, y);
+			   input_report_abs(idev, ABS_MT_POSITION_Y, x);
+			   if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
+		     }
+		 }
+		 mTouchStatus[i] = active;
+              fbits = fbits >> 1;
+              idx += 3;
+	    }
+          input_sync(idev);
 	} // checksum
 	else {
 		checksum_err +=1;
@@ -1260,24 +1221,20 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 	}
 	ts->input_dev->name = "elan-touchscreen";  
 
-	set_bit(BTN_TOUCH, ts->input_dev->keybit);
+	//set_bit(BTN_TOUCH, ts->input_dev->keybit);
 	ts->abs_x_max =  pdata->abs_x_max;
 	ts->abs_y_max = pdata->abs_y_max;
 	dev_info(&client->dev, "[Elan] Max X=%d, Max Y=%d\n", ts->abs_x_max, ts->abs_y_max);
-	input_set_abs_params(ts->input_dev, ABS_X, pdata->abs_x_min,  pdata->abs_x_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_Y, pdata->abs_y_min,  pdata->abs_y_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_TOOL_WIDTH, 0, 255, 0, 0);
+
+	input_mt_init_slots(ts->input_dev, FINGER_NUM);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, pdata->abs_y_min,  pdata->abs_y_max, 0, 0); // for 800 * 1280 
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, pdata->abs_x_min,  pdata->abs_x_max, 0, 0);// for 800 * 1280 
-	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, FINGER_NUM, 0, 0);	// james Max Finger number is 5
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, MAX_FINGER_SIZE, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, MAX_FINGER_SIZE, 0, 0);
 
 	__set_bit(EV_ABS, ts->input_dev->evbit);
 	__set_bit(EV_SYN, ts->input_dev->evbit);
 	__set_bit(EV_KEY, ts->input_dev->evbit);
-	__set_bit(BTN_TOUCH, ts->input_dev->evbit);
 	
 
 	err = input_register_device(ts->input_dev);

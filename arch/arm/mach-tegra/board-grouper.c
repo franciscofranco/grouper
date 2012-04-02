@@ -705,8 +705,8 @@ static int elan_touch_init(void)
 
 #if defined(CONFIG_TOUCHSCREEN_ELAN_TF_3K)
 	platform = (struct elan_ktf3k_i2c_platform_data *)elan_i2c_devices[0].platform_data;
-	platform->abs_x_max = ELAN_X_MAX_370T;
-	platform->abs_y_max = ELAN_Y_MAX_370T;
+	platform->abs_x_max = ELAN_X_MAX_370T - 1;
+	platform->abs_y_max = ELAN_Y_MAX_370T - 1;
 	printk("[ELAN] Touch dirver register\n");
 	i2c_register_board_info(1, elan_i2c_devices, 1);
 #endif
