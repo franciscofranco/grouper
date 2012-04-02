@@ -1013,6 +1013,16 @@ err_cmdbuf_mmap:
 	return ret;
 }
 
+static int nvavp_wake_avp_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg)
+{
+	wmb();
+	/* wake up avp */
+	writel(0xA0000001, NVAVP_OS_OUTBOX);
+	return 0;
+}
+
+
 static int tegra_nvavp_open(struct inode *inode, struct file *filp)
 {
 	struct miscdevice *miscdev = filp->private_data;
@@ -1102,6 +1112,9 @@ static long tegra_nvavp_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case NVAVP_IOCTL_GET_CLOCK:
 		ret = nvavp_get_clock_ioctl(filp, cmd, arg);
+		break;
+	case NVAVP_IOCTL_WAKE_AVP:
+		ret = nvavp_wake_avp_ioctl(filp, cmd, arg);
 		break;
 	default:
 		ret = -EINVAL;
