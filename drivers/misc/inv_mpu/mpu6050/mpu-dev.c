@@ -35,6 +35,10 @@
 #include <linux/suspend.h>
 #include <linux/poll.h>
 
+#include <linux/delay.h>
+#include <linux/timer.h>
+#include <linux/jiffies.h>
+
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -42,6 +46,7 @@
 #include <linux/wait.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #include "mpuirq.h"
 #include "slaveirq.h"
@@ -50,6 +55,8 @@
 #include <linux/mpu.h>
 
 #include "accel/mpu6050.h"
+struct delayed_work mpu_init_work;
+#define MPU_INIT_DELAY 200
 
 /* Platform data for the MPU */
 struct mpu_private_data {
@@ -77,6 +84,7 @@ struct mpu_private_data {
 	struct module *slave_modules[EXT_SLAVE_NUM_TYPES];
 };
 
+static int mpu_delay_init(void);
 struct mpu_private_data *mpu_private_data;
 
 static void mpu_pm_timeout(u_long data)
@@ -1295,6 +1303,15 @@ static struct i2c_driver mpu_driver = {
 static int __init mpu_init(void)
 {
 	printk(KERN_INFO "%s+ #####\n", __func__);
+	INIT_DELAYED_WORK(&mpu_init_work, mpu_delay_init);
+	schedule_delayed_work(&mpu_init_work, MPU_INIT_DELAY);
+	printk(KERN_INFO "%s- #####\n", __func__);
+}
+
+static int mpu_delay_init(void)
+{
+	printk(KERN_INFO "%s+ #####\n", __func__);
+
 	int res = i2c_add_driver(&mpu_driver);
 	pr_info("%s: Probe name %s\n", __func__, MPU_NAME);
 	if (res)
