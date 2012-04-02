@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/cm3217.h>
 #include <linux/mpu.h>
 #include <linux/regulator/consumer.h>
 #include <asm/mach-types.h>
@@ -48,19 +47,6 @@ static const struct i2c_board_info cardhu_i2c1_board_info_al3010[] = {
 	{
 		I2C_BOARD_INFO("al3010",0x1C),
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PZ2),
-	},
-};
-
-static struct cm3217_platform_data grouper_cm3217_pdata = {
-	.levels = {10, 160, 225, 320, 640, 1280, 2600, 5800, 8000, 10240},
-	.golden_adc = 0,
-	.power = 0,
-};
-
-static struct i2c_board_info grouper_i2c0_cm3217_board_info[] = {
-	{
-		I2C_BOARD_INFO("cm3217", 0x10),
-		.platform_data = &grouper_cm3217_pdata,
 	},
 };
 
@@ -486,9 +472,6 @@ int __init grouper_sensors_init(void)
     pr_info("mi1040 i2c_register_board_info");
 	i2c_register_board_info(2, front_sensor_i2c2_board_info,
 		ARRAY_SIZE(front_sensor_i2c2_board_info));
-
-	i2c_register_board_info(0, grouper_i2c0_cm3217_board_info,
-		ARRAY_SIZE(grouper_i2c0_cm3217_board_info));
 
 	err = grouper_nct1008_init();
 	if (err)
