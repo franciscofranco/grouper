@@ -10,7 +10,7 @@
 
 #ifndef __MAX17048_BATTERY_H_
 #define __MAX17048_BATTERY_H_
-#include <linux/smb349-charger.h>
+#include <linux/smb347-charger.h>
 
 struct max17048_battery_model {
 	uint8_t rcomp;

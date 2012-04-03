@@ -38,7 +38,7 @@
 #include <linux/nfc/pn544.h>
 #include <linux/skbuff.h>
 #include <linux/regulator/consumer.h>
-#include <linux/smb349-charger.h>
+#include <linux/smb347-charger.h>
 #include <linux/max17048_battery.h>
 #include <linux/leds.h>
 #include <linux/i2c/at24.h>
@@ -299,10 +299,9 @@ static struct i2c_board_info cardhu_i2c4_bq27541_board_info[] = {
 	}
 };
 
-static struct i2c_board_info grouper_i2c4_smb349_board_info[] = {
+static struct i2c_board_info grouper_i2c4_smb347_board_info[] = {
 	{
-		I2C_BOARD_INFO("smb349", 0x1B),
-		.irq = MAX77663_GPIO_BASE + MAX77663_GPIO1,
+		I2C_BOARD_INFO("smb347", 0x6a),
 	},
 };
 
@@ -337,8 +336,8 @@ static void grouper_i2c_init(void)
 	i2c_register_board_info(4, cardhu_i2c4_bq27541_board_info,
 		ARRAY_SIZE(cardhu_i2c4_bq27541_board_info));
 
-	i2c_register_board_info(4, grouper_i2c4_smb349_board_info,
-		ARRAY_SIZE(grouper_i2c4_smb349_board_info));
+	i2c_register_board_info(4, grouper_i2c4_smb347_board_info,
+		ARRAY_SIZE(grouper_i2c4_smb347_board_info));
 
 	i2c_register_board_info(4, &rt5640_board_info, 1);
 
