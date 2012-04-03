@@ -45,13 +45,12 @@ static __initdata struct tegra_clk_init_table p852_clk_init_table[] = {
 	{"uartb",       "pll_p",      216000000,    true},
 	{"uartc",       "pll_p",      216000000,    true},
 	{"uartd",       "pll_p",      216000000,    true},
-	{"pll_m",       "clk_m",      600000000,    true},
 	{"pll_m_out1",  "pll_m",      240000000,    true},
 	{"pll_p_out4",  "pll_p",      240000000,    true},
 	{"host1x",      "pll_p",      166000000,    true},
 	{"disp1",       "pll_p",      216000000,    true},
 	{"vi",          "pll_m",      100000000,    true},
-	{"csus",        "pll_m",      100000000,    true},
+	{"csus",        "clk_m",      12000000,     true},
 	{"emc",         "pll_m",      600000000,    true},
 	{"pll_c",       "clk_m",      600000000,    true},
 	{"pll_c_out1",  "pll_c",      240000000,    true},
@@ -667,7 +666,7 @@ void __init p852_common_init(void)
 
 	platform_add_devices(p852_devices, ARRAY_SIZE(p852_devices));
 
-	//p852_panel_init();
+	p852_panel_init();
 
 	p852_spi_init();
 
