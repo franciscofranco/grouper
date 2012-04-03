@@ -237,7 +237,7 @@ static int tegra_ehci_hub_control(
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
 	int		ports = HCS_N_PORTS(ehci->hcs_params);
-	u32		temp, status;
+	u32		temp, status, cmd_run;
 	u32 __iomem	*status_reg;
 	u32		usbsts_reg;
 
@@ -246,7 +246,6 @@ static int tegra_ehci_hub_control(
 	unsigned	selector;
 	struct		tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 	bool		hsic = false;
-	bool do_post_resume = false;
 
 	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	if (!tegra->host_resumed) {
@@ -273,27 +272,29 @@ static int tegra_ehci_hub_control(
 		goto done;
 	} else if (typeReq == GetPortStatus) {
 		temp = ehci_readl(ehci, status_reg);
-		if (tegra->port_resuming && !(temp & PORT_SUSPEND) &&
-			time_after_eq(jiffies, ehci->reset_done[wIndex-1])) {
-			clear_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
-			ehci->reset_done[wIndex-1] = 0;
-			do_post_resume = true;
-		} else if (tegra->port_resuming && (temp & PORT_RESUME) &&
-			time_after_eq(jiffies, ehci->reset_done[wIndex-1]) ) {
-			do_post_resume = true;
-		}
-
-		if (do_post_resume) {
+		/* check port is in resume state */
+		if (tegra->port_resuming) {
+			int delay = ehci->reset_done[wIndex-1] - jiffies;
+			/* Sometimes it seems we get called too soon... In that case, wait.*/
+			if (delay > 0) {
+				ehci_dbg(ehci, "GetPortStatus called too soon, waiting %dms...\n", delay);
+				mdelay(jiffies_to_msecs(delay));
+			}
+			/* Ensure the port PORT_SUSPEND and PORT_RESUME has cleared */
+			if (handshake(ehci, status_reg, (PORT_SUSPEND | PORT_RESUME), 0, 25000)) {
+				pr_err("%s: timeout waiting for SUSPEND to clear\n", __func__);
+			}
 			tegra->port_resuming = 0;
 			tegra_usb_phy_postresume(tegra->phy, false);
 			if (tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) {
 				ehci->command |= CMD_RUN;
+				cmd_run = ehci_readl(ehci, &ehci->regs->command);
+				cmd_run |= CMD_RUN;
 				/*
 				 * ehci run bit is disabled to avoid SOF.
 				 * 2LS WAR is executed by now enable the run bit.
 				 */
-				ehci_writel(ehci, ehci->command,
-					&ehci->regs->command);
+				ehci_writel(ehci, cmd_run, &ehci->regs->command);
 				/* Now we can safely re-enable irqs */
 				ehci_writel(ehci, INTR_MASK, &ehci->regs->intr_enable);
 			}
@@ -322,14 +323,23 @@ static int tegra_ehci_hub_control(
 			pr_err("%s: timeout waiting for SUSPEND\n", __func__);
 
 		set_bit((wIndex & 0xff) - 1, &ehci->suspended_ports);
-
+		/*
+		 * If RUN bit is disabled interrupt is not generated after suspend.
+		 * This change on T20 will allow ASE interrupt generated after suspend
+		 * which will unlink the qheads.
+		 */
+#ifndef CONFIG_ARCH_TEGRA_2x_SOC
 		if (tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) {
 			/* Disable RUN bit. */
 			ehci->command &= ~CMD_RUN;
-			ehci_writel(ehci, ehci->command,
-				&ehci->regs->command);
+			cmd_run = ehci_readl(ehci, &ehci->regs->command);
+			cmd_run &= ~CMD_RUN;
+			ehci_writel(ehci, cmd_run, &ehci->regs->command);
+			if (handshake (ehci, &ehci->regs->status,
+						  STS_HALT, STS_HALT, 16 * 125))
+				pr_err("%s() timeout waiting for STS_HALT\n", __func__);
 		}
-
+#endif
 		tegra_usb_phy_postsuspend(tegra->phy, false);
 
 		goto done;
@@ -368,8 +378,12 @@ static int tegra_ehci_hub_control(
 			ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 			/* Disable RUN bit. */
 			ehci->command &= ~CMD_RUN;
-			ehci_writel(ehci, ehci->command,
-				&ehci->regs->command);
+			cmd_run = ehci_readl(ehci, &ehci->regs->command);
+			cmd_run &= ~CMD_RUN;
+			ehci_writel(ehci, cmd_run, &ehci->regs->command);
+			if (handshake (ehci, &ehci->regs->status,
+						  STS_HALT, STS_HALT, 16 * 125))
+				pr_err("%s() timeout waiting for STS_HALT\n", __func__);
 		}
 
 		/* Disable disconnect detection during port resume */
@@ -585,8 +599,7 @@ static int tegra_usb_resume(struct usb_hcd *hcd, bool is_dpd)
 	/* Force the phy to keep data lines in suspend state */
 	tegra_ehci_phy_restore_start(tegra->phy, tegra->port_speed);
 
-	if ((tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) &&
-		(tegra->ehci->has_hostpc)) {
+	if (tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) {
 		ehci_reset(ehci);
 	}
 
@@ -615,6 +628,11 @@ static int tegra_usb_resume(struct usb_hcd *hcd, bool is_dpd)
 	/* Check if the phy resume from LP0. When the phy resume from LP0
 	 * USB register will be reset. */
 	if (!readl(&hw->async_next)) {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+		/* Start the controller */
+		val = readl(&hw->command);
+		writel((val | CMD_RUN), &hw->command);
+#endif
 		/* Program the field PTC based on the saved speed mode */
 		val = readl(&hw->port_status[0]);
 		val &= ~PORT_TEST(~0);
