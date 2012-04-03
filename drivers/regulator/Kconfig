@@ -379,14 +379,6 @@ config REGULATOR_RICOH583
 	help
 	  This driver supports regulator driver for RICOH583 PMIC.
 
-config REGULATOR_GPIO_SWITCH
-	bool "GPIO based enable/disable of power rails."
-	default n
-	help
-	  This driver supports gpio based switch control of the power rails.
-	  Say Yes if the given platform have the rail enable through the
-	  gpios.
-
 config REGULATOR_AAT2870
 	tristate "AnalogicTech AAT2870 Regulators"
 	depends on MFD_AAT2870_CORE
