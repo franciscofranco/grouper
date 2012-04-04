@@ -40,7 +40,8 @@
 #define MAX17048_UNLOCK_VALUE	0x4a57
 #define MAX17048_RESET_VALUE	0x5400
 #define MAX17048_DELAY		1000
-#define MAX17048_BATTERY_FULL	95
+#define MAX17048_BATTERY_FULL	100
+#define MAX17048_BATTERY_LOW	15
 #define MAX17048_VERSION_NO	0x11
 
 struct max17048_chip {
@@ -60,6 +61,10 @@ struct max17048_chip {
 	int soc;
 	/* State Of Charge */
 	int status;
+	/* battery health */
+	int health;
+	/* battery capacity */
+	int capacity_level;
 
 	int lasttime_vcell;
 	int lasttime_soc;
@@ -117,6 +122,12 @@ static int max17048_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = chip->soc;
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		val->intval = chip->health;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		val->intval = chip->capacity_level;
 		break;
 	default:
 	return -EINVAL;
@@ -176,6 +187,18 @@ static void max17048_get_soc(struct i2c_client *client)
 		dev_err(&client->dev, "%s: err %d\n", __func__, soc);
 
 	chip->soc = soc >> 9;
+	if (chip->soc > MAX17048_BATTERY_FULL) {
+		chip->soc = MAX17048_BATTERY_FULL;
+		chip->status = POWER_SUPPLY_STATUS_FULL;
+		chip->capacity_level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+		chip->health = POWER_SUPPLY_HEALTH_GOOD;
+	} else if (chip->soc < MAX17048_BATTERY_LOW) {
+		chip->health = POWER_SUPPLY_HEALTH_DEAD;
+		chip->capacity_level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+	} else {
+		chip->health = POWER_SUPPLY_HEALTH_GOOD;
+		chip->capacity_level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	}
 }
 
 static uint16_t max17048_get_version(struct i2c_client *client)
@@ -222,8 +245,6 @@ static void max17048_battery_status(enum charging_states status,
 	else
 		chip->status = POWER_SUPPLY_STATUS_DISCHARGING;
 
-	if (chip->soc > MAX17048_BATTERY_FULL)
-			chip->status = POWER_SUPPLY_STATUS_FULL;
 
 	power_supply_changed(&chip->battery);
 	power_supply_changed(&chip->usb);
@@ -234,6 +255,8 @@ static enum power_supply_property max17048_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 };
 
 static enum power_supply_property max17048_ac_props[] = {
