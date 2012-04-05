@@ -386,7 +386,7 @@ static int inv_get_silicon_rev_mpu6050(
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-
+	prod_ver &= 0xF;
 	result = inv_serial_read_mem(mlsl_handle, mldl_cfg->mpu_chip_info->addr,
 				     memAddr, 1, &prod_rev);
 	if (result) {
