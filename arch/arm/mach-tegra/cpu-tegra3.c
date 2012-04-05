@@ -209,7 +209,11 @@ static noinline int tegra_cpu_speed_balance(void)
 
 	return TEGRA_CPU_SPEED_BALANCED;
 }
-
+void disable_auto_hotplug(void)
+{
+	hp_state=TEGRA_HP_DISABLED;
+	cancel_delayed_work(&hotplug_work);
+}
 static void tegra_auto_hotplug_work_func(struct work_struct *work)
 {
 	bool up = false;
