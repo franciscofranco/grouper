@@ -81,7 +81,7 @@ static struct kobj_attribute jtagdis_attr =
 	__ATTR(jtag_disable, 0440, fuse_show, fuse_store);
 
 static struct kobj_attribute odm_prod_mode_attr =
-	__ATTR(odm_production_mode, 0440, fuse_show, fuse_store);
+	__ATTR(odm_production_mode, 0444, fuse_show, fuse_store);
 
 static struct kobj_attribute sec_boot_dev_cfg_attr =
 	__ATTR(sec_boot_dev_cfg, 0440, fuse_show, fuse_store);
@@ -125,61 +125,79 @@ struct param_info {
 
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
 
+/* private_key4 */
 #define DEVKEY_START_OFFSET 0x12
-#define DEVKEY_START_BIT    0x08
+#define DEVKEY_START_BIT    8
 
+/* arm_debug_dis */
 #define JTAG_START_OFFSET 0x0
-#define JTAG_START_BIT    0x24
+#define JTAG_START_BIT    24
 
+/* security_mode */
 #define ODM_PROD_START_OFFSET 0x0
-#define ODM_PROD_START_BIT    0x23
+#define ODM_PROD_START_BIT    23
 
+/* boot_device_info */
 #define SB_DEVCFG_START_OFFSET 0x14
-#define SB_DEVCFG_START_BIT    0x08
+#define SB_DEVCFG_START_BIT    8
 
+/* reserved_sw[2:0] */
 #define SB_DEVSEL_START_OFFSET 0x14
-#define SB_DEVSEL_START_BIT    0x24
+#define SB_DEVSEL_START_BIT    24
 
+/* private_key0 -> private_key3 */
 #define SBK_START_OFFSET 0x0A
-#define SBK_START_BIT    0x08
+#define SBK_START_BIT    8
 
+/* reserved_sw[7:4] */
 #define SW_RESERVED_START_OFFSET 0x14
-#define SW_RESERVED_START_BIT    0x28
+#define SW_RESERVED_START_BIT    28
 
+/* reserved_sw[3] */
 #define IGNORE_DEVSEL_START_OFFSET 0x14
-#define IGNORE_DEVSEL_START_BIT    0x27
+#define IGNORE_DEVSEL_START_BIT    27
 
-#define ODM_RESERVED_DEVSEL_START_OFFSET 0X16
-#define ODM_RESERVED_START_BIT    0X4
+/* reserved_odm0 -> reserved_odm7 */
+#define ODM_RESERVED_DEVSEL_START_OFFSET 0x16
+#define ODM_RESERVED_START_BIT           4
 
 #elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
 
-#define DEVKEY_START_OFFSET 0x14
-#define DEVKEY_START_BIT    0x22
+/* private_key4 */
+#define DEVKEY_START_OFFSET 0x16
+#define DEVKEY_START_BIT    22
 
+/* arm_debug_dis */
 #define JTAG_START_OFFSET 0x0
-#define JTAG_START_BIT    0x24
+#define JTAG_START_BIT    24
 
+/* security_mode */
 #define ODM_PROD_START_OFFSET 0x0
-#define ODM_PROD_START_BIT    0x23
+#define ODM_PROD_START_BIT    23
 
+/* boot_device_info */
 #define SB_DEVCFG_START_OFFSET 0x18
-#define SB_DEVCFG_START_BIT    0x22
+#define SB_DEVCFG_START_BIT    22
 
+/* reserved_sw[2:0] */
 #define SB_DEVSEL_START_OFFSET 0x1A
-#define SB_DEVSEL_START_BIT    0x06
+#define SB_DEVSEL_START_BIT    6
 
+/* private_key0 -> private_key3 */
 #define SBK_START_OFFSET 0x0E
-#define SBK_START_BIT    0x22
+#define SBK_START_BIT    22
 
+/* reserved_sw[7:4] */
 #define SW_RESERVED_START_OFFSET 0x1A
-#define SW_RESERVED_START_BIT    0x10
+#define SW_RESERVED_START_BIT    10
 
+/* reserved_sw[3] */
 #define IGNORE_DEVSEL_START_OFFSET 0x1A
-#define IGNORE_DEVSEL_START_BIT    0x09
+#define IGNORE_DEVSEL_START_BIT    9
 
-#define ODM_RESERVED_DEVSEL_START_OFFSET 0X1A
-#define ODM_RESERVED_START_BIT    0X14
+/* reserved_odm0 -> reserved_odm7 */
+#define ODM_RESERVED_DEVSEL_START_OFFSET 0x1A
+#define ODM_RESERVED_START_BIT    14
 
 #else
 
@@ -931,14 +949,13 @@ static int __init tegra_fuse_program_init(void)
 	{
 		devkey_attr.attr.mode = 0640;
 		jtagdis_attr.attr.mode = 0640;
-		odm_prod_mode_attr.attr.mode = 0640;
 		sec_boot_dev_cfg_attr.attr.mode = 0640;
 		sec_boot_dev_sel_attr.attr.mode = 0640;
 		sbk_attr.attr.mode = 0640;
 		sw_rsvd_attr.attr.mode = 0640;
 		ignore_dev_sel_straps_attr.attr.mode = 0640;
 		odm_rsvd_attr.attr.mode = 0640;
-		odm_prod_mode_attr.attr.mode = 0640;
+		odm_prod_mode_attr.attr.mode = 0644;
 	}
 
 	CHK_ERR(sysfs_create_file(fuse_kobj, &odm_prod_mode_attr.attr));
