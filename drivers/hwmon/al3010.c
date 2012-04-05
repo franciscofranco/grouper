@@ -59,6 +59,7 @@ struct al3010_data {
 };
 
 static int revise_lux_times = 2;
+static bool al3010_hardware_fail = false;
 
 static int al3010_update_calibration();
 /*
@@ -251,6 +252,9 @@ static ssize_t al3010_show_power_state(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
+	if(al3010_hardware_fail==true){
+		return sprintf(buf, "%d\n", 0);
+	}
 	struct i2c_client *client = to_i2c_client(dev);
 	return sprintf(buf, "%d\n", al3010_get_power_state(client));
 }
@@ -292,6 +296,9 @@ static ssize_t al3010_refresh_calibration(struct device *dev,
 static ssize_t al3010_show_revise_lux(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
+	if(al3010_hardware_fail==true){
+		return sprintf(buf, "%d\n", -1);
+	}
 	struct i2c_client *client = to_i2c_client(dev);
 
 	/* No LUX data if not operational */
@@ -405,8 +412,11 @@ static int __devinit al3010_probe(struct i2c_client *client,
 	/* initialize the AL3010 chip */
 	err = al3010_init_client(client);
 	if (err){
-		printk("light sensor err : al3010 init fail\n");
-		goto exit_kfree;
+		printk("light sensor info : al3010 hardware fail\n");
+		printk("light sensor info : keep al3010 driver alive\n");
+		err = 0;
+		al3010_hardware_fail = true;
+		//goto exit_kfree;
 	}
 
 	/* register sysfs hooks */
@@ -439,6 +449,10 @@ static int __devexit al3010_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int al3010_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	if(al3010_hardware_fail==true){
+		printk("al3010_suspend\n");
+		return 0;
+	}
 	printk("al3010_suspend+\n");
 	int ret = 0;
 	struct al3010_data *data = i2c_get_clientdata(client);
@@ -453,6 +467,10 @@ static int al3010_suspend(struct i2c_client *client, pm_message_t mesg)
 
 static int al3010_resume(struct i2c_client *client)
 {
+	if(al3010_hardware_fail==true){
+		printk("al3010_resume\n");
+		return 0;
+	}
 	printk("al3010_resume+\n");
 	int i;
 	int ret=0;
