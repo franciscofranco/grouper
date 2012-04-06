@@ -788,8 +788,8 @@ static void kai_audio_init(void)
 static void kai_nfc_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PX0);
-	tegra_gpio_enable(TEGRA_GPIO_PP3);
-	tegra_gpio_enable(TEGRA_GPIO_PO7);
+	tegra_gpio_enable(TEGRA_GPIO_PS7);
+	tegra_gpio_enable(TEGRA_GPIO_PR3);
 }
 
 static void __init tegra_kai_init(void)
