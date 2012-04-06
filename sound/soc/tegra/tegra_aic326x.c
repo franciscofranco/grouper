@@ -35,7 +35,7 @@
 #include <linux/switch.h>
 #endif
 
-#include <mach/tegra_aic326x_pdata.h>
+#include <mach/tegra_asoc_pdata.h>
 
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -85,7 +85,7 @@ const char *tegra_i2s_dai_name[TEGRA30_NR_I2S_IFC] = {
 
 struct tegra_aic326x {
 	struct tegra_asoc_utils_data util_data;
-	struct tegra_aic326x_platform_data *pdata;
+	struct tegra_asoc_platform_data *pdata;
 	struct regulator *audio_reg;
 	int gpio_requested;
 	bool init_done;
@@ -574,7 +574,7 @@ static void tegra_aic326x_shutdown(struct snd_pcm_substream *substream)
 	 } else {
 
 		if (!i2s->is_call_mode_rec)
-			return 0;
+			return;
 
 		i2s->is_call_mode_rec = 0;
 
@@ -872,7 +872,7 @@ static int tegra_aic326x_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_aic326x *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_aic326x_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_SPKR_EN))
 		return 0;
@@ -889,7 +889,7 @@ static int tegra_aic326x_event_hp(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_aic326x *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_aic326x_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_HP_MUTE))
 		return 0;
@@ -944,7 +944,7 @@ static int tegra_aic326x_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_aic326x *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_aic326x_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	struct tegra30_i2s *i2s = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 #endif
@@ -1141,7 +1141,7 @@ static __devinit int tegra_aic326x_driver_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_tegra_aic326x;
 	struct tegra_aic326x *machine;
-	struct tegra_aic326x_platform_data *pdata;
+	struct tegra_asoc_platform_data *pdata;
 	int ret, i;
 
 	pdata = pdev->dev.platform_data;
@@ -1227,7 +1227,7 @@ static int __devexit tegra_aic326x_driver_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_aic326x *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_aic326x_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	snd_soc_unregister_card(card);
 
