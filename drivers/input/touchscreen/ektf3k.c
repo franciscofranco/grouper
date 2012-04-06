@@ -1419,7 +1419,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 21;
 	ts->early_suspend.suspend = elan_ktf3k_ts_early_suspend;
 	ts->early_suspend.resume = elan_ktf3k_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
