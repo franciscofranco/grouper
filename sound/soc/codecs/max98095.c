@@ -2238,7 +2238,11 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	}
 
 	/* reset the codec, the DSP core, and disable all interrupts */
-	max98095_reset(codec);
+	ret = max98095_reset(codec);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to reset: %d\n", ret);
+		return ret;
+	}
 
 	/* initialize private data */
 
