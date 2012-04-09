@@ -119,7 +119,7 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 		.embedded_sdio = &embedded_sdio_data2,
 		.built_in = 1,
 	},
-	.wow_gpio = GROUPER_SDIO_WOW,
+	.wow_gpio = -1,
 	.cd_gpio = -1,
 	.wp_gpio = -1,
 	.power_gpio = -1,
