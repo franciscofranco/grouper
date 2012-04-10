@@ -4865,6 +4865,5 @@ int cardhu_emc_init(void)
 				ARRAY_SIZE(cardhu_emc_tables_h5tc2g_a2_2GB1R));
 		break;
 	}
-
 	return 0;
 }

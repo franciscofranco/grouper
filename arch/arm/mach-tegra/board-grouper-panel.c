@@ -182,6 +182,7 @@ static struct platform_device grouper_backlight_device = {
 
 static int grouper_panel_enable(void)
 {
+
 	if (grouper_lvds_reg == NULL) {
 		grouper_lvds_reg = regulator_get(NULL, "vdd_lvds");
 		if (WARN_ON(IS_ERR(grouper_lvds_reg)))
@@ -200,39 +201,43 @@ static int grouper_panel_enable(void)
 			regulator_enable(grouper_lvds_vdd_panel);
 	}
 
-	mdelay(5);
+	mdelay(20);
 
-	gpio_set_value(grouper_lvds_avdd_en, 1);
-	mdelay(5);
+//	gpio_set_value(grouper_lvds_avdd_en, 1);
+//	mdelay(5);
 
 	//gpio_set_value(grouper_lvds_stdby, 1);
-	gpio_set_value(grouper_lvds_rst, 1);
+//	gpio_set_value(grouper_lvds_rst, 1);
 	gpio_set_value(grouper_lvds_shutdown, 1);
-	gpio_set_value(grouper_lvds_lr, 1);
+//	gpio_set_value(grouper_lvds_lr, 1);
 
-	mdelay(10);
+	mdelay(200);
 
 	return 0;
 }
 
 static int grouper_panel_disable(void)
 {
-	gpio_set_value(grouper_lvds_lr, 0);
+//	gpio_set_value(grouper_lvds_lr, 0);
+	mdelay(200);
 	gpio_set_value(grouper_lvds_shutdown, 0);
-	gpio_set_value(grouper_lvds_rst, 0);
+//	gpio_set_value(grouper_lvds_rst, 0);
 	//gpio_set_value(grouper_lvds_stdby, 0);
+
+//	gpio_set_value(grouper_lvds_avdd_en, 0);
+
 	mdelay(5);
+	if (grouper_lvds_reg) {
+		regulator_disable(grouper_lvds_reg);
+		regulator_put(grouper_lvds_reg);
+		grouper_lvds_reg = NULL;
+	}
 
-	gpio_set_value(grouper_lvds_avdd_en, 0);
-	mdelay(5);
-
-	regulator_disable(grouper_lvds_reg);
-	regulator_put(grouper_lvds_reg);
-	grouper_lvds_reg = NULL;
-
-	regulator_disable(grouper_lvds_vdd_panel);
-	regulator_put(grouper_lvds_vdd_panel);
-	grouper_lvds_vdd_panel = NULL;
+	if (grouper_lvds_vdd_panel) {
+		regulator_disable(grouper_lvds_vdd_panel);
+		regulator_put(grouper_lvds_vdd_panel);
+		grouper_lvds_vdd_panel = NULL;
+	}
 
 	return 0;
 }
@@ -670,6 +675,7 @@ int __init grouper_panel_init(void)
 	grouper_carveouts[1].base = tegra_carveout_start;
 	grouper_carveouts[1].size = tegra_carveout_size;
 #endif
+/*
 	gpio_request(grouper_lvds_avdd_en, "lvds_avdd_en");
 	gpio_direction_output(grouper_lvds_avdd_en, 1);
 	tegra_gpio_enable(grouper_lvds_avdd_en);
@@ -695,11 +701,12 @@ int __init grouper_panel_init(void)
 	gpio_request(grouper_lvds_lr, "lvds_lr");
 	gpio_direction_output(grouper_lvds_lr, 1);
 	tegra_gpio_enable(grouper_lvds_lr);
-
+*/
+/*
 	gpio_request(grouper_lvds_shutdown, "lvds_shutdown");
 	gpio_direction_output(grouper_lvds_shutdown, 1);
 	tegra_gpio_enable(grouper_lvds_shutdown);
-
+*/
 	tegra_gpio_enable(grouper_hdmi_hpd);
 	gpio_request(grouper_hdmi_hpd, "hdmi_hpd");
 	gpio_direction_input(grouper_hdmi_hpd);

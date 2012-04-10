@@ -461,7 +461,7 @@ FIXED_REG(4, en_vddio_vid_a00,	en_vddio_vid,		NULL,
 FIXED_REG(5, en_3v3_modem_a00,	en_3v3_modem,		NULL,
 	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a00,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a00),
-	0,	0,	TEGRA_GPIO_PW1,				true,	0,	3300);
+	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
 FIXED_REG(7, en_cam3_ldo_a00,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
 FIXED_REG(8, en_vdd_com_a00,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a00),
@@ -485,7 +485,7 @@ FIXED_REG(4, en_vddio_vid_a01,	en_vddio_vid,		NULL,
 FIXED_REG(5, en_3v3_modem_a01,	en_3v3_modem,		NULL,
 	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a01,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a01),
-	0,	0,	TEGRA_GPIO_PW1,				true,	0,	3300);
+	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
 FIXED_REG(7, en_cam3_ldo_a01,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a01),
 	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
 FIXED_REG(8, en_vdd_com_a01,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a01),
