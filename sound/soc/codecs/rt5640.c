@@ -99,7 +99,7 @@ static struct rt5640_init_reg init_list[] = {
 //	{RT5640_REC_R2_MIXER	, 0x007d},//Mic1 -> RECMIXR
 	{RT5640_REC_L2_MIXER	, 0x006f},//Mic2 -> RECMIXL
 	{RT5640_REC_R2_MIXER	, 0x006f},//Mic2 -> RECMIXR
-	{RT5640_STO_ADC_MIXER	, 0x3020},//ADC -> Sto ADC mixer
+	{RT5640_STO_ADC_MIXER	, 0x1000},//ADC -> Sto ADC mixer
 #if RT5640_DET_EXT_MIC
 	{RT5640_MICBIAS	, 0x3800},/* enable MICBIAS short current */
 	{RT5640_GPIO_CTRL1	, 0x8400},/* set GPIO1 to IRQ */
@@ -111,12 +111,12 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_PRIV_DATA	, 0x2000},
 	{RT5640_PRIV_INDEX	, 0x0091},
 	{RT5640_PRIV_DATA	, 0x1000},
-	{RT5640_DSP_PATH2	, 0x0c00},
 	{RT5640_STO_DAC_MIXER	, 0x0404},
 	{RT5640_LOUT_MIXER	, 0x3000},
-	{RT5640_I2S1_SDP	, 0xd000},
+	{RT5640_I2S1_SDP	, 0xe000},
 };
 #define RT5640_INIT_REG_LEN ARRAY_SIZE(init_list)
+
 int rt5640_conn_mux_path(struct snd_soc_codec *codec,
 		char *widget_name, char *path_name)
 {
@@ -583,6 +583,78 @@ static int rt5640_readable_register(
 	}
 }
 
+/**
+ * rt5640_conn_mixer_path - connect mixer widget path.
+ * @codec: SoC audio codec device.
+ * @widget_name: widget name.
+ * @path_name: path name.
+ * @turn: enable or disable.
+ *
+ * Make mixer path connected and update register.
+ *
+ * Returns 0 for success or negative error code.
+ */
+int rt5640_conn_mixer_path(struct snd_soc_codec *codec,
+	char *widget_name, char *path_name, bool turn)
+{
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_path *path;
+	struct snd_kcontrol_new *kcontrol;
+	struct soc_mixer_control *mc;
+	unsigned int val, mask, bitmask;
+	int i, update = 0;
+
+	if (codec == NULL || widget_name == NULL || path_name == NULL)
+		return -EINVAL;
+
+	list_for_each_entry(w, &dapm->card->widgets, list)
+	{
+		if (!w->name || w->dapm != dapm)
+			continue;
+		if (!(strcmp(w->name, widget_name))) {
+			if (w->id != snd_soc_dapm_mixer)
+				return -EINVAL;
+			dev_info(codec->dev, "w->name=%s\n", w->name);
+			list_for_each_entry(path, &w->sources, list_sink)
+			{
+				if (path->name &&
+					!(strcmp(path->name, path_name))) {
+					path->connect = turn;
+					dev_info(codec->dev,
+						"path->name=%s connect=%d\n",
+						path->name, path->connect);
+					break;
+				}
+			}
+			update = 1;
+			break;
+		}
+	}
+
+	if (update) {
+		snd_soc_dapm_sync(dapm);
+
+		kcontrol = &w->kcontrols[0];
+		for (i = 0; i < w->num_kcontrols; i++) {
+			if (!strcmp(path_name, w->kcontrol_news[i].name)) {
+				mc = (struct soc_mixer_control *)
+					w->kcontrol_news[i].private_value;
+				mask = (1 << fls(mc->max)) - 1;
+				val = turn;
+				if (mc->invert)
+					val = mc->max - val;
+				mask = mask << mc->shift;
+				val = val << mc->shift;
+				snd_soc_update_bits(codec, mc->reg, mask, val);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rt5640_conn_mixer_path);
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);

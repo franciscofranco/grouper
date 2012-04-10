@@ -2123,5 +2123,7 @@ struct rt5640_priv {
 
 int rt5640_conn_mux_path(struct snd_soc_codec *codec,
 		char *widget_name, char *path_name);
+int rt5640_conn_mixer_path(struct snd_soc_codec *codec,
+		char *widget_name, char *path_name, bool enable);
 
 #endif /* __RT5640_H__ */

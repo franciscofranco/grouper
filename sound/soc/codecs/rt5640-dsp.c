@@ -422,6 +422,14 @@ static int rt5640_dsp_play_bp_put(struct snd_kcontrol *kcontrol,
 		rt5640->dsp_play_pass ? "IF2" : "TxDC");
 	rt5640_conn_mux_path(codec, "DAC R2 Mux",
 		rt5640->dsp_play_pass ? "IF2" : "TxDC");
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXL",
+		"DAC L1 Switch", rt5640->dsp_play_pass);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXL",
+		"DAC L2 Switch", !rt5640->dsp_play_pass);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXR",
+		"DAC R1 Switch", rt5640->dsp_play_pass);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXR",
+		"DAC R2 Switch", !rt5640->dsp_play_pass);
 
 	return 0;
 }
@@ -451,6 +459,14 @@ static int rt5640_dsp_rec_bp_put(struct snd_kcontrol *kcontrol,
 		rt5640->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
 	rt5640_conn_mux_path(codec, "IF2 ADC R Mux",
 		rt5640->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXL",
+		"ADC1 Switch", rt5640->dsp_rec_pass);
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXR",
+		"ADC1 Switch", rt5640->dsp_rec_pass);
+	rt5640_conn_mixer_path(codec, "Mono ADC MIXL",
+		"ADC1 Switch", !rt5640->dsp_rec_pass);
+	rt5640_conn_mixer_path(codec, "Mono ADC MIXR",
+		"ADC1 Switch", !rt5640->dsp_rec_pass);
 
 	return 0;
 }
@@ -957,10 +973,10 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 			return 0;
 		power_on--;
 		if (!power_on) {
-		snd_soc_update_bits(codec, RT5640_PWR_DIG2,
-			RT5640_PWR_I2S_DSP, 0);
-		snd_soc_update_bits(codec, RT5640_DSP_CTRL3,
-			RT5640_DSP_PD_PIN_MASK, RT5640_DSP_PD_PIN_LO);
+			snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+				RT5640_PWR_I2S_DSP, 0);
+			snd_soc_update_bits(codec, RT5640_DSP_CTRL3,
+				RT5640_DSP_PD_PIN_MASK, RT5640_DSP_PD_PIN_LO);
 		}
 		break;
 
@@ -969,10 +985,9 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 		if (rt5640->dsp_sw == RT5640_DSP_DIS || 2 <= power_on)
 			return 0;
 		if (!power_on) {
-
-		snd_soc_update_bits(codec, RT5640_PWR_DIG2,
-			RT5640_PWR_I2S_DSP, RT5640_PWR_I2S_DSP);
-		rt5640_dsp_snd_effect(codec);
+			snd_soc_update_bits(codec, RT5640_PWR_DIG2,
+				RT5640_PWR_I2S_DSP, RT5640_PWR_I2S_DSP);
+			rt5640_dsp_snd_effect(codec);
 		}
 		power_on++;
 		break;
@@ -1134,28 +1149,47 @@ EXPORT_SYMBOL_GPL(rt5640_dsp_probe);
 
 int do_rt5640_dsp_set_mode(struct snd_soc_codec *codec, int mode) {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
+
 	if(DBG) printk("%s mode=%d\n",__func__,mode);
+
 	if(rt5640->dsp_sw == mode)
 		return 0;
 	rt5640->dsp_sw = mode;
-	if(rt5640->dsp_sw == RT5640_DSP_DIS)
-		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 1;
-	else
-		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 0;
-	rt5640_conn_mux_path(codec, "DAC L2 Mux",
-		rt5640->dsp_play_pass ? "IF2" : "TxDC");
-	rt5640_conn_mux_path(codec, "DAC R2 Mux",
-		rt5640->dsp_play_pass ? "IF2" : "TxDC");
-	rt5640_conn_mux_path(codec, "IF2 ADC L Mux",
-		rt5640->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
-	rt5640_conn_mux_path(codec, "IF2 ADC R Mux",
-		rt5640->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
-	
-	if(rt5640->dsp_sw != RT5640_DSP_DIS)
-	rt5640_dsp_snd_effect(codec);
 
+	if(rt5640->dsp_sw == RT5640_DSP_DIS) {
+		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 1;
+		snd_soc_update_bits(codec, RT5640_DSP_PATH1,
+			RT5640_RXDP_SRC_MASK | RT5640_TXDP_SRC_MASK, 0);
+		snd_soc_update_bits(codec, RT5640_ASRC_1,
+			RT5640_M1_T_MASK, RT5640_M1_T_I2S2);
+	} else {
+		rt5640->dsp_play_pass = rt5640->dsp_rec_pass = 0;
+		snd_soc_update_bits(codec, RT5640_DSP_PATH1,
+			RT5640_RXDP_SRC_MASK | RT5640_TXDP_SRC_MASK,
+			RT5640_RXDP_SRC_DIV3 | RT5640_TXDP_SRC_DIV3);
+		snd_soc_update_bits(codec, RT5640_ASRC_1,
+			RT5640_M1_T_MASK, RT5640_M1_T_I2S2_D3);
+	}
+	rt5640_conn_mux_path(codec, "SDI1 TX Mux",
+		rt5640->dsp_play_pass ? "IF1" : "IF2");
+	//Stereo DAC MIXL
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXL", "DAC L1 Switch", true);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXR", "DAC R1 Switch", true);
+	//Stereo ADC MIXL
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXL", "ADC1 Switch", true);
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXR", "ADC1 Switch", true);
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXL",
+		"ADC2 Switch", rt5640->dsp_rec_pass);
+	rt5640_conn_mixer_path(codec, "Stereo ADC MIXR",
+		"ADC2 Switch", rt5640->dsp_rec_pass);
+	//Mono ADC MIXL
+	rt5640_conn_mixer_path(codec, "Mono ADC MIXL",
+		"ADC2 Switch", !rt5640->dsp_rec_pass);
+	rt5640_conn_mixer_path(codec, "Mono ADC MIXR",
+		"ADC2 Switch", !rt5640->dsp_rec_pass);
 	return 0;
 }
+
 EXPORT_SYMBOL_GPL(do_rt5640_dsp_set_mode);
 
 #ifdef RTK_IOCTL
