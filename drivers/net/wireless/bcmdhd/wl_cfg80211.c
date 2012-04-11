@@ -2517,7 +2517,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 			return -EINVAL;
 		}
 		swap_key_from_BE(&key);
-#ifdef CONFIG_BCMDHD_WEXT
+#if defined(CONFIG_WIRELESS_EXT)
 		dhd_wait_pend8021x(dev);
 #endif
 		wldev_iovar_setbuf_bsscfg(dev, "wsec_key", &key, sizeof(key),

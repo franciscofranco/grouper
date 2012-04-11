@@ -162,7 +162,7 @@ uint wl_msg_level = WL_ERROR_VAL;
 #define htodchanspec(i) i
 #define dtohchanspec(i) i
 
-#ifdef CONFIG_BCMDHD_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 
 extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 extern int dhd_wait_pend8021x(struct net_device *dev);
