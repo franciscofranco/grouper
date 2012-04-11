@@ -982,11 +982,6 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 		plat->mmc_data.register_status_notify(sdhci_status_notify_cb, host);
 	}
 
-	if (gpio_is_valid(plat->wow_gpio)) {
-		printk("%s: enable Wi-Fi wake event\n",mmc_hostname(host->mmc));
-		enable_irq_wake(gpio_to_irq(plat->wow_gpio));
-        }
-
 	if (plat->mmc_data.status) {
 		plat->mmc_data.card_present = plat->mmc_data.status(mmc_dev(host->mmc));
 	}

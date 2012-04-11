@@ -620,9 +620,6 @@ int wl_android_post_init(void)
 	char buf[IFNAMSIZ];
 	if (!dhd_download_fw_on_driverload) {
 		/* Call customer gpio to turn off power with WL_REG_ON signal */
-#if !defined(OOB_INTR_ONLY)
-		sdioh_stop(NULL);
-#endif /* !defined(OOB_INTR_ONLY) */
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 		g_wifi_on = 0;
 	} else {
