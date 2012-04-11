@@ -37,6 +37,7 @@
 #include "../../arch/arm/mach-tegra/gpio-names.h"
 #include "../../arch/arm/mach-tegra/wakeups-t3.h"
 
+#define REMOVE_USB_POWER_SUPPLY
 #define SMBUS_RETRY                                     (0)
 #define BAT_IN_DET                                        TEGRA_GPIO_PN4
 #define GPIOPIN_BATTERY_DETECT	         BAT_IN_DET
@@ -466,9 +467,13 @@ void battery_callback(unsigned usb_cable_state)
 			power_supply_changed(&bq27541_supply[Charger_Type_USB]);
 		}
 		#endif
-	}else if ( battery_cable_status == USB_Cable){
+	}
+	#ifndef REMOVE_USB_POWER_SUPPLY
+	else if ( battery_cable_status == USB_Cable){
 		power_supply_changed(&bq27541_supply[Charger_Type_USB]);
-	}else if ( battery_cable_status == USB_AC_Adapter){
+	}
+	#endif
+	else if ( battery_cable_status == USB_AC_Adapter){
 		power_supply_changed(&bq27541_supply[Charger_Type_AC]);
 	}
 	cancel_delayed_work(&bq27541_device->status_poll_work);
