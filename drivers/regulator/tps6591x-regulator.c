@@ -93,6 +93,7 @@ struct tps6591x_regulator {
 	/* Time (micro sec) taken for 1uV change */
 	int voltage_change_uv_per_us;
 	unsigned int config_flags;
+	bool shutdown_state_off;
 };
 
 static inline struct device *to_tps6591x_dev(struct regulator_dev *rdev)
@@ -154,7 +155,15 @@ static int __tps6591x_ext_control_set(struct device *parent,
 	addr = ext_reg->addr + offset;
 	mask = ((1 << ext_reg->nbits) - 1) << ext_reg->shift_bits;
 
-	return tps6591x_update(parent, addr, mask, mask);
+	ret = tps6591x_update(parent, addr, mask, mask);
+	if (!ret && (ri->desc.id == TPS6591X_ID_VDDCTRL)) {
+		uint8_t reg_val = ri->supply_reg.cache_val;
+		reg_val &= ~0x3;
+		ret = tps6591x_write(parent, ri->supply_reg.addr, reg_val);
+		if (!ret)
+			ri->supply_reg.cache_val = reg_val;
+	}
+	return ret;
 }
 
 static void wait_for_voltage_change(struct tps6591x_regulator *ri, int uV)
@@ -481,7 +490,12 @@ static int tps6591x_regulator_enable(struct regulator_dev *rdev)
 	int ret;
 
 	reg_val = ri->supply_reg.cache_val;
-	reg_val |= 0x1;
+
+	if ((ri->desc.id == TPS6591X_ID_VDDCTRL) &&
+		(ri->ectrl == EXT_CTRL_EN1))
+		reg_val &= ~0x3;
+	else
+		reg_val |= 0x1;
 
 	ret = tps6591x_write(parent, ri->supply_reg.addr, reg_val);
 	if (!ret)
@@ -827,6 +841,7 @@ static int __devinit tps6591x_regulator_probe(struct platform_device *pdev)
 	tps_pdata = pdev->dev.platform_data;
 	ri->ectrl = tps_pdata->ectrl;
 	ri->config_flags = tps_pdata->flags;
+	ri->shutdown_state_off = tps_pdata->shutdown_state_off;
 
 	if (tps_pdata->slew_rate_uV_per_us)
 		ri->voltage_change_uv_per_us = tps_pdata->slew_rate_uV_per_us;
@@ -871,14 +886,18 @@ static void tps6591x_regulator_shutdown(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct tps6591x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6591x_dev(rdev);
-	int ret;
 
+#if 0
 	if (ri->ectrl == EXT_CTRL_EN1) {
 		ret = tps6591x_clr_bits(parent, ri->en1_reg.addr,
 				(1 << ri->en1_reg.shift_bits));
 		if (ret < 0)
 			dev_err(&pdev->dev, "Error in clearing external control\n");
+	}
+#endif
+	if (ri->shutdown_state_off) {
+		dev_info(&pdev->dev, "Shutting down %s\n",ri->desc.name);
+		tps6591x_regulator_disable(rdev);
 	}
 }
 
