@@ -158,6 +158,25 @@ static int __tps6591x_ext_control_set(struct device *parent,
 	ret = tps6591x_update(parent, addr, mask, mask);
 	if (!ret && (ri->desc.id == TPS6591X_ID_VDDCTRL)) {
 		uint8_t reg_val = ri->supply_reg.cache_val;
+
+		pr_err("%s(): EN1 reg: mask 0x%02x:0x%02x\n",
+				__func__, addr, mask);
+		/* Wait for 5ms to reflect the change in HW */
+		mdelay(5);
+		ret = tps6591x_read(parent, addr, &reg_val);
+		if (ret < 0) {
+			pr_err("%s(): Error on reading reg 0x%2x, err %d\n",
+			__func__, addr, ret);
+			return ret;
+		}
+		if ((reg_val & mask) != mask) {
+			pr_err("%s(): Error on writing reg 0x%2x, err %d\n",
+			__func__, addr, ret);
+			return -EBUSY;
+		}
+
+		reg_val = ri->supply_reg.cache_val;
+		
 		reg_val &= ~0x3;
 		ret = tps6591x_write(parent, ri->supply_reg.addr, reg_val);
 		if (!ret)
