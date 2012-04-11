@@ -539,6 +539,9 @@ static struct tegra_dc_out grouper_disp1_out = {
 
 	.enable		= grouper_panel_enable,
 	.disable	= grouper_panel_disable,
+
+	.height		= 162,
+	.width		= 104,
 };
 
 #ifdef CONFIG_TEGRA_DC
