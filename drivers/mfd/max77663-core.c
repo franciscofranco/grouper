@@ -1388,7 +1388,6 @@ static int max77663_probe(struct i2c_client *client,
 	struct max77663_platform_data *pdata = client->dev.platform_data;
 	struct max77663_chip *chip;
 	int ret = 0;
-	u8 g_cid4=0;
 	//=================stree test ===================
 	int rc;
 	//=================stree test end=================
