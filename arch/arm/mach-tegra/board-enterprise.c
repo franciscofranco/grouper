@@ -51,7 +51,7 @@
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
 #include <mach/i2s.h>
-#include <mach/tegra_max98088_pdata.h>
+#include <mach/tegra_asoc_pdata.h>
 #include <mach/thermal.h>
 #include <mach/tegra-bb-power.h>
 #include "board.h"
@@ -226,7 +226,7 @@ static struct tegra_i2c_platform_data enterprise_i2c3_platform_data = {
 static struct tegra_i2c_platform_data enterprise_i2c4_platform_data = {
 	.adapter_nr	= 3,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 100000, 0 },
+	.bus_clk_rate	= { 10000, 0 },
 	.scl_gpio		= {TEGRA_GPIO_PV4, 0},
 	.sda_gpio		= {TEGRA_GPIO_PV5, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -348,6 +348,11 @@ static struct i2c_board_info __initdata max98088_board_info = {
 	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET),
 };
 
+static struct i2c_board_info __initdata enterprise_codec_aic326x_info = {
+	I2C_BOARD_INFO("aic3262-codec", 0x18),
+	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_HP_DET),
+};
+
 static struct i2c_board_info __initdata nfc_board_info = {
 	I2C_BOARD_INFO("pn544", 0x28),
 	.platform_data = &nfc_pdata,
@@ -369,6 +374,7 @@ static void enterprise_i2c_init(void)
 	platform_device_register(&tegra_i2c_device1);
 
 	i2c_register_board_info(0, &max98088_board_info, 1);
+	i2c_register_board_info(0, &enterprise_codec_aic326x_info, 1);
 	i2c_register_board_info(0, &nfc_board_info, 1);
 }
 
@@ -485,12 +491,14 @@ static struct platform_device tegra_camera = {
 	.id = -1,
 };
 
-static struct tegra_max98088_platform_data enterprise_audio_pdata = {
+static struct tegra_asoc_platform_data enterprise_audio_pdata = {
 	.gpio_spkr_en		= -1,
 	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
 	.gpio_hp_mute		= -1,
 	.gpio_int_mic_en	= -1,
 	.gpio_ext_mic_en	= -1,
+	.debounce_time_hp = -1,
+	/*defaults for Enterprise board*/
 	.audio_port_id		= {
 		[HIFI_CODEC] = 0,
 		[BASEBAND] = 2,
@@ -507,6 +515,33 @@ static struct platform_device enterprise_audio_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data  = &enterprise_audio_pdata,
+	},
+};
+
+static struct tegra_asoc_platform_data enterprise_audio_aic326x_pdata = {
+	.gpio_spkr_en		= -1,
+	.gpio_hp_det		= TEGRA_GPIO_HP_DET,
+	.gpio_hp_mute		= -1,
+	.gpio_int_mic_en	= -1,
+	.gpio_ext_mic_en	= -1,
+	/*defaults for Verbier-Enterprise (E1197) board with TI AIC326X codec*/
+	.audio_port_id		= {
+		[HIFI_CODEC] = 0,
+		[BASEBAND] = 2,
+		[BT_SCO] = 3,
+	},
+	.baseband_param		= {
+		.rate = 8000,
+		.channels = 1,
+		.bit_format = TEGRA_DAIFMT_DSP_A,
+	},
+};
+
+static struct platform_device enterprise_audio_aic326x_device = {
+	.name	= "tegra-snd-aic326x",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &enterprise_audio_aic326x_pdata,
 	},
 };
 
@@ -775,6 +810,8 @@ static struct platform_device *enterprise_audio_devices[] __initdata = {
 	&tegra_dam_device0,
 	&tegra_dam_device1,
 	&tegra_dam_device2,
+	&tegra_i2s_device0,
+	&tegra_i2s_device1,
 	&tegra_i2s_device2,
 	&tegra_i2s_device3,
 	&tegra_spdif_device,
@@ -783,6 +820,7 @@ static struct platform_device *enterprise_audio_devices[] __initdata = {
 	&baseband_dit_device,
 	&tegra_pcm_device,
 	&enterprise_audio_device,
+	&enterprise_audio_aic326x_device,
 };
 
 static void enterprise_audio_init(void)
@@ -790,11 +828,9 @@ static void enterprise_audio_init(void)
 	struct board_info board_info;
 
 	tegra_get_board_info(&board_info);
-	if (board_info.board_id == BOARD_E1197) {
-		platform_device_register(&tegra_i2s_device1);
+
+	if (board_info.board_id == BOARD_E1197)
 		enterprise_audio_pdata.audio_port_id[HIFI_CODEC] = 1;
-	} else
-		platform_device_register(&tegra_i2s_device0);
 
 	platform_add_devices(enterprise_audio_devices,
 			ARRAY_SIZE(enterprise_audio_devices));

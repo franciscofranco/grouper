@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-touch-synaptics-spi.c
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -35,20 +35,26 @@ static struct rmi_f19_button_map synaptics_button_map = {
 	.map = synaptics_button_codes,
 };
 
-static int synaptics_touchpad_gpio_setup(void)
+static int synaptics_touchpad_gpio_setup(void *gpio_data, bool configure)
 {
-	tegra_gpio_enable(SYNAPTICS_ATTN_GPIO);
-	gpio_request(SYNAPTICS_ATTN_GPIO, "synaptics-irq");
-	gpio_direction_input(SYNAPTICS_ATTN_GPIO);
+	if (configure) {
+		tegra_gpio_enable(SYNAPTICS_ATTN_GPIO);
+		gpio_request(SYNAPTICS_ATTN_GPIO, "synaptics-irq");
+		gpio_direction_input(SYNAPTICS_ATTN_GPIO);
 
-	tegra_gpio_enable(SYNAPTICS_RESET_GPIO);
-	gpio_request(SYNAPTICS_RESET_GPIO, "synaptics-reset");
-	gpio_direction_output(SYNAPTICS_RESET_GPIO, 0);
+		tegra_gpio_enable(SYNAPTICS_RESET_GPIO);
+		gpio_request(SYNAPTICS_RESET_GPIO, "synaptics-reset");
+		gpio_direction_output(SYNAPTICS_RESET_GPIO, 0);
 
-	msleep(1);
-	gpio_set_value(SYNAPTICS_RESET_GPIO, 1);
-	msleep(100);
-
+		msleep(1);
+		gpio_set_value(SYNAPTICS_RESET_GPIO, 1);
+		msleep(100);
+	} else {
+		gpio_free(SYNAPTICS_ATTN_GPIO);
+		gpio_free(SYNAPTICS_RESET_GPIO);
+		tegra_gpio_disable(SYNAPTICS_ATTN_GPIO);
+		tegra_gpio_disable(SYNAPTICS_RESET_GPIO);
+	}
 	return 0;
 }
 

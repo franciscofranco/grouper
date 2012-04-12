@@ -50,12 +50,14 @@ struct smb349_charger {
 };
 
 int smb349_battery_online(void);
-typedef void (*callback_t)(enum usb_otg_state otg_state, void *args);
+typedef void (*callback_t)(enum usb_otg_state to,
+		enum usb_otg_state from, void *args);
 /*
  * Register callback function for the client.
  * Used by fuel-gauge driver to get battery charging properties.
  */
 extern int register_callback(charging_callback_t cb, void *args);
 extern int register_otg_callback(callback_t cb, void *args);
+extern int update_charger_status(void);
 
 #endif /*__LINUX_SMB349_CHARGER_H */

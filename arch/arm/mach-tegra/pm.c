@@ -33,6 +33,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/suspend.h>
+#include <linux/earlysuspend.h>
 #include <linux/slab.h>
 #include <linux/serial_reg.h>
 #include <linux/seq_file.h>
@@ -42,6 +43,7 @@
 #include <linux/memblock.h>
 #include <linux/console.h>
 #include <linux/pm_qos_params.h>
+#include <linux/tegra_audio.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu_pm.h>
@@ -50,6 +52,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/suspend.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -67,6 +70,7 @@
 #include "sleep.h"
 #include "timer.h"
 #include "dvfs.h"
+#include "cpu-tegra.h"
 
 struct suspend_context {
 	/*
@@ -92,9 +96,6 @@ struct suspend_context {
 };
 
 #ifdef CONFIG_PM_SLEEP
-#if USE_TEGRA_CPU_SUSPEND
-void *tegra_cpu_context;	/* non-cacheable page for CPU context */
-#endif
 phys_addr_t tegra_pgd_phys;	/* pgd used by hotplug & LP2 bootup */
 static pgd_t *tegra_pgd;
 static DEFINE_SPINLOCK(tegra_lp2_lock);
@@ -261,63 +262,6 @@ static __init int create_suspend_pgtable(void)
 	return 0;
 }
 
-/*
- * alloc_suspend_context
- *
- * Allocate a non-cacheable page to hold the CPU contexts.
- * The standard ARM CPU context save functions don't work if there's
- * an external L2 cache controller (like a PL310) in system.
- */
-static __init int alloc_suspend_context(void)
-{
-#if USE_TEGRA_CPU_SUSPEND
-	pgprot_t prot = __pgprot_modify(pgprot_kernel, L_PTE_MT_MASK,
-					L_PTE_MT_BUFFERABLE | L_PTE_XN);
-	struct page *ctx_page;
-	unsigned long ctx_virt = 0;
-	pgd_t *pgd;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	ctx_page = alloc_pages(GFP_KERNEL, 0);
-	if (IS_ERR_OR_NULL(ctx_page))
-		goto fail;
-
-	tegra_cpu_context = vm_map_ram(&ctx_page, 1, -1, prot);
-	if (IS_ERR_OR_NULL(tegra_cpu_context))
-		goto fail;
-
-	/* Add the context page to our private pgd. */
-	ctx_virt = (unsigned long)tegra_cpu_context;
-
-	pgd = tegra_pgd + pgd_index(ctx_virt);
-	if (!pgd_present(*pgd))
-		goto fail;
-	pmd = pmd_offset(pgd, ctx_virt);
-	if (!pmd_none(*pmd))
-		goto fail;
-	pte = pte_alloc_kernel(pmd, ctx_virt);
-	if (!pte)
-		goto fail;
-
-	set_pte_ext(pte, mk_pte(ctx_page, prot), 0);
-
-	outer_clean_range(__pa(pmd), __pa(pmd + 1));
-
-	return 0;
-
-fail:
-	if (ctx_page)
-		__free_page(ctx_page);
-	if (ctx_virt)
-		vm_unmap_ram((void*)ctx_virt, 1);
-	tegra_cpu_context = NULL;
-	return -ENOMEM;
-#else
-	return 0;
-#endif
-}
-
 /* ensures that sufficient time is passed for a register write to
  * serialize into the 32KHz domain */
 static void pmc_32kwritel(u32 val, unsigned long offs)
@@ -365,14 +309,6 @@ static void restore_cpu_complex(u32 mode)
 	unsigned int reg, policy;
 
 	BUG_ON(cpu != 0);
-
-	/* restore original PLL settings */
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	writel(tegra_sctx.pllp_misc, clk_rst + CLK_RESET_PLLP_MISC);
-	writel(tegra_sctx.pllp_base, clk_rst + CLK_RESET_PLLP_BASE);
-	writel(tegra_sctx.pllp_outa, clk_rst + CLK_RESET_PLLP_OUTA);
-	writel(tegra_sctx.pllp_outb, clk_rst + CLK_RESET_PLLP_OUTB);
-#endif
 
 	/* Is CPU complex already running on PLLX? */
 	reg = readl(clk_rst + CLK_RESET_CCLK_BURST);
@@ -558,9 +494,9 @@ static void tegra_sleep_core(enum tegra_suspend_mode mode,
 	}
 #endif
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	tegra2_sleep_core(v2p);
+	cpu_suspend(v2p, tegra2_sleep_core_finish);
 #else
-	tegra3_sleep_core(v2p);
+	cpu_suspend(v2p, tegra3_sleep_core_finish);
 #endif
 }
 
@@ -571,7 +507,7 @@ static inline void tegra_sleep_cpu(unsigned long v2p)
 			  (TEGRA_RESET_HANDLER_BASE +
 			   tegra_cpu_reset_handler_offset));
 #endif
-	tegra_sleep_cpu_save(v2p);
+	cpu_suspend(v2p, tegra_sleep_cpu_finish);
 }
 
 unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
@@ -843,11 +779,23 @@ static void tegra_suspend_check_pwr_stats(void)
 int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 {
 	int err = 0;
+	u32 scratch37 = 0xDEADBEEF;
 
 	if (WARN_ON(mode <= TEGRA_SUSPEND_NONE ||
 		mode >= TEGRA_MAX_SUSPEND_MODE)) {
 		err = -ENXIO;
 		goto fail;
+	}
+
+	if (tegra_is_voice_call_active()) {
+		u32 reg;
+
+		/* backup the current value of scratch37 */
+		scratch37 = readl(pmc + PMC_SCRATCH37);
+
+		/* If voice call is active, set a flag in PMC_SCRATCH37 */
+		reg = TEGRA_POWER_LP1_AUDIO;
+		pmc_32kwritel(reg, PMC_SCRATCH37);
 	}
 
 	if ((mode == TEGRA_SUSPEND_LP0) && !tegra_pm_irq_lp0_allowed()) {
@@ -905,6 +853,10 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 	} else if (mode == TEGRA_SUSPEND_LP1)
 		*iram_cpu_lp1_mask = 0;
 
+	/* if scratch37 was clobbered during LP1, restore it */
+	if (scratch37 != 0xDEADBEEF)
+		pmc_32kwritel(scratch37, PMC_SCRATCH37);
+
 	restore_cpu_complex(flags);
 
 	/* for platforms where the core & CPU power requests are
@@ -949,6 +901,12 @@ static int tegra_suspend_prepare(void)
 
 static void tegra_suspend_finish(void)
 {
+	if (pdata && pdata->cpu_resume_boost) {
+		int ret = tegra_suspended_target(pdata->cpu_resume_boost);
+		pr_info("Tegra: resume CPU boost to %u KHz: %s (%d)\n",
+			pdata->cpu_resume_boost, ret ? "Failed" : "OK", ret);
+	}
+
 	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(0);
 }
@@ -1069,13 +1027,6 @@ void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 #else
 	if (create_suspend_pgtable() < 0) {
 		pr_err("%s: PGD memory alloc failed -- LP0/LP1/LP2 unavailable\n",
-				__func__);
-		plat->suspend_mode = TEGRA_SUSPEND_NONE;
-		goto fail;
-	}
-
-	if (alloc_suspend_context() < 0) {
-		pr_err("%s: CPU context alloc failed -- LP0/LP1/LP2 unavailable\n",
 				__func__);
 		plat->suspend_mode = TEGRA_SUSPEND_NONE;
 		goto fail;
@@ -1291,3 +1242,34 @@ static int tegra_debug_uart_syscore_init(void)
 	return 0;
 }
 arch_initcall(tegra_debug_uart_syscore_init);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct clk *clk_wake;
+static void pm_early_suspend(struct early_suspend *h)
+{
+	if (clk_wake)
+		clk_disable(clk_wake);
+	pm_qos_update_request(&awake_cpu_freq_req, PM_QOS_DEFAULT_VALUE);
+}
+
+static void pm_late_resume(struct early_suspend *h)
+{
+	if (clk_wake)
+		clk_enable(clk_wake);
+	pm_qos_update_request(&awake_cpu_freq_req, (s32)AWAKE_CPU_FREQ_MIN);
+}
+
+static struct early_suspend pm_early_suspender = {
+		.suspend = pm_early_suspend,
+		.resume = pm_late_resume,
+};
+
+static int pm_init_wake_behavior(void)
+{
+	clk_wake = tegra_get_clock_by_name("wake.sclk");
+	register_early_suspend(&pm_early_suspender);
+	return 0;
+}
+
+late_initcall(pm_init_wake_behavior);
+#endif

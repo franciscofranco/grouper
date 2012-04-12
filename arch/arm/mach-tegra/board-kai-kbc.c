@@ -26,7 +26,6 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mfd/max77663-core.h>
-#include <linux/interrupt_keys.h>
 #include <linux/gpio_scrollwheel.h>
 
 #include <mach/irqs.h>
@@ -50,6 +49,17 @@
 		.debounce_interval = 10,	\
 	}
 
+#define GPIO_IKEY(_id, _irq, _iswake, _deb)	\
+	{					\
+		.code = _id,			\
+		.gpio = -1,			\
+		.irq = _irq,			\
+		.desc = #_id,			\
+		.type = EV_KEY,			\
+		.wakeup = _iswake,		\
+		.debounce_interval = _deb,	\
+	}
+
 static struct gpio_keys_button kai_keys[] = {
 	[0] = GPIO_KEY(KEY_MENU, PR2, 0),
 	[1] = GPIO_KEY(KEY_BACK, PQ1, 0),
@@ -57,6 +67,8 @@ static struct gpio_keys_button kai_keys[] = {
 	[3] = GPIO_KEY(KEY_SEARCH, PQ3, 0),
 	[4] = GPIO_KEY(KEY_VOLUMEUP, PR1, 0),
 	[5] = GPIO_KEY(KEY_VOLUMEDOWN, PR0, 0),
+	[6] = GPIO_IKEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 1, 100),
+	[7] = GPIO_IKEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 1, 3000),
 };
 
 static struct gpio_keys_platform_data kai_keys_platform_data = {
@@ -72,34 +84,6 @@ static struct platform_device kai_keys_device = {
 	},
 };
 
-#define INT_KEY(_id, _irq, _iswake, _deb_int)	\
-	{					\
-		.code = _id,			\
-		.irq = _irq,			\
-		.active_low = 1,		\
-		.desc = #_id,			\
-		.type = EV_KEY,			\
-		.wakeup = _iswake,		\
-		.debounce_interval = _deb_int,	\
-	}
-static struct interrupt_keys_button kai_int_keys[] = {
-	[0] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_FALLING, 0, 100),
-	[1] = INT_KEY(KEY_POWER, MAX77663_IRQ_BASE + MAX77663_IRQ_ONOFF_EN0_1SEC, 0, 3000),
-};
-
-static struct interrupt_keys_platform_data kai_int_keys_pdata = {
-	.int_buttons	= kai_int_keys,
-	.nbuttons       = ARRAY_SIZE(kai_int_keys),
-};
-
-static struct platform_device kai_int_keys_device = {
-	.name   = "interrupt-keys",
-	.id     = 0,
-	.dev    = {
-		.platform_data  = &kai_int_keys_pdata,
-	},
-};
-
 int __init kai_keys_init(void)
 {
 	int i;
@@ -107,12 +91,13 @@ int __init kai_keys_init(void)
 	pr_info("Registering gpio keys\n");
 
 	/* Enable gpio mode for other pins */
-	for (i = 0; i < kai_keys_platform_data.nbuttons; i++)
-		tegra_gpio_enable(kai_keys_platform_data.
-					buttons[i].gpio);
+	for (i = 0; i < kai_keys_platform_data.nbuttons; i++) {
+		if (kai_keys_platform_data.buttons[i].gpio < 0)
+			continue;
+		tegra_gpio_enable(kai_keys_platform_data.buttons[i].gpio);
+	}
 
 	platform_device_register(&kai_keys_device);
-	platform_device_register(&kai_int_keys_device);
 
 	return 0;
 }

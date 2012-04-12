@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/include/mach/sleep-t2.S
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  * Copyright (c) 2011, Google, Inc.
  *
  * Author: Colin Cross <ccross@android.com>
@@ -179,25 +179,39 @@ ENDPROC(tegra2_cpu_is_resettable_soon)
  * enters suspend in LP0 or LP1 by turning off the mmu and jumping to
  * tegra2_tear_down_core in IRAM
  */
-ENTRY(tegra2_sleep_core)
-	mov	r12, pc 		@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra2_sleep_core_finish)
+	bl	tegra_cpu_exit_coherency
 	mov32	r1, tegra2_tear_down_core
 	mov32	r2, tegra2_iram_start
 	sub	r1, r1, r2
 	mov32	r2, TEGRA_IRAM_CODE_AREA
 	add	r1, r1, r2
 	b	tegra_turn_off_mmu
-ENDPROC(tegra2_sleep_core)
+ENDPROC(tegra2_sleep_core_finish)
 
 /*
  * tegra2_sleep_wfi(unsigned long v2p)
  */
 ENTRY(tegra2_sleep_wfi)
-	mrc	p15, 0, r2, c1, c0, 1	@ save actlr before exiting coherency
-	mov	r12, pc 		@ return here is via r12
-	b	tegra_cpu_save
-	mov	r11, r2
+	stmfd	sp!, {r4 - r9, lr}
+	mov	r9, sp			@ save sp for aborted suspend
+	adr	r1, BSYM(tegra_sleep_cpu_save_finish)
+	bl	cpu_suspend
+	ldmfd	sp!, {r4 - r9, pc}
+
+tegra_sleep_cpu_save_finish:
+	mrc	p15, 0, r11, c1, c0, 1	@ save actlr before exiting coherency
+
+	dsb
+#ifdef MULTI_CACHE
+	mov32	r10, cpu_cache
+	mov	lr, pc
+	ldr	pc, [r10, #CACHE_FLUSH_KERN_ALL]
+#else
+	bl	__cpuc_flush_kern_all
+#endif
+
+	bl	tegra_cpu_exit_coherency
 
 	mov32	r0, TEGRA_PMC_VIRT + PMC_SCRATCH41
 	mov	r3, #CPU_RESETTABLE
@@ -219,7 +233,7 @@ ENTRY(tegra2_sleep_wfi)
 	 * r11 contains the original actlr
 	 */
 
-	mov	sp, r7			@ restore SP for aborted suspend
+	mov	sp, r9			@ restore SP for aborted suspend
 	bl	tegra_pen_lock
 
 	mov32	r3, TEGRA_PMC_VIRT
@@ -229,18 +243,8 @@ ENTRY(tegra2_sleep_wfi)
 
 	bl	tegra_pen_unlock
 
-#if USE_TEGRA_CPU_SUSPEND
-	/* Enable the data cache and SMP coherency */
-	mrc	p15, 0, r10, c1, c0, 0
-	orr	r10, r10, #CR_C
-	dsb
-	mcr	p15, 0, r10, c1, c0, 0
-	isb
 	mcr	p15, 0, r11, c1, c0, 1	@ reenable coherency
 
-#else
-	mcr	p15, 0, r11, c1, c0, 1	@ reenable coherency
-#endif
 	/* Invalidate the TLBs & BTAC */
 	mov	r1, #0
 	mcr	p15, 0, r1, c8, c3, 0	@ invalidate shared TLBs
@@ -272,8 +276,7 @@ ENTRY(tegra2_sleep_wfi)
 no_l2_sync:
 #endif
 
-	pop_ctx_regs r0, r1		@ restore context registers
-	mov	pc, lr
+	ldmfd	sp!, {r4 - r9, pc}
 ENDPROC(tegra2_sleep_wfi)
 
 /*

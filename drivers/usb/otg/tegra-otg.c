@@ -43,7 +43,8 @@
 #define  USB_VBUS_STATUS	(1 << 10)
 #define  USB_INTS		(USB_VBUS_INT_STATUS | USB_ID_INT_STATUS)
 
-typedef void (*callback_t)(enum usb_otg_state otg_state, void *args);
+typedef void (*callback_t)(enum usb_otg_state to,
+				enum usb_otg_state from, void *args);
 
 struct tegra_otg_data {
 	struct otg_transceiver otg;
@@ -91,13 +92,18 @@ static void tegra_otg_disable_clk(void)
 
 static const char *tegra_state_name(enum usb_otg_state state)
 {
-	if (state == OTG_STATE_A_HOST)
-		return "HOST";
-	if (state == OTG_STATE_B_PERIPHERAL)
-		return "PERIPHERAL";
-	if (state == OTG_STATE_A_SUSPEND)
-		return "SUSPEND";
-	return "INVALID";
+	switch (state) {
+		case OTG_STATE_A_HOST:
+			return "HOST";
+		case OTG_STATE_B_PERIPHERAL:
+			return "PERIPHERAL";
+		case OTG_STATE_A_SUSPEND:
+			return "SUSPEND";
+		case OTG_STATE_UNDEFINED:
+			return "UNDEFINED";
+		default:
+			return "INVALID";
+	}
 }
 
 static struct platform_device *
@@ -225,7 +231,7 @@ static void irq_work(struct work_struct *work)
 					      tegra_state_name(to));
 
 		if (tegra->charger_cb)
-			tegra->charger_cb(to, tegra->charger_cb_data);
+			tegra->charger_cb(to, from, tegra->charger_cb_data);
 
 		if (to == OTG_STATE_A_SUSPEND) {
 			if (from == OTG_STATE_A_HOST)

@@ -42,6 +42,8 @@
 #define BOARD_PMU_PM299   0x0263
 
 /* SKU Information */
+#define BOARD_SKU_B11	0xb11
+
 #define SKU_DCDC_TPS62361_SUPPORT	0x1
 #define SKU_SLT_ULPI_SUPPORT		0x2
 #define SKU_T30S_SUPPORT		0x4

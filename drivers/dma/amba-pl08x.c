@@ -90,6 +90,8 @@
 
 #include <asm/hardware/pl080.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME	"pl08xdmac"
 
 /**
@@ -966,13 +968,10 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 	struct pl08x_txd *txd = to_pl08x_txd(tx);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&plchan->lock, flags);
-
-	plchan->chan.cookie += 1;
-	if (plchan->chan.cookie < 0)
-		plchan->chan.cookie = 1;
-	tx->cookie = plchan->chan.cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Put this onto the pending list */
 	list_add_tail(&txd->node, &plchan->pend_list);
@@ -992,7 +991,7 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(
@@ -1014,31 +1013,17 @@ pl08x_dma_tx_status(struct dma_chan *chan,
 		    struct dma_tx_state *txstate)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status ret;
-	u32 bytesleft = 0;
 
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-	if (ret == DMA_SUCCESS) {
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
 
 	/*
 	 * This cookie not complete yet
+	 * Get number of bytes left in the active transactions and queue
 	 */
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->lc;
-
-	/* Get number of bytes left in the active transactions and queue */
-	bytesleft = pl08x_getbytes_chan(plchan);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 bytesleft);
+	dma_set_residue(txstate, pl08x_getbytes_chan(plchan));
 
 	if (plchan->state == PL08X_CHAN_PAUSED)
 		return DMA_PAUSED;
@@ -1361,8 +1346,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 
 static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
-		unsigned long flags)
+		unsigned long flags, void *context)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	struct pl08x_driver_data *pl08x = plchan->host;
@@ -1552,7 +1536,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	if (txd) {
 		/* Update last completed */
-		plchan->lc = txd->tx.cookie;
+		dma_cookie_complete(&txd->tx);
 	}
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */
@@ -1733,8 +1717,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			 chan->name);
 
 		chan->chan.device = dmadev;
-		chan->chan.cookie = 0;
-		chan->lc = 0;
+		dma_cookie_init(&chan->chan);
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);

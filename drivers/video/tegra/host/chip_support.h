@@ -5,19 +5,17 @@
  *
  * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef _NVHOST_CHIP_SUPPORT_H_
 #define _NVHOST_CHIP_SUPPORT_H_
@@ -90,9 +88,11 @@ struct nvhost_chip_support {
 	struct {
 		void (*debug_init)(struct dentry *de);
 		void (*show_channel_cdma)(struct nvhost_master *,
+					  struct nvhost_channel *,
 					  struct output *,
 					  int chid);
 		void (*show_channel_fifo)(struct nvhost_master *,
+					  struct nvhost_channel *,
 					  struct output *,
 					  int chid);
 		void (*show_mlocks)(struct nvhost_master *m,
@@ -131,6 +131,11 @@ struct nvhost_chip_support {
 		void (*free_host_general_irq)(struct nvhost_intr *);
 		int (*request_syncpt_irq)(struct nvhost_intr_syncpt *syncpt);
 	} intr;
+
+	struct {
+		struct nvhost_device *(*get_nvhost_device)(struct nvhost_master *host,
+			char *name);
+	} nvhost_dev;
 };
 
 #endif /* _NVHOST_CHIP_SUPPORT_H_ */

@@ -320,6 +320,13 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 */
 	percpu_timer_setup();
 
+	while (!cpu_active(cpu))
+		cpu_relax();
+
+	/*
+	 * cpu_active bit is set, so it's safe to enalbe interrupts
+	 * now.
+	 */
 	local_irq_enable();
 	local_fiq_enable();
 
@@ -633,15 +640,21 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CALL_FUNC:
+		irq_enter();
 		generic_smp_call_function_interrupt();
+		irq_exit();
 		break;
 
 	case IPI_CALL_FUNC_SINGLE:
+		irq_enter();
 		generic_smp_call_function_single_interrupt();
+		irq_exit();
 		break;
 
 	case IPI_CPU_STOP:
+		irq_enter();
 		ipi_cpu_stop(cpu);
+		irq_exit();
 		break;
 
 	case IPI_CPU_BACKTRACE:

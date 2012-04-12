@@ -45,7 +45,7 @@ static bool emc_enable;
 #endif
 module_param(emc_enable, bool, 0644);
 
-#define EMC_MIN_RATE_DDR3		50000000
+#define EMC_MIN_RATE_DDR3		25500000
 #define EMC_STATUS_UPDATE_TIMEOUT	100
 #define TEGRA_EMC_TABLE_MAX_SIZE 	16
 
@@ -192,6 +192,7 @@ static struct tegra_emc_table start_timing;
 static const struct tegra_emc_table *emc_timing;
 static unsigned long dram_over_temp_state = DRAM_OVER_TEMP_NONE;
 
+static const u32 *dram_to_soc_bit_map;
 static const struct tegra_emc_table *tegra_emc_table;
 static int tegra_emc_table_size;
 
@@ -347,12 +348,6 @@ static inline void disable_early_ack(u32 mc_override)
 	__cpuc_flush_dcache_area(&override_val, sizeof(override_val));
 	outer_clean_range(__pa(&override_val), __pa(&override_val + 1));
 	override_val |= mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK;
-}
-
-static inline void enable_early_ack(u32 mc_override)
-{
-	mc_writel((mc_override | MC_EMEM_ARB_OVERRIDE_EACK_MASK),
-			MC_EMEM_ARB_OVERRIDE);
 }
 
 static inline bool dqs_preset(const struct tegra_emc_table *next_timing,
@@ -1050,12 +1045,19 @@ int tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 
 	register_pm_notifier(&tegra_emc_suspend_nb);
 	register_pm_notifier(&tegra_emc_resume_nb);
-        return 1;
+
+	return 1;
 }
 
 void tegra_emc_timing_invalidate(void)
 {
 	emc_timing = NULL;
+}
+
+void tegra_init_dram_bit_map(const u32 *bit_map, int map_size)
+{
+	BUG_ON(map_size != 32);
+	dram_to_soc_bit_map = bit_map;
 }
 
 void tegra_emc_dram_type_init(struct clk *c)
@@ -1074,6 +1076,29 @@ void tegra_emc_dram_type_init(struct clk *c)
 int tegra_emc_get_dram_type(void)
 {
 	return dram_type;
+}
+
+static u32 soc_to_dram_bit_swap(u32 soc_val, u32 dram_mask, u32 dram_shift)
+{
+	int bit;
+	u32 dram_val = 0;
+
+	/* tegra clocks definitions use shifted mask always */
+	if (!dram_to_soc_bit_map)
+		return soc_val & dram_mask;
+
+	for (bit = dram_shift; bit < 32; bit++) {
+		u32 dram_bit_mask = 0x1 << bit;
+		u32 soc_bit_mask = dram_to_soc_bit_map[bit];
+
+		if (!(dram_bit_mask & dram_mask))
+			break;
+
+		if (soc_bit_mask & soc_val)
+			dram_val |= dram_bit_mask;
+	}
+
+	return dram_val;
 }
 
 static int emc_read_mrr(int dev, int addr)
@@ -1096,7 +1121,6 @@ static int emc_read_mrr(int dev, int addr)
 	if (ret)
 		return ret;
 
-	/* FIXME: bit swap decoding */
 	val = emc_readl(EMC_MRR) & EMC_MRR_DATA_MASK;
 	return val;
 }
@@ -1113,9 +1137,10 @@ int tegra_emc_get_dram_temperature(void)
 		spin_unlock_irqrestore(&emc_access_lock, flags);
 		return mr4;
 	}
-
-	mr4 &= LPDDR2_MR4_TEMP_MASK;
 	spin_unlock_irqrestore(&emc_access_lock, flags);
+
+	mr4 = soc_to_dram_bit_swap(
+		mr4, LPDDR2_MR4_TEMP_MASK, LPDDR2_MR4_TEMP_SHIFT);
 	return mr4;
 }
 
@@ -1136,26 +1161,6 @@ int tegra_emc_set_over_temp_state(unsigned long state)
 			emc_writel(EMC_REF_FORCE_CMD, EMC_REF);
 		dram_over_temp_state = state;
 	}
-
-	spin_unlock_irqrestore(&emc_access_lock, flags);
-	return 0;
-
-}
-
-int tegra_emc_set_eack_state(unsigned long state)
-{
-	unsigned long flags;
-	u32 mc_override;
-
-	spin_lock_irqsave(&emc_access_lock, flags);
-
-	mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
-
-	if (state)
-		enable_early_ack(mc_override);
-	else
-		disable_early_ack(mc_override);
-
 	spin_unlock_irqrestore(&emc_access_lock, flags);
 	return 0;
 }
@@ -1163,7 +1168,6 @@ int tegra_emc_set_eack_state(unsigned long state)
 #ifdef CONFIG_DEBUG_FS
 
 static struct dentry *emc_debugfs_root;
-static bool eack_state = true;
 
 static int emc_stats_show(struct seq_file *s, void *data)
 {
@@ -1220,28 +1224,6 @@ static int over_temp_state_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(over_temp_state_fops, over_temp_state_get,
 			over_temp_state_set, "%llu\n");
 
-static int eack_state_get(void *data, u64 *val)
-{
-	unsigned long flags;
-	u32 mc_override;
-
-	spin_lock_irqsave(&emc_access_lock, flags);
-	mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
-	spin_unlock_irqrestore(&emc_access_lock, flags);
-
-	*val = (mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK);
-	return 0;
-}
-
-static int eack_state_set(void *data, u64 val)
-{
-	tegra_emc_set_eack_state(val);
-	eack_state = val;
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(eack_state_fops, eack_state_get,
-			eack_state_set, "%llu\n");
-
 static int __init tegra_emc_debug_init(void)
 {
 	if (!tegra_emc_table)
@@ -1261,10 +1243,6 @@ static int __init tegra_emc_debug_init(void)
 
 	if (!debugfs_create_file("over_temp_state", S_IRUGO | S_IWUSR,
 				 emc_debugfs_root, NULL, &over_temp_state_fops))
-		goto err_out;
-
-	if (!debugfs_create_file(
-		"eack_state", S_IRUGO | S_IWUGO, emc_debugfs_root, NULL, &eack_state_fops))
 		goto err_out;
 
 	return 0;

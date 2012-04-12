@@ -246,7 +246,7 @@ static struct tegra_i2c_platform_data cardhu_i2c3_platform_data = {
 static struct tegra_i2c_platform_data cardhu_i2c4_platform_data = {
 	.adapter_nr	= 3,
 	.bus_count	= 1,
-	.bus_clk_rate	= { 100000, 0 },
+	.bus_clk_rate	= { 10000, 0 },
 	.scl_gpio		= {TEGRA_GPIO_PV4, 0},
 	.sda_gpio		= {TEGRA_GPIO_PV5, 0},
 	.arb_recovery = arb_lost_recovery,
@@ -702,6 +702,16 @@ static struct tegra_asoc_platform_data cardhu_audio_aic326x_pdata = {
 	.gpio_hp_mute		= -1,
 	.gpio_int_mic_en	= -1,
 	.gpio_ext_mic_en	= -1,
+	/*defaults for Verbier-Cardhu board with TI AIC326X codec*/
+	.audio_port_id		= {
+		[HIFI_CODEC] = 0,
+		[BASEBAND] = -1,
+		[BT_SCO] = 3,
+	},
+	.baseband_param		= {
+		.rate = -1,
+		.channels = -1,
+	},
 };
 
 static struct platform_device cardhu_audio_aic326x_device = {
@@ -1063,8 +1073,12 @@ static void cardhu_pci_init(void)
 		cardhu_pci_platform_data.use_dock_detect = 1;
 		cardhu_pci_platform_data.gpio = DOCK_DETECT_GPIO;
 	}
-	tegra_pci_device.dev.platform_data = &cardhu_pci_platform_data;
-	platform_device_register(&tegra_pci_device);
+	if ((board_info.board_id == BOARD_E1186) ||
+		(board_info.board_id == BOARD_E1187) ||
+		(board_info.board_id == BOARD_E1291)) {
+		tegra_pci_device.dev.platform_data = &cardhu_pci_platform_data;
+		platform_device_register(&tegra_pci_device);
+	}
 }
 
 static void cardhu_modem_init(void)

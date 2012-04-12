@@ -6,7 +6,7 @@
  *         Colin Cross <ccross@android.com>
  *         Travis Geiselbrecht <travis@palm.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -78,6 +78,10 @@ static int tegra_fb_set_par(struct fb_info *info)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
 	struct fb_var_screeninfo *var = &info->var;
+
+	BUG_ON(info == NULL);
+	if (!info)
+		return -EINVAL;
 
 	if (var->bits_per_pixel) {
 		/* we only support RGB ordering for now */
@@ -229,6 +233,7 @@ static int tegra_fb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	return 0;
 }
 
+#if defined(CONFIG_FRAMEBUFFER_CONSOLE)
 static void tegra_fb_flip_win(struct tegra_fb_info *tegra_fb)
 {
 	struct tegra_dc_win *win = tegra_fb->win;
@@ -271,6 +276,7 @@ static void tegra_fb_flip_win(struct tegra_fb_info *tegra_fb)
 	tegra_dc_update_windows(&tegra_fb->win, 1);
 	tegra_dc_sync_windows(&tegra_fb->win, 1);
 }
+#endif
 
 static int tegra_fb_blank(int blank, struct fb_info *info)
 {
@@ -409,6 +415,41 @@ static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long 
 	return 0;
 }
 
+int tegra_fb_get_mode(struct tegra_dc *dc) {
+	return dc->fb->info->mode->refresh;
+}
+
+int tegra_fb_set_mode(struct tegra_dc *dc, int fps) {
+	size_t stereo;
+	struct list_head *pos;
+	struct fb_videomode *best_mode = NULL;
+	int curr_diff = INT_MAX; /* difference of best_mode refresh rate */
+	struct fb_modelist *modelist;
+	struct fb_info *info = dc->fb->info;
+
+	list_for_each(pos, &info->modelist) {
+		struct fb_videomode *mode;
+
+		modelist = list_entry(pos, struct fb_modelist, list);
+		mode = &modelist->mode;
+		if (fps <= mode->refresh && curr_diff > (mode->refresh - fps)) {
+			curr_diff = mode->refresh - fps;
+			best_mode = mode;
+		}
+	}
+	if (best_mode) {
+		info->mode = best_mode;
+		stereo = !!(info->var.vmode & info->mode->vmode &
+#ifndef CONFIG_TEGRA_HDMI_74MHZ_LIMIT
+				FB_VMODE_STEREO_FRAME_PACK);
+#else
+				FB_VMODE_STEREO_LEFT_RIGHT);
+#endif
+		return tegra_dc_set_fb_mode(dc, best_mode, stereo);
+	}
+	return -EIO;
+}
+
 static struct fb_ops tegra_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = tegra_fb_check_var,
@@ -453,6 +494,7 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 
 	memcpy(&fb_info->info->monspecs, specs,
 	       sizeof(fb_info->info->monspecs));
+	fb_info->info->mode = specs->modedb;
 
 	for (i = 0; i < specs->modedb_len; i++) {
 		if (mode_filter) {
@@ -482,6 +524,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	unsigned long fb_size = 0;
 	unsigned long fb_phys = 0;
 	int ret = 0;
+	struct fb_videomode m;
 
 	win = tegra_dc_get_window(dc, fb_data->win);
 	if (!win) {
@@ -533,22 +576,15 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	info->fix.line_length = round_up(info->fix.line_length,
 					TEGRA_LINEAR_PITCH_ALIGNMENT);
 
-	info->var.xres			= fb_data->xres;
-	info->var.yres			= fb_data->yres;
+	INIT_LIST_HEAD(&info->modelist);
+	tegra_dc_to_fb_videomode(&m, &dc->mode);
+	fb_videomode_to_var(&info->var, &m);
 	info->var.xres_virtual		= fb_data->xres;
 	info->var.yres_virtual		= fb_data->yres * 2;
 	info->var.bits_per_pixel	= fb_data->bits_per_pixel;
 	info->var.activate		= FB_ACTIVATE_VBL;
 	info->var.height		= tegra_dc_get_out_height(dc);
 	info->var.width			= tegra_dc_get_out_width(dc);
-	info->var.pixclock		= 0;
-	info->var.left_margin		= 0;
-	info->var.right_margin		= 0;
-	info->var.upper_margin		= 0;
-	info->var.lower_margin		= 0;
-	info->var.hsync_len		= 0;
-	info->var.vsync_len		= 0;
-	info->var.vmode			= FB_VMODE_NONINTERLACED;
 
 	win->x.full = dfixed_const(0);
 	win->y.full = dfixed_const(0);
@@ -589,7 +625,10 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	if (dc->mode.pclk > 1000) {
 		struct tegra_dc_mode *mode = &dc->mode;
 
-		info->var.pixclock = KHZ2PICOS(mode->pclk / 1000);
+		if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+			info->var.pixclock = KHZ2PICOS(mode->rated_pclk / 1000);
+		else
+			info->var.pixclock = KHZ2PICOS(mode->pclk / 1000);
 		info->var.left_margin = mode->h_back_porch;
 		info->var.right_margin = mode->h_front_porch;
 		info->var.upper_margin = mode->v_back_porch;

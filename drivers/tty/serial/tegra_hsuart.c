@@ -155,6 +155,14 @@ static inline void uart_writeb(struct tegra_uart_port *t, u8 val,
 	writeb(val, t->uport.membase + (reg << t->uport.regshift));
 }
 
+static void cancel_dma(struct tegra_dma_channel *dma_chan,
+	struct tegra_dma_req *req)
+{
+	tegra_dma_cancel(dma_chan);
+	if (req->status == -TEGRA_DMA_REQ_ERROR_ABORTED)
+		req->complete(req);
+}
+
 static inline void uart_writel(struct tegra_uart_port *t, u32 val,
 	unsigned long reg)
 {
@@ -344,7 +352,7 @@ static void do_handle_rx_dma(struct tegra_uart_port *t)
 	struct uart_port *u = &t->uport;
 	if (t->rts_active)
 		set_rts(t, false);
-	tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req);
+	cancel_dma(t->rx_dma, &t->rx_dma_req);
 	tty_flip_buffer_push(u->state->port.tty);
 	/* enqueue the request again */
 	tegra_start_dma_rx(t);
@@ -620,7 +628,7 @@ static void tegra_stop_rx(struct uart_port *u)
 		t->rx_in_progress = 0;
 
 		if (t->use_rx_dma && t->rx_dma)
-			tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req);
+			cancel_dma(t->rx_dma, &t->rx_dma_req);
 		else
 			do_handle_rx_pio(t);
 
@@ -1069,7 +1077,7 @@ static void tegra_stop_tx(struct uart_port *u)
 	t = container_of(u, struct tegra_uart_port, uport);
 
 	if (t->use_tx_dma)
-		tegra_dma_dequeue_req(t->tx_dma, &t->tx_dma_req);
+		cancel_dma(t->tx_dma, &t->tx_dma_req);
 
 	return;
 }
@@ -1355,7 +1363,7 @@ static void tegra_flush_buffer(struct uart_port *u)
 	t->tx_bytes = 0;
 
 	if (t->use_tx_dma) {
-		tegra_dma_dequeue_req(t->tx_dma, &t->tx_dma_req);
+		cancel_dma(t->tx_dma, &t->tx_dma_req);
 		t->tx_dma_req.size = 0;
 	}
 	return;

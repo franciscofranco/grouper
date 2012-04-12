@@ -28,6 +28,9 @@ struct tegra_fb_data;
 struct tegra_fb_info;
 struct resource;
 
+int tegra_fb_get_mode(struct tegra_dc *dc);
+int tegra_fb_set_mode(struct tegra_dc *dc, int fps);
+
 #ifdef CONFIG_FB_TEGRA
 struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 					struct tegra_dc *dc,

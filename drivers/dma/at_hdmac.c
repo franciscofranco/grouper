@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 
 #include "at_hdmac_regs.h"
+#include "dmaengine.h"
 
 /*
  * Glossary
@@ -188,27 +189,6 @@ static void atc_desc_chain(struct at_desc **first, struct at_desc **prev,
 }
 
 /**
- * atc_assign_cookie - compute and assign new cookie
- * @atchan: channel we work on
- * @desc: descriptor to assign cookie for
- *
- * Called with atchan->lock held and bh disabled
- */
-static dma_cookie_t
-atc_assign_cookie(struct at_dma_chan *atchan, struct at_desc *desc)
-{
-	dma_cookie_t cookie = atchan->chan_common.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	atchan->chan_common.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
-/**
  * atc_dostart - starts the DMA engine for real
  * @atchan: the channel we want to start
  * @first: first descriptor in the list we want to begin with
@@ -265,7 +245,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	dev_vdbg(chan2dev(&atchan->chan_common),
 		"descriptor %u complete\n", txd->cookie);
 
-	atchan->completed_cookie = txd->cookie;
+	dma_cookie_complete(txd);
 
 	/* move children to free_list */
 	list_splice_init(&desc->tx_list, &atchan->free_list);
@@ -540,8 +520,8 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct at_dma_chan	*atchan = to_at_dma_chan(tx->chan);
 	dma_cookie_t		cookie;
 
-	spin_lock_bh(&atchan->lock);
-	cookie = atc_assign_cookie(atchan, desc);
+	spin_lock_irqsave(&atchan->lock, flags);
+	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&atchan->active_list)) {
 		dev_vdbg(chan2dev(tx->chan), "tx_submit: started %u\n",
@@ -653,11 +633,12 @@ err_desc_get:
  * @sg_len: number of entries in @scatterlist
  * @direction: DMA direction
  * @flags: tx descriptor status flags
+ * @context: transaction context (ignored)
  */
 static struct dma_async_tx_descriptor *
 atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
-		unsigned long flags)
+		unsigned int sg_len, enum dma_transfer_direction direction,
+		unsigned long flags, void *context)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;
@@ -854,10 +835,12 @@ atc_dma_cyclic_fill_desc(struct at_dma_slave *atslave, struct at_desc *desc,
  * @buf_len: total number of bytes for the entire buffer
  * @period_len: number of bytes for each period
  * @direction: transfer direction, to or from device
+ * @context: transfer context (ignored)
  */
 static struct dma_async_tx_descriptor *
 atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
-		size_t period_len, enum dma_data_direction direction)
+		size_t period_len, enum dma_transfer_direction direction,
+		void *context)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;
@@ -1008,26 +991,20 @@ atc_tx_status(struct dma_chan *chan,
 
 	spin_lock_bh(&atchan->lock);
 
-	last_complete = atchan->completed_cookie;
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret != DMA_SUCCESS) {
 		atc_cleanup_descriptors(atchan);
 
-		last_complete = atchan->completed_cookie;
-		last_used = chan->cookie;
-
-		ret = dma_async_is_complete(cookie, last_complete, last_used);
+		ret = dma_cookie_status(chan, cookie, txstate);
 	}
+
+	last_complete = chan->completed_cookie;
+	last_used = chan->cookie;
 
 	spin_unlock_bh(&atchan->lock);
 
 	if (ret != DMA_SUCCESS)
-		dma_set_tx_state(txstate, last_complete, last_used,
-			atc_first_active(atchan)->len);
-	else
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+		dma_set_residue(txstate, atc_first_active(atchan)->len);
 
 	if (test_bit(ATC_IS_PAUSED, &atchan->status))
 		ret = DMA_PAUSED;
@@ -1119,7 +1096,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_bh(&atchan->lock);
 	atchan->descs_allocated = i;
 	list_splice(&tmp_list, &atchan->free_list);
-	atchan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 	spin_unlock_bh(&atchan->lock);
 
 	/* channel parameters */
@@ -1264,8 +1241,8 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
-		atchan->chan_common.cookie = atchan->completed_cookie = 1;
 		atchan->chan_common.chan_id = i;
+		dma_cookie_init(&atchan->chan_common);
 		list_add_tail(&atchan->chan_common.device_node,
 				&atdma->dma_common.channels);
 

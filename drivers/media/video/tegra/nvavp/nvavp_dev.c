@@ -1,7 +1,7 @@
 /*
  * drivers/media/video/tegra/nvavp/nvavp_dev.c
  *
- * Copyright (C) 2011 NVIDIA Corp.
+ * Copyright (C) 2011-2012 NVIDIA Corp.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -328,7 +328,7 @@ static int nvavp_pushbuffer_alloc(struct nvavp_info *nvavp)
 	int ret = 0;
 
 	nvavp->pushbuf_handle = nvmap_alloc(nvavp->nvmap, NVAVP_PUSHBUFFER_SIZE,
-				SZ_1M, NVMAP_HANDLE_UNCACHEABLE);
+				SZ_1M, NVMAP_HANDLE_UNCACHEABLE, 0);
 	if (IS_ERR(nvavp->pushbuf_handle)) {
 		dev_err(&nvavp->nvhost_dev->dev,
 			"cannot create pushbuffer handle\n");
@@ -571,7 +571,7 @@ static int nvavp_load_ucode(struct nvavp_info *nvavp)
 
 		ucode_info->handle = nvmap_alloc(nvavp->nvmap,
 						nvavp->ucode_info.size,
-					SZ_1M, NVMAP_HANDLE_UNCACHEABLE);
+					SZ_1M, NVMAP_HANDLE_UNCACHEABLE, 0);
 		if (IS_ERR(ucode_info->handle)) {
 			dev_err(&nvavp->nvhost_dev->dev,
 				"cannot create ucode handle\n");
@@ -1013,6 +1013,16 @@ err_cmdbuf_mmap:
 	return ret;
 }
 
+static int nvavp_wake_avp_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg)
+{
+	wmb();
+	/* wake up avp */
+	writel(0xA0000001, NVAVP_OS_OUTBOX);
+	return 0;
+}
+
+
 static int tegra_nvavp_open(struct inode *inode, struct file *filp)
 {
 	struct miscdevice *miscdev = filp->private_data;
@@ -1103,6 +1113,9 @@ static long tegra_nvavp_ioctl(struct file *filp, unsigned int cmd,
 	case NVAVP_IOCTL_GET_CLOCK:
 		ret = nvavp_get_clock_ioctl(filp, cmd, arg);
 		break;
+	case NVAVP_IOCTL_WAKE_AVP:
+		ret = nvavp_wake_avp_ioctl(filp, cmd, arg);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1163,7 +1176,12 @@ static int tegra_nvavp_probe(struct nvhost_device *ndev)
 #endif
 	switch (heap_mask) {
 	case NVMAP_HEAP_IOVMM:
+
+#ifdef CONFIG_TEGRA_SMMU_BASE_AT_E0000000
+		iovmm_addr = 0xeff00000;
+#else
 		iovmm_addr = 0x0ff00000;
+#endif
 
 		/* Tegra3 A01 has different SMMU address */
 		if (tegra_get_chipid() == TEGRA_CHIPID_TEGRA3
@@ -1205,7 +1223,7 @@ static int tegra_nvavp_probe(struct nvhost_device *ndev)
 		break;
 	case NVMAP_HEAP_CARVEOUT_GENERIC:
 		nvavp->os_info.handle = nvmap_alloc(nvavp->nvmap, SZ_1M, SZ_1M,
-						NVMAP_HANDLE_UNCACHEABLE);
+						NVMAP_HANDLE_UNCACHEABLE, 0);
 		if (IS_ERR_OR_NULL(nvavp->os_info.handle)) {
 			dev_err(&ndev->dev, "cannot create AVP os handle\n");
 			ret = PTR_ERR(nvavp->os_info.handle);

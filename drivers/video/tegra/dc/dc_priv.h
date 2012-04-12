@@ -4,6 +4,8 @@
  * Copyright (C) 2010 Google, Inc.
  * Author: Erik Gilling <konkers@android.com>
  *
+ * Copyright (C) 2010-2012 NVIDIA Corporation
+ *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -93,6 +95,8 @@ struct tegra_dc {
 	void				*out_data;
 
 	struct tegra_dc_mode		mode;
+	bool				mode_dirty;
+	spinlock_t                      mode_lock;
 
 	struct tegra_dc_win		windows[DC_N_WINDOWS];
 	struct tegra_dc_blend		blend;
@@ -105,8 +109,6 @@ struct tegra_dc {
 
 	struct resource			*fb_mem;
 	struct tegra_fb_info		*fb;
-
-	struct tegra_overlay_info	*overlay;
 
 	struct {
 		u32			id;
@@ -209,10 +211,6 @@ void tegra_dc_create_sysfs(struct device *dev);
 /* defined in dc.c, used by dc_sysfs.c */
 void tegra_dc_stats_enable(struct tegra_dc *dc, bool enable);
 bool tegra_dc_stats_get(struct tegra_dc *dc);
-
-/* defined in dc.c, used by overlay.c */
-unsigned int tegra_dc_has_multiple_dc(void);
-unsigned long tegra_dc_get_bandwidth(struct tegra_dc_win *wins[], int n);
 
 /* defined in dc.c, used by dc_sysfs.c */
 u32 tegra_dc_read_checksum_latched(struct tegra_dc *dc);

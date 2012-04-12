@@ -429,6 +429,7 @@ void tegra_lp0_cpu_mode(bool enter)
 		flags = enter ? TEGRA_POWER_CLUSTER_LP : TEGRA_POWER_CLUSTER_G;
 		flags |= TEGRA_POWER_CLUSTER_IMMEDIATE;
 		tegra_cluster_control(0, flags);
+		pr_info("Tegra: switched to %s cluster\n", enter ? "LP" : "G");
 	}
 }
 #endif

@@ -134,7 +134,7 @@ static __initdata struct tegra_drive_pingroup_config enterprise_drive_pinmux[] =
 		.ioreset	= TEGRA_PIN_IO_RESET_##_ioreset	\
 	}
 
-static __initdata struct tegra_pingroup_config enterprise_pinmux[] = {
+static __initdata struct tegra_pingroup_config enterprise_pinmux_common[] = {
 	/* SDMMC1 pinmux */
 	DEFAULT_PINMUX(SDMMC1_CLK,      SDMMC1,          NORMAL,     NORMAL,     INPUT),
 	DEFAULT_PINMUX(SDMMC1_CMD,      SDMMC1,          PULL_UP,    NORMAL,     INPUT),
@@ -257,7 +257,7 @@ static __initdata struct tegra_pingroup_config enterprise_pinmux[] = {
 	DEFAULT_PINMUX(GPIO_PU3,        UARTA,           NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(GPIO_PU4,        PWM1,            NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(GPIO_PU5,        PWM2,            NORMAL,    NORMAL,     INPUT),
-	DEFAULT_PINMUX(GPIO_PU6,        PWM3,            NORMAL,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(GPIO_PU6,        PWM3,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(DAP4_FS,         I2S3,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(DAP4_DIN,        I2S3,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(DAP4_DOUT,       I2S3,            NORMAL,    NORMAL,     INPUT),
@@ -357,7 +357,12 @@ static __initdata struct tegra_pingroup_config enterprise_pinmux[] = {
 	VI_PINMUX(VI_VSYNC,        RSVD1,           NORMAL,    NORMAL,     INPUT,  DISABLE, DISABLE),
 };
 
-static __initdata struct tegra_pingroup_config enterprise_unused_pinmux[] = {
+static __initdata struct tegra_pingroup_config enterprise_pinmux_a03[] = {
+	DEFAULT_PINMUX(LCD_PWR0,        DISPLAYA,        NORMAL,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(LCD_D10,         DISPLAYA,        NORMAL,    NORMAL,     OUTPUT),
+};
+
+static __initdata struct tegra_pingroup_config enterprise_unused_pinmux_common[] = {
 	DEFAULT_PINMUX(CLK2_OUT,       EXTPERIPH2,       PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(CLK2_REQ,       DAP,              PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(CLK3_OUT,       EXTPERIPH3,       PULL_DOWN,    TRISTATE,  OUTPUT),
@@ -396,8 +401,6 @@ static __initdata struct tegra_pingroup_config enterprise_unused_pinmux[] = {
 	DEFAULT_PINMUX(LCD_WR_N,        DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(LCD_HSYNC,       DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(LCD_VSYNC,       DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
-	DEFAULT_PINMUX(LCD_D10,         DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
-	DEFAULT_PINMUX(LCD_PWR0,        DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(LCD_SCK,        DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(LCD_SDOUT,       DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(LCD_SDIN,        DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
@@ -413,6 +416,11 @@ static __initdata struct tegra_pingroup_config enterprise_unused_pinmux[] = {
 	DEFAULT_PINMUX(SPI2_CS0_N,      SPI2,            PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(SPI2_MOSI,       SPI2,            PULL_DOWN,    TRISTATE,  OUTPUT),
 	DEFAULT_PINMUX(SPI2_MISO,       SPI2,            PULL_DOWN,    TRISTATE,  OUTPUT),
+};
+
+static __initdata struct tegra_pingroup_config enterprise_unused_pinmux_a02[] = {
+	DEFAULT_PINMUX(LCD_D10,         DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
+	DEFAULT_PINMUX(LCD_PWR0,        DISPLAYA,        PULL_DOWN,    TRISTATE,  OUTPUT),
 };
 
 static struct tegra_gpio_table gpio_table[] = {
@@ -435,7 +443,7 @@ struct pin_info_low_power_mode {
 		.is_input	= _is_input,	\
 		.value		= _value,	\
 	}
-static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins[] = {
+static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins_common[] = {
 	PIN_GPIO_LPM("CLK2_OUT",     TEGRA_GPIO_PW5,   0, 0),
 	PIN_GPIO_LPM("CLK2_REQ",     TEGRA_GPIO_PCC5,  0, 0),
 	PIN_GPIO_LPM("CLK3_OUT",     TEGRA_GPIO_PEE0,  0, 0),
@@ -475,8 +483,6 @@ static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins[] =
 	PIN_GPIO_LPM("LCD_WR_N",     TEGRA_GPIO_PZ3,  0, 0),
 	PIN_GPIO_LPM("LCD_HSYNC",    TEGRA_GPIO_PJ3,  0, 0),
 	PIN_GPIO_LPM("LCD_VSYNC",    TEGRA_GPIO_PJ4,  0, 0),
-	PIN_GPIO_LPM("LCD_D10",      TEGRA_GPIO_PF2,  0, 0),
-	PIN_GPIO_LPM("LCD_PWR0",     TEGRA_GPIO_PB2,  0, 0),
 	PIN_GPIO_LPM("LCD_SCK",      TEGRA_GPIO_PZ4,  0, 0),
 	PIN_GPIO_LPM("LCD_SDOUT",    TEGRA_GPIO_PN5,  0, 0),
 	PIN_GPIO_LPM("LCD_SDIN",     TEGRA_GPIO_PZ2,  0, 0),
@@ -492,6 +498,11 @@ static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins[] =
 	PIN_GPIO_LPM("SPI2_CS0_N",   TEGRA_GPIO_PX3,  0, 0),
 	PIN_GPIO_LPM("SPI2_MOSI",    TEGRA_GPIO_PX0,  0, 0),
 	PIN_GPIO_LPM("SPI2_MISO",    TEGRA_GPIO_PX1,  0, 0),
+};
+
+static __initdata struct pin_info_low_power_mode enterprise_unused_gpio_pins_a02[] = {
+	PIN_GPIO_LPM("LCD_D10",      TEGRA_GPIO_PF2,  0, 0),
+	PIN_GPIO_LPM("LCD_PWR0",     TEGRA_GPIO_PB2,  0, 0),
 };
 
 static void enterprise_set_unused_pin_gpio(struct pin_info_low_power_mode *lpm_pin_info,
@@ -529,14 +540,29 @@ static void enterprise_set_unused_pin_gpio(struct pin_info_low_power_mode *lpm_p
 
 int __init enterprise_pinmux_init(void)
 {
-	tegra_pinmux_config_table(enterprise_pinmux, ARRAY_SIZE(enterprise_pinmux));
+	struct board_info board_info;
+	tegra_get_board_info(&board_info);
+
+	tegra_pinmux_config_table(enterprise_pinmux_common,
+				  ARRAY_SIZE(enterprise_pinmux_common));
 	tegra_drive_pinmux_config_table(enterprise_drive_pinmux,
 					ARRAY_SIZE(enterprise_drive_pinmux));
-	tegra_pinmux_config_table(enterprise_unused_pinmux,
-				ARRAY_SIZE(enterprise_unused_pinmux));
+	tegra_pinmux_config_table(enterprise_unused_pinmux_common,
+				ARRAY_SIZE(enterprise_unused_pinmux_common));
 
 	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
-	enterprise_set_unused_pin_gpio(enterprise_unused_gpio_pins,
-			ARRAY_SIZE(enterprise_unused_gpio_pins));
+	enterprise_set_unused_pin_gpio(enterprise_unused_gpio_pins_common,
+			ARRAY_SIZE(enterprise_unused_gpio_pins_common));
+
+	if (board_info.fab < BOARD_FAB_A03) {
+		tegra_pinmux_config_table(enterprise_unused_pinmux_a02,
+					  ARRAY_SIZE(enterprise_unused_pinmux_a02));
+		enterprise_set_unused_pin_gpio(enterprise_unused_gpio_pins_a02,
+					       ARRAY_SIZE(enterprise_unused_gpio_pins_a02));
+	} else {
+		tegra_pinmux_config_table(enterprise_pinmux_a03,
+					  ARRAY_SIZE(enterprise_pinmux_a03));
+	}
+
 	return 0;
 }

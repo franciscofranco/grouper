@@ -19,9 +19,17 @@
 #define	BT_SCO			2
 #define	NUM_I2S_DEVICES		3
 
+#define	TEGRA_DAIFMT_DSP_A		0
+#define	TEGRA_DAIFMT_DSP_B		1
+#define	TEGRA_DAIFMT_I2S		2
+#define	TEGRA_DAIFMT_RIGHT_J		3
+#define	TEGRA_DAIFMT_LEFT_J		4
+
 struct baseband_config {
 	int rate;
 	int channels;
+	int bit_format;
+	int is_master;
 };
 
 struct tegra_asoc_platform_data {

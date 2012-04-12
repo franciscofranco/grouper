@@ -43,6 +43,7 @@
 #include <asm/cpu_pm.h>
 #include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
+#include <asm/suspend.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -377,7 +378,7 @@ static void tegra3_idle_enter_lp2_cpu_n(struct cpuidle_device *dev,
 	tegra_cpu_wake_by_time[dev->cpu] = ktime_to_us(entry_time) + request;
 	smp_wmb();
 
-	tegra3_sleep_cpu_secondary(PLAT_PHYS_OFFSET - PAGE_OFFSET);
+	cpu_suspend(0, tegra3_sleep_cpu_secondary_finish);
 
 	tegra_cpu_wake_by_time[dev->cpu] = LLONG_MAX;
 

@@ -49,6 +49,7 @@ struct nvhost_device {
 	const char	*name;		/* Device name */
 	struct device	dev;		/* Linux device struct */
 	int		id;		/* Separates clients of same hw */
+	int		index;		/* Hardware channel number */
 	u32		num_resources;	/* Number of resources following */
 	struct resource	*resource;	/* Resources (IOMEM in particular) */
 	struct resource	*reg_mem;
@@ -81,6 +82,9 @@ struct nvhost_device {
 
 	struct nvhost_channel *channel;	/* Channel assigned for the module */
 
+	/* Allocates a context handler for the device */
+	struct nvhost_hwctx_handler *(*alloc_hwctx_handler)(u32 syncpt,
+			u32 waitbase, struct nvhost_channel *ch);
 	/* Preparing for power off. Used for context save. */
 	int (*prepare_poweroff)(struct nvhost_device *dev);
 	/* Finalize power on. Can be used for context restore. */

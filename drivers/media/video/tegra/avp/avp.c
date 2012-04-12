@@ -1158,7 +1158,7 @@ static int _load_lib(struct tegra_avp_info *avp, struct tegra_avp_lib *lib,
 	}
 
 	lib_handle = nvmap_alloc(avp->nvmap_libs, fw->size, L1_CACHE_BYTES,
-				 NVMAP_HANDLE_UNCACHEABLE);
+				 NVMAP_HANDLE_UNCACHEABLE, 0);
 	if (IS_ERR_OR_NULL(lib_handle)) {
 		pr_err("avp_lib: can't nvmap alloc for lib '%s'\n", lib->name);
 		ret = PTR_ERR(lib_handle);
@@ -1649,7 +1649,7 @@ static int tegra_avp_probe(struct platform_device *pdev)
 
 	if (heap_mask == NVMAP_HEAP_CARVEOUT_GENERIC) {
 		avp->kernel_handle = nvmap_alloc(avp->nvmap_drv, SZ_1M, SZ_1M,
-						NVMAP_HANDLE_UNCACHEABLE);
+						NVMAP_HANDLE_UNCACHEABLE, 0);
 		if (IS_ERR_OR_NULL(avp->kernel_handle)) {
 			pr_err("%s: cannot create handle\n", __func__);
 			ret = PTR_ERR(avp->kernel_handle);
@@ -1680,7 +1680,7 @@ static int tegra_avp_probe(struct platform_device *pdev)
 	 */
 	avp->iram_backup_handle =
 		nvmap_alloc(avp->nvmap_drv, TEGRA_IRAM_SIZE + 4,
-				L1_CACHE_BYTES, NVMAP_HANDLE_UNCACHEABLE);
+				L1_CACHE_BYTES, NVMAP_HANDLE_UNCACHEABLE, 0);
 	if (IS_ERR_OR_NULL(avp->iram_backup_handle)) {
 		pr_err("%s: cannot create handle for iram backup\n", __func__);
 		ret = PTR_ERR(avp->iram_backup_handle);

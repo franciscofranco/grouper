@@ -5,23 +5,20 @@
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/nvhost_ioctl.h>
-#include <linux/platform_device.h>
 #include "nvhost_syncpt.h"
 #include "dev.h"
 #include "host1x_syncpt.h"
@@ -74,8 +71,10 @@ static u32 t20_syncpt_update_min(struct nvhost_syncpt *sp, u32 id)
 
 	if (!nvhost_syncpt_check_max(sp, id, live))
 		dev_err(&syncpt_to_dev(sp)->dev->dev,
-				"%s failed: id=%u\n",
+				"%s failed: id=%u, min=%d, max=%d\n",
 				__func__,
+				nvhost_syncpt_read_min(sp, id),
+				nvhost_syncpt_read_max(sp, id),
 				id);
 
 	return live;
@@ -100,19 +99,6 @@ static void t20_syncpt_cpu_incr(struct nvhost_syncpt *sp, u32 id)
 	wmb();
 }
 
-/* returns true, if a <= b < c using wrapping comparison */
-static inline bool nvhost_syncpt_is_between(u32 a, u32 b, u32 c)
-{
-	return b-a < c-a;
-}
-
-/* returns true, if syncpt >= threshold (mod 1 << 32) */
-static bool nvhost_syncpt_wrapping_comparison(u32 syncpt, u32 threshold)
-{
-	return nvhost_syncpt_is_between(threshold, syncpt,
-					(1UL<<31UL)+threshold);
-}
-
 /* check for old WAITs to be removed (avoiding a wrap) */
 static int t20_syncpt_wait_check(struct nvhost_syncpt *sp,
 				 struct nvmap_client *nvmap,
@@ -133,12 +119,11 @@ static int t20_syncpt_wait_check(struct nvhost_syncpt *sp,
 
 	/* compare syncpt vs wait threshold */
 	while (num_waitchk) {
-		u32 syncpt, override;
+		u32 override;
 
 		BUG_ON(wait->syncpt_id >= NV_HOST1X_SYNCPT_NB_PTS);
-
-		syncpt = atomic_read(&sp->min_val[wait->syncpt_id]);
-		if (nvhost_syncpt_wrapping_comparison(syncpt, wait->thresh)) {
+		if (nvhost_syncpt_is_expired(sp,
+					wait->syncpt_id, wait->thresh)) {
 			/*
 			 * NULL an already satisfied WAIT_SYNCPT host method,
 			 * by patching its args in the command stream. The
@@ -148,10 +133,11 @@ static int t20_syncpt_wait_check(struct nvhost_syncpt *sp,
 			 * is guaranteed to be popped by the host HW.
 			 */
 			dev_dbg(&syncpt_to_dev(sp)->dev->dev,
-			    "drop WAIT id %d (%s) thresh 0x%x, syncpt 0x%x\n",
+			    "drop WAIT id %d (%s) thresh 0x%x, min 0x%x\n",
 			    wait->syncpt_id,
 			    syncpt_op(sp).name(sp, wait->syncpt_id),
-			    wait->thresh, syncpt);
+			    wait->thresh,
+			    nvhost_syncpt_read_min(sp, wait->syncpt_id));
 
 			/* patch the wait */
 			override = nvhost_class_host_wait_syncpt(

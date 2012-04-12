@@ -26,7 +26,7 @@ static int max8907c_i2c_read(struct i2c_client *i2c, u8 reg, u8 count, u8 *dest)
 	int ret = 0;
 
 	xfer[0].addr = i2c->addr;
-	xfer[0].flags = I2C_M_NOSTART;
+	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
 

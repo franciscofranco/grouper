@@ -181,36 +181,53 @@ static int smb349_configure_otg(struct i2c_client *client, int enable)
 	}
 
 	if (enable) {
+		/* Configure PGOOD to be active low */
+		ret = smb349_read(client, SMB349_SYSOK_USB3);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
+
+		ret = smb349_write(client, SMB349_SYSOK_USB3, (ret & (~(1))));
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
+
 		/* Enable OTG */
-	       ret = smb349_update_reg(client, SMB349_CMD_REG, 0x10);
-	       if (ret < 0) {
-		       dev_err(&client->dev, "%s: Failed in writing register"
+		ret = smb349_update_reg(client, SMB349_CMD_REG, 0x10);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: Failed in writing register"
 				"0x%02x\n", __func__, SMB349_CMD_REG);
 			goto error;
-	       }
-
+		}
 	} else {
-	       /* Disable OTG */
-	       ret = smb349_read(client, SMB349_CMD_REG);
-	       if (ret < 0) {
+		/* Disable OTG */
+		ret = smb349_read(client, SMB349_CMD_REG);
+		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
-	       }
+		}
 
-	       ret = smb349_write(client, SMB349_CMD_REG, (ret & (~(1<<4))));
-	       if (ret < 0) {
+		ret = smb349_write(client, SMB349_CMD_REG, (ret & (~(1<<4))));
+		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
-	       }
+		}
+
+		/* Configure PGOOD to be active high */
+		ret = smb349_update_reg(client, SMB349_SYSOK_USB3, 0x01);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
 	}
 
 	/* Disable volatile writes to registers */
 	ret = smb349_volatile_writes(client, SMB349_DISABLE_WRITE);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&client->dev, "%s error in configuring OTG..\n",
 								__func__);
-	       goto error;
-	}
 error:
 	return ret;
 }
@@ -319,6 +336,54 @@ irq_error:
 	return IRQ_HANDLED;
 }
 
+int update_charger_status(void)
+{
+	struct i2c_client *client = charger->client;
+	int ret, val;
+
+	val =  smb349_read(client, SMB349_STS_REG_D);
+	if (val < 0) {
+		dev_err(&client->dev, "%s(): Failed in reading register"
+			"0x%02x\n", __func__, SMB349_STS_REG_D);
+		goto val_error;
+	} else if (val != 0) {
+		if (val & DEDICATED_CHARGER)
+			charger->chrg_type = AC;
+		else if (val & CHRG_DOWNSTRM_PORT)
+			charger->chrg_type = USB;
+
+		/* configure charger */
+		ret = smb349_configure_charger(client, 1);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto ret_error;
+		}
+
+		charger->state = progress;
+	} else {
+		charger->state = stopped;
+
+		/* Disable charger */
+		ret = smb349_configure_charger(client, 0);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto ret_error;
+		}
+	}
+
+	if (charger->charger_cb)
+		charger->charger_cb(charger->state, charger->chrg_type,
+						charger->charger_cb_data);
+	return 0;
+val_error:
+	return val;
+ret_error:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(update_charger_status);
+
 int register_callback(charging_callback_t cb, void *args)
 {
 	struct smb349_charger *charger_data = charger;
@@ -385,12 +450,12 @@ error:
 	return ret;
 }
 
-static void smb349_otg_status(enum usb_otg_state otg_state, void *data)
+static void smb349_otg_status(enum usb_otg_state to, enum usb_otg_state from, void *data)
 {
 	struct i2c_client *client = charger->client;
 	int ret;
 
-	if (otg_state == OTG_STATE_A_HOST) {
+	if ((from == OTG_STATE_A_SUSPEND) && (to == OTG_STATE_A_HOST)) {
 
 		/* configure charger */
 		ret = smb349_configure_charger(client, 0);
@@ -404,7 +469,7 @@ static void smb349_otg_status(enum usb_otg_state otg_state, void *data)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
 
-	} else if (otg_state == OTG_STATE_A_SUSPEND) {
+	} else if ((from == OTG_STATE_A_HOST) && (to == OTG_STATE_A_SUSPEND)) {
 
 		/* Disable OTG */
 		ret = smb349_configure_otg(client, 0);
@@ -446,6 +511,7 @@ static int __devinit smb349_probe(struct i2c_client *client,
 	if (!smb349_battery_online()) {
 		dev_err(&client->dev, "%s() No Battery present, exiting..\n",
 					__func__);
+		ret = -ENODEV;
 		goto error;
 	}
 
@@ -473,6 +539,7 @@ static int __devinit smb349_probe(struct i2c_client *client,
 				__func__);
 		goto error;
 	}
+
 	return 0;
 error:
 	kfree(charger);
@@ -483,7 +550,9 @@ static int __devexit smb349_remove(struct i2c_client *client)
 {
 	struct smb349_charger *charger = i2c_get_clientdata(client);
 
+	free_irq(gpio_to_irq(client->irq), charger);
 	kfree(charger);
+
 	return 0;
 }
 

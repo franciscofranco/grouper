@@ -5,19 +5,17 @@
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NVHOST_DEV_H
@@ -29,7 +27,12 @@
 #include "nvhost_channel.h"
 #include "chip_support.h"
 
-#define NVHOST_MAJOR 0 /* dynamic */
+#define TRACE_MAX_LENGTH	128U
+#define IFACE_NAME		"nvhost"
+
+extern int nvhost_major;
+extern int nvhost_minor;
+
 struct nvhost_hwctx;
 
 struct nvhost_master {
@@ -51,8 +54,14 @@ struct nvhost_master {
 	atomic_t clientid;
 };
 
+extern struct nvhost_master *nvhost;
+
 void nvhost_debug_init(struct nvhost_master *master);
 void nvhost_debug_dump(struct nvhost_master *master);
+
+#define host_device_op(host)	(host->op.nvhost_dev)
+
+struct nvhost_device *nvhost_get_device(char *name);
 
 extern pid_t nvhost_debug_null_kickoff_pid;
 

@@ -18,14 +18,12 @@
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
-#ifndef DMAENGINE_H
-#define DMAENGINE_H
+#ifndef LINUX_DMAENGINE_H
+#define LINUX_DMAENGINE_H
 
 #include <linux/device.h>
 #include <linux/uio.h>
-#include <linux/dma-direction.h>
-
-struct scatterlist;
+#include <linux/scatterlist.h>
 
 /**
  * typedef dma_cookie_t - an opaque DMA cookie
@@ -76,6 +74,19 @@ enum dma_transaction_type {
 /* last transaction type for creation of the capabilities mask */
 #define DMA_TX_TYPE_END (DMA_CYCLIC + 1)
 
+/**
+ * enum dma_transfer_direction - dma transfer mode and direction indicator
+ * @DMA_MEM_TO_MEM: Async/Memcpy mode
+ * @DMA_MEM_TO_DEV: Slave mode & From Memory to Device
+ * @DMA_DEV_TO_MEM: Slave mode & From Device to Memory
+ * @DMA_DEV_TO_DEV: Slave mode & From Device to Device
+ */
+enum dma_transfer_direction {
+	DMA_MEM_TO_MEM,
+	DMA_MEM_TO_DEV,
+	DMA_DEV_TO_MEM,
+	DMA_DEV_TO_DEV,
+};
 
 /**
  * enum dma_ctrl_flags - DMA flags to augment operation preparation,
@@ -175,6 +186,7 @@ struct dma_chan_percpu {
  * struct dma_chan - devices supply DMA channels, clients use them
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
+ * @completed_cookie: last completed cookie for this channel
  * @chan_id: channel ID for sysfs
  * @dev: class device for sysfs
  * @device_node: used to add this to the device chan list
@@ -186,6 +198,7 @@ struct dma_chan_percpu {
 struct dma_chan {
 	struct dma_device *device;
 	dma_cookie_t cookie;
+	dma_cookie_t completed_cookie;
 
 	/* sysfs */
 	int chan_id;
@@ -268,7 +281,7 @@ enum dma_slave_buswidth {
  * struct, if applicable.
  */
 struct dma_slave_config {
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	dma_addr_t src_addr;
 	dma_addr_t dst_addr;
 	enum dma_slave_buswidth src_addr_width;
@@ -491,11 +504,12 @@ struct dma_device {
 
 	struct dma_async_tx_descriptor *(*device_prep_slave_sg)(
 		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
-		unsigned long flags);
+		unsigned int sg_len, enum dma_transfer_direction direction,
+		unsigned long flags, void *context);
 	struct dma_async_tx_descriptor *(*device_prep_dma_cyclic)(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
-		size_t period_len, enum dma_data_direction direction);
+		size_t period_len, enum dma_transfer_direction direction,
+		void *context);
 	int (*device_control)(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		unsigned long arg);
 
@@ -517,6 +531,33 @@ static inline int dmaengine_slave_config(struct dma_chan *chan,
 {
 	return dmaengine_device_control(chan, DMA_SLAVE_CONFIG,
 			(unsigned long)config);
+}
+
+static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_single(
+	struct dma_chan *chan, void *buf, size_t len,
+	enum dma_transfer_direction dir, unsigned long flags)
+{
+	struct scatterlist sg;
+	sg_init_one(&sg, buf, len);
+
+	return chan->device->device_prep_slave_sg(chan, &sg, 1,
+						  dir, flags, NULL);
+}
+
+static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_sg(
+	struct dma_chan *chan, struct scatterlist *sgl,	unsigned int sg_len,
+	enum dma_transfer_direction dir, unsigned long flags)
+{
+	return chan->device->device_prep_slave_sg(chan, sgl, sg_len,
+						  dir, flags, NULL);
+}
+
+static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_cyclic(
+		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
+		size_t period_len, enum dma_transfer_direction dir)
+{
+	return chan->device->device_prep_dma_cyclic(chan, buf_addr, buf_len,
+						period_len, dir, NULL);
 }
 
 static inline int dmaengine_terminate_all(struct dma_chan *chan)

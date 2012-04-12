@@ -141,8 +141,10 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 #endif
 }
 static int modem_id;
+static int sku_override;
 static int debug_uart_port_id;
 static enum audio_codec_type audio_codec_name;
+static enum image_type board_image_type = system_image;
 static int max_cpu_current;
 
 /* WARNING: There is implicit client of pllp_out3 like i2c, uart, dsi
@@ -179,19 +181,26 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "sclk",	"pll_p_out4",	102000000,	true },
 	{ "hclk",	"sclk",		102000000,	true },
 	{ "pclk",	"hclk",		51000000,	true },
+	{ "wake.sclk",	NULL,	40000000,	true },
+	{ "sbc5.sclk",	NULL,		40000000,	false},
+	{ "sbc6.sclk",	NULL,		40000000,	false},
 #endif
+	{ "sbc1.sclk",	NULL,		40000000,	false},
+	{ "sbc2.sclk",	NULL,		40000000,	false},
+	{ "sbc3.sclk",	NULL,		40000000,	false},
+	{ "sbc4.sclk",	NULL,		40000000,	false},
 #else
 	{ "pll_p",	NULL,		216000000,	true },
 	{ "pll_p_out1",	"pll_p",	28800000,	false },
 	{ "pll_p_out2",	"pll_p",	48000000,	false },
 	{ "pll_p_out3",	"pll_p",	72000000,	true },
 	{ "pll_m_out1",	"pll_m",	275000000,	true },
-	{ "pll_c",	NULL,		ULONG_MAX,	false },
-	{ "pll_c_out1",	"pll_c",	208000000,	false },
 	{ "pll_p_out4",	"pll_p",	108000000,	false },
 	{ "sclk",	"pll_p_out4",	108000000,	true },
 	{ "hclk",	"sclk",		108000000,	true },
 	{ "pclk",	"hclk",		54000000,	true },
+	{ "pll_c",	NULL,		ULONG_MAX,	false },
+	{ "pll_c_out1",	"pll_c",	208000000,	false },
 #endif
 #ifdef CONFIG_TEGRA_SLOW_CSITE
 	{ "csite",	"clk_m",	1000000, 	true },
@@ -419,39 +428,8 @@ static void __init tegra_init_ahb_gizmo_settings(void)
 	gizmo_writel(val, AHB_MEM_PREFETCH_CFG4);
 }
 
-static bool console_flushed;
-
-static void tegra_pm_flush_console(void)
-{
-	if (console_flushed)
-		return;
-	console_flushed = true;
-
-	pr_emerg("Restarting %s\n", linux_banner);
-	if (console_trylock()) {
-		console_unlock();
-		return;
-	}
-
-	mdelay(50);
-
-	local_irq_disable();
-	if (!console_trylock())
-		pr_emerg("%s: Console was locked! Busting\n", __func__);
-	else
-		pr_emerg("%s: Console was locked!\n", __func__);
-	console_unlock();
-}
-
-static void tegra_pm_restart(char mode, const char *cmd)
-{
-	tegra_pm_flush_console();
-	arm_machine_restart(mode, cmd);
-}
-
 void __init tegra_init_early(void)
 {
-	arm_pm_restart = tegra_pm_restart;
 #ifndef CONFIG_SMP
 	/* For SMP system, initializing the reset handler here is too
 	   late. For non-SMP systems, the function that calls the reset
@@ -499,6 +477,21 @@ static int __init tegra_bootloader_fb_arg(char *options)
 	return 0;
 }
 early_param("tegra_fbmem", tegra_bootloader_fb_arg);
+
+static int __init tegra_sku_override(char *id)
+{
+	char *p = id;
+
+	sku_override = memparse(p, &p);
+
+	return 0;
+}
+early_param("sku_override", tegra_sku_override);
+
+int tegra_get_sku_override(void)
+{
+	return sku_override;
+}
 
 static int __init tegra_vpr_arg(char *options)
 {
@@ -607,6 +600,21 @@ int get_tegra_uart_debug_port_id(void)
 }
 __setup("debug_uartport=", tegra_debug_uartport);
 
+static int __init tegra_image_type(char *options)
+{
+	if (!strcmp(options, "RCK"))
+		board_image_type = rck_image;
+
+	return 0;
+}
+
+enum image_type get_tegra_image_type(void)
+{
+	return board_image_type;
+}
+
+__setup("image=", tegra_image_type);
+
 static int __init tegra_audio_codec_type(char *info)
 {
 	char *p = info;
@@ -702,8 +710,6 @@ int tegra_get_modem_id(void)
 }
 
 __setup("modem_id=", tegra_modem_id);
-
-
 
 /*
  * Tegra has a protected aperture that prevents access by most non-CPU

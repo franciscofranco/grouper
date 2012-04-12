@@ -64,7 +64,7 @@ struct tps80031_rtc {
 	unsigned long		epoch_start;
 	int			irq;
 	struct rtc_device	*rtc;
-	bool			irq_en;
+	u8 			alarm_irq_enabled;
 };
 
 static int tps80031_read_regs(struct device *dev, int reg, int len,
@@ -214,11 +214,6 @@ static int tps80031_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return -EINVAL;
 	}
 
-	if (alrm->enabled && !rtc->irq_en)
-		rtc->irq_en = true;
-	else if (!alrm->enabled && rtc->irq_en)
-		rtc->irq_en = false;
-
 	buff[0] = alrm->time.tm_sec;
 	buff[1] = alrm->time.tm_min;
 	buff[2] = alrm->time.tm_hour;
@@ -264,24 +259,24 @@ static int tps80031_rtc_alarm_irq_enable(struct device *dev,
 		return -EIO;
 
 	if (enable) {
-		if (rtc->irq_en == true)
+		if (rtc->alarm_irq_enabled)
 			return 0;
 
 		err = tps80031_set_bits(p, 1, RTC_INT, ENABLE_ALARM_INT);
 		if (err < 0) {
 			dev_err(p, "failed to set ALRM int. err: %d\n", err);
 			return err;
-		}
-		rtc->irq_en = true;
+		} else
+			rtc->alarm_irq_enabled = 1;
 	} else {
-		if (rtc->irq_en == false)
+		if(!rtc->alarm_irq_enabled)
 			return 0;
 		err = tps80031_clr_bits(p, 1, RTC_INT, ENABLE_ALARM_INT);
 		if (err < 0) {
 			dev_err(p, "failed to clear ALRM int. err: %d\n", err);
 			return err;
-		}
-		rtc->irq_en = false;
+		} else
+			rtc->alarm_irq_enabled = 0;
 	}
 	return 0;
 }
@@ -365,7 +360,7 @@ static int __devinit tps80031_rtc_probe(struct platform_device *pdev)
 	/* If RTC have POR values, set time using platform data*/
 	tps80031_rtc_read_time(&pdev->dev, &tm);
 	if ((tm.tm_year == RTC_YEAR_OFFSET + RTC_POR_YEAR) &&
-		(tm.tm_mon == RTC_POR_MONTH) &&
+		(tm.tm_mon == (RTC_POR_MONTH - 1)) &&
 		(tm.tm_mday == RTC_POR_DAY)) {
 		if (pdata->time.tm_year < 2000 ||
 			pdata->time.tm_year > 2100) {
@@ -388,8 +383,10 @@ static int __devinit tps80031_rtc_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "unable to program Interrupt Mask reg\n");
 		err = -EBUSY;
+		rtc->alarm_irq_enabled = 0;
 		goto fail;
-	}
+	} else
+		rtc->alarm_irq_enabled = 1;
 
 	dev_set_drvdata(&pdev->dev, rtc);
 	if (pdata && (pdata->irq >= 0)) {

@@ -45,7 +45,7 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/i2s.h>
-#include <mach/tegra_wm8753_pdata.h>
+#include <mach/tegra_asoc_pdata.h>
 #include <sound/tlv320aic326x.h>
 
 #include <asm/mach-types.h>
@@ -281,7 +281,7 @@ static const struct tegra_pingroup_config i2c2_gen2 = {
 static struct tegra_i2c_platform_data whistler_i2c2_platform_data = {
 	.adapter_nr	= 1,
 	.bus_count	= 2,
-	.bus_clk_rate	= { 100000, 100000 },
+	.bus_clk_rate	= { 10000, 100000 },
 	.bus_mux	= { &i2c2_ddc, &i2c2_gen2 },
 	.bus_mux_len	= { 1, 1 },
 	.scl_gpio		= {0, TEGRA_GPIO_PT5},
@@ -375,7 +375,7 @@ static struct platform_device tegra_camera = {
 	.id = -1,
 };
 
-static struct tegra_wm8753_platform_data whistler_audio_pdata = {
+static struct tegra_asoc_platform_data whistler_audio_pdata = {
 	.gpio_spkr_en = -1,
 	.gpio_hp_det = TEGRA_GPIO_HP_DET,
 	.gpio_hp_mute = -1,
@@ -384,7 +384,7 @@ static struct tegra_wm8753_platform_data whistler_audio_pdata = {
 	.debounce_time_hp = 200,
 };
 
-static struct platform_device whistler_audio_device1 = {
+static struct platform_device whistler_audio_aic326x_device = {
 	.name	= "tegra-snd-aic326x",
 	.id	= 0,
 	.dev	= {
@@ -392,7 +392,7 @@ static struct platform_device whistler_audio_device1 = {
 	},
 };
 
-static struct platform_device whistler_audio_device2 = {
+static struct platform_device whistler_audio_wm8753_device = {
 	.name	= "tegra-snd-wm8753",
 	.id	= 0,
 	.dev	= {
@@ -418,8 +418,8 @@ static struct platform_device *whistler_devices[] __initdata = {
 	&baseband_dit_device,
 	&whistler_bcm4329_rfkill_device,
 	&tegra_pcm_device,
-	&whistler_audio_device1,
-	&whistler_audio_device2,
+	&whistler_audio_aic326x_device,
+	&whistler_audio_wm8753_device,
 };
 
 static struct synaptics_i2c_rmi_platform_data synaptics_pdata = {

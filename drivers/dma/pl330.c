@@ -18,6 +18,8 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
 
+#include "dmaengine.h"
+
 #define NR_DEFAULT_DESC	16
 
 enum desc_status {
@@ -47,9 +49,6 @@ struct dma_pl330_chan {
 
 	/* DMA-Engine Channel */
 	struct dma_chan chan;
-
-	/* Last completed cookie */
-	dma_cookie_t completed;
 
 	/* List of to be xfered descriptors */
 	struct list_head work_list;
@@ -193,7 +192,7 @@ static void pl330_tasklet(unsigned long data)
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
 		if (desc->status == DONE) {
-			pch->completed = desc->txd.cookie;
+			dma_cookie_complete(&desc->txd);
 			list_move_tail(&desc->node, &list);
 		}
 
@@ -235,7 +234,8 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	pch->completed = chan->cookie = 1;
+	dma_cookie_init(chan);
+	pch->cyclic = false;
 
 	pch->pl330_chid = pl330_request_channel(&pdmac->pif);
 	if (!pch->pl330_chid) {
@@ -295,18 +295,7 @@ static enum dma_status
 pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		 struct dma_tx_state *txstate)
 {
-	struct dma_pl330_chan *pch = to_pchan(chan);
-	dma_cookie_t last_done, last_used;
-	int ret;
-
-	last_done = pch->completed;
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, last_done, last_used);
-
-	dma_set_tx_state(txstate, last_done, last_used, 0);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pl330_issue_pending(struct dma_chan *chan)
@@ -329,26 +318,16 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&pch->lock, flags);
 
 	/* Assign cookies to all nodes */
-	cookie = tx->chan->cookie;
-
 	while (!list_empty(&last->node)) {
 		desc = list_entry(last->node.next, struct dma_pl330_desc, node);
 
-		if (++cookie < 0)
-			cookie = 1;
-		desc->txd.cookie = cookie;
+		dma_cookie_assign(&desc->txd);
 
 		list_move_tail(&desc->node, &pch->work_list);
 	}
 
-	if (++cookie < 0)
-		cookie = 1;
-	last->txd.cookie = cookie;
-
+	cookie = dma_cookie_assign(&last->txd);
 	list_add_tail(&last->node, &pch->work_list);
-
-	tx->chan->cookie = cookie;
-
 	spin_unlock_irqrestore(&pch->lock, flags);
 
 	return cookie;
@@ -524,6 +503,54 @@ static inline int get_burst_len(struct dma_pl330_desc *desc, size_t len)
 	return burst_len;
 }
 
+static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
+		struct dma_chan *chan, dma_addr_t dma_addr, size_t len,
+		size_t period_len, enum dma_transfer_direction direction,
+		void *context)
+{
+	struct dma_pl330_desc *desc;
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	dma_addr_t dst;
+	dma_addr_t src;
+
+	desc = pl330_get_desc(pch);
+	if (!desc) {
+		dev_err(pch->dmac->pif.dev, "%s:%d Unable to fetch desc\n",
+			__func__, __LINE__);
+		return NULL;
+	}
+
+	switch (direction) {
+	case DMA_MEM_TO_DEV:
+		desc->rqcfg.src_inc = 1;
+		desc->rqcfg.dst_inc = 0;
+		desc->req.rqtype = MEMTODEV;
+		src = dma_addr;
+		dst = pch->fifo_addr;
+		break;
+	case DMA_DEV_TO_MEM:
+		desc->rqcfg.src_inc = 0;
+		desc->rqcfg.dst_inc = 1;
+		desc->req.rqtype = DEVTOMEM;
+		src = pch->fifo_addr;
+		dst = dma_addr;
+		break;
+	default:
+		dev_err(pch->dmac->pif.dev, "%s:%d Invalid dma direction\n",
+		__func__, __LINE__);
+		return NULL;
+	}
+
+	desc->rqcfg.brst_size = pch->burst_sz;
+	desc->rqcfg.brst_len = 1;
+
+	pch->cyclic = true;
+
+	fill_px(&desc->px, dst, src, period_len);
+
+	return &desc->txd;
+}
+
 static struct dma_async_tx_descriptor *
 pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		dma_addr_t src, size_t len, unsigned long flags)
@@ -571,8 +598,8 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 static struct dma_async_tx_descriptor *
 pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
-		unsigned long flg)
+		unsigned int sg_len, enum dma_transfer_direction direction,
+		unsigned long flg, void *context)
 {
 	struct dma_pl330_desc *first, *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);

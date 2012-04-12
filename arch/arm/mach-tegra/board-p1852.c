@@ -43,6 +43,7 @@
 #include <mach/io.h>
 #include <mach/pci.h>
 #include <mach/audio.h>
+#include <mach/tegra_p1852_pdata.h>
 #include <asm/mach/flash.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -104,6 +105,7 @@ static __initdata struct tegra_clk_init_table p1852_clk_init_table[] = {
 	{ "d_audio",		"pll_a_out0",	12288000,	false},
 	{ "nor",		"pll_p",	86500000,	true},
 	{ "uarta",		"pll_p",	480000000,	true},
+	{ "uartd",		"pll_p",	480000000,	true},
 	{ "uarte",		"pll_p",	480000000,	true},
 	{ "sdmmc2",		"pll_p",	52000000,	true},
 	{ "sbc1",		"pll_m",	100000000,	true},
@@ -113,22 +115,32 @@ static __initdata struct tegra_clk_init_table p1852_clk_init_table[] = {
 	{ "sbc5",		"pll_m",	100000000,	true},
 	{ "sbc6",		"pll_m",	100000000,	true},
 	{ "cpu_g",		"cclk_g",	900000000,	true},
-	{ "i2s0",		"clk_m",	12288000,	false},
-	{ "i2s1",		"clk_m",	12288000,	false},
-	{ "i2s2",		"clk_m",	12288000,	false},
-	{ "i2s3",		"clk_m",	12288000,	false},
-	{ "i2s4",		"clk_m",	12288000,	false},
-	{ "vi",			"pll_p",	200000000,	true},
-	{ "vi_sensor",		"pll_p",	150000000,	true},
+	{ "i2s0",		"pll_a_out0",	12288000,	false},
+	{ "i2s1",		"pll_a_out0",	12288000,	false},
+	{ "i2s2",		"pll_a_out0",	12288000,	false},
+	{ "i2s3",		"pll_a_out0",	12288000,	false},
+	{ "i2s4",		"pll_a_out0",	12288000,	false},
+	{ "audio0",		"i2s0_sync",	12288000,	false},
+	{ "audio1",		"i2s1_sync",	12288000,	false},
+	{ "audio2",		"i2s2_sync",	12288000,	false},
+	{ "audio3",		"i2s3_sync",	12288000,	false},
+	{ "audio4",		"i2s4_sync",	12288000,	false},
+	{ "apbif",		"clk_m",	12000000,	false},
+	{ "dam0",		"clk_m",	12000000,	true},
+	{ "dam1",		"clk_m",	12000000,	true},
+	{ "dam2",		"clk_m",	12000000,	true},
+	{ "vi",			"pll_p",	470000000,	false},
+	{ "vi_sensor",		"pll_p",	150000000,	false},
 	{ "vde",		"pll_c",	484000000,	true},
-	{ "host1x",		"pll_c",	300000000,	true},
+	{ "host1x",		"pll_c",	242000000,	true},
 	{ "mpe",		"pll_c",	484000000,	true},
-	{ "se",			"pll_m",	650000000,	true},
+	{ "se",			"pll_m",	625000000,	true},
 	{ "i2c1",		"pll_p",	3200000,	true},
 	{ "i2c2",		"pll_p",	3200000,	true},
 	{ "i2c3",		"pll_p",	3200000,	true},
 	{ "i2c4",		"pll_p",	3200000,	true},
 	{ "i2c5",		"pll_p",	3200000,	true},
+	{ "sdmmc2",		"pll_p",	104000000,	false},
 	{ NULL,			NULL,		0,		0},
 };
 
@@ -187,6 +199,7 @@ static void p1852_i2c_init(void)
 static struct platform_device *p1852_uart_devices[] __initdata = {
 	&tegra_uarta_device,
 	&tegra_uartb_device,
+	&tegra_uartd_device,
 	&tegra_uarte_device,
 };
 static struct clk *debug_uart_clk;
@@ -220,6 +233,55 @@ static void __init p1852_uart_init(void)
 	platform_add_devices(p1852_uart_devices,
 				ARRAY_SIZE(p1852_uart_devices));
 }
+
+static struct tegra_p1852_platform_data p1852_audio_pdata = {
+	.codec_info[0] = {
+		.codec_dai_name = "dit-hifi",
+		.cpu_dai_name = "tegra30-i2s.0",
+		.codec_name = "spdif-dit.0",
+		.name = "tegra-i2s-1",
+		.i2s_format = format_i2s,
+		.master = 1,
+	},
+	.codec_info[1] = {
+		.codec_dai_name = "dit-hifi",
+		.cpu_dai_name = "tegra30-i2s.1",
+		.codec_name = "spdif-dit.1",
+		.name = "tegra-i2s-2",
+		.i2s_format = format_i2s,
+		.master = 0,
+	},
+
+};
+
+static struct platform_device generic_codec_1 = {
+	.name		= "spdif-dit",
+	.id			= 0,
+};
+static struct platform_device generic_codec_2 = {
+	.name		= "spdif-dit",
+	.id			= 1,
+};
+
+static struct platform_device tegra_snd_p1852 = {
+	.name       = "tegra-snd-p1852",
+	.id = 0,
+	.dev    = {
+	    .platform_data = &p1852_audio_pdata,
+	},
+};
+
+static void p1852_i2s_audio_init(void)
+{
+	platform_device_register(&tegra_pcm_device);
+	platform_device_register(&generic_codec_1);
+	platform_device_register(&generic_codec_2);
+	platform_device_register(&tegra_i2s_device0);
+	platform_device_register(&tegra_i2s_device1);
+	platform_device_register(&tegra_ahub_device);
+	platform_device_register(&tegra_snd_p1852);
+}
+
 
 #if defined(CONFIG_SPI_TEGRA) && defined(CONFIG_SPI_SPIDEV)
 static struct spi_board_info tegra_spi_devices[] __initdata = {
@@ -267,7 +329,6 @@ static void p1852_spi_init(void)
 	tegra_spi_device2.name = "spi_slave_tegra";
 	platform_device_register(&tegra_spi_device1);
 	platform_device_register(&tegra_spi_device2);
-	platform_device_register(&tegra_spi_device4);
 	p852_register_spidev();
 }
 
@@ -278,6 +339,7 @@ static struct platform_device *p1852_devices[] __initdata = {
 #if defined(CONFIG_TEGRA_AVP)
 	&tegra_avp_device,
 #endif
+	&tegra_wdt_device
 };
 
 static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
@@ -359,9 +421,11 @@ static void p1852_nor_init(void)
 
 static void __init tegra_p1852_init(void)
 {
+	tegra_init_board_info();
 	tegra_clk_init_from_table(p1852_clk_init_table);
 	p1852_pinmux_init();
 	p1852_i2c_init();
+	p1852_i2s_audio_init();
 	p1852_gpio_init();
 	p1852_uart_init();
 	p1852_usb_init();

@@ -137,14 +137,14 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data2 = {
 	.cd_gpio = TEGRA_GPIO_PI5,
 	.wp_gpio = TEGRA_GPIO_PH1,
-	.power_gpio = TEGRA_GPIO_PT3,
+	.power_gpio = TEGRA_GPIO_PI6,
 };
 
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data3 = {
 	.is_8bit = 1,
 	.cd_gpio = -1,
 	.wp_gpio = -1,
-	.power_gpio = TEGRA_GPIO_PI6,
+	.power_gpio = -1,
 	.mmc_data = {
 		.built_in = 1,
 	}

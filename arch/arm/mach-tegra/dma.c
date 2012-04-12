@@ -157,6 +157,7 @@ static bool tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 static void handle_oneshot_dma(struct tegra_dma_channel *ch);
 static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch);
 static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch);
+static void handle_dma_isr_locked(struct tegra_dma_channel *ch);
 
 void tegra_dma_flush(struct tegra_dma_channel *ch)
 {
@@ -180,21 +181,6 @@ static void tegra_dma_stop(struct tegra_dma_channel *ch)
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
 }
 
-int tegra_dma_cancel(struct tegra_dma_channel *ch)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&ch->lock, irq_flags);
-	while (!list_empty(&ch->list))
-		list_del(ch->list.next);
-
-	tegra_dma_stop(ch);
-
-	spin_unlock_irqrestore(&ch->lock, irq_flags);
-	return 0;
-}
-EXPORT_SYMBOL(tegra_dma_cancel);
-
 static void pause_dma(bool wait_for_burst_complete)
 {
 	spin_lock(&enable_lock);
@@ -212,9 +198,17 @@ static void resume_dma(void)
 static void start_head_req(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *head_req;
+	struct tegra_dma_req *next_req;
 	if (!list_empty(&ch->list)) {
 		head_req = list_entry(ch->list.next, typeof(*head_req), node);
 		tegra_dma_update_hw(ch, head_req);
+
+		/* Set next request to idle. */
+		if (!list_is_last(&head_req->node, &ch->list)) {
+			next_req = list_entry(head_req->node.next,
+					typeof(*head_req), node);
+			next_req->status = TEGRA_DMA_REQ_PENDING;
+		}
 	}
 }
 
@@ -405,6 +399,74 @@ skip_status:
 }
 EXPORT_SYMBOL(tegra_dma_dequeue_req);
 
+int tegra_dma_cancel(struct tegra_dma_channel *ch)
+{
+	struct tegra_dma_req *hreq = NULL;
+	unsigned long status;
+	unsigned long irq_flags;
+	struct tegra_dma_req *cb_req = NULL;
+	dma_callback callback = NULL;
+	struct list_head new_list;
+
+	INIT_LIST_HEAD(&new_list);
+
+	if (ch->mode & TEGRA_DMA_SHARED) {
+		pr_err("Can not abort requests from shared channel %d\n",
+			ch->id);
+		return -EPERM;
+	}
+
+	spin_lock_irqsave(&ch->lock, irq_flags);
+
+	/* If list is empty, return with error*/
+	if (list_empty(&ch->list)) {
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
+		return 0;
+	}
+
+	/* Pause dma before checking the queue status */
+	pause_dma(true);
+	status = readl(ch->addr + APB_DMA_CHAN_STA);
+	if (status & STA_ISE_EOC) {
+		handle_dma_isr_locked(ch);
+		cb_req = ch->cb_req;
+		callback = ch->callback;
+		ch->cb_req = NULL;
+		ch->callback = NULL;
+		/* Read status because it may get changed */
+		status = readl(ch->addr + APB_DMA_CHAN_STA);
+	}
+
+	/* Abort head requests, stop dma and dequeue all requests */
+	if (!list_empty(&ch->list)) {
+		tegra_dma_stop(ch);
+		hreq = list_entry(ch->list.next, typeof(*hreq), node);
+		hreq->bytes_transferred +=
+				get_current_xferred_count(ch, hreq, status);
+
+		/* copy the list into new list. */
+		list_replace_init(&ch->list, &new_list);
+	}
+
+	resume_dma();
+
+	spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+	/* Call callback if it is due from interrupts */
+	if (callback)
+		callback(cb_req);
+
+	/* Abort all requests on list. */
+	while (!list_empty(&new_list)) {
+		hreq = list_entry(new_list.next, typeof(*hreq), node);
+		hreq->status = -TEGRA_DMA_REQ_ERROR_ABORTED;
+		list_del(&hreq->node);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tegra_dma_cancel);
+
 bool tegra_dma_is_empty(struct tegra_dma_channel *ch)
 {
 	unsigned long irq_flags;
@@ -501,7 +563,7 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	}
 
 	req->bytes_transferred = 0;
-	req->status = 0;
+	req->status = TEGRA_DMA_REQ_PENDING;
 	/* STATUS_EMPTY just means the DMA hasn't processed the buf yet. */
 	req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_EMPTY;
 	if (list_empty(&ch->list))

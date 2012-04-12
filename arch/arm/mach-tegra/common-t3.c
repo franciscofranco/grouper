@@ -3,7 +3,7 @@
  *
  * Tegra 3 SoC-specific initialization (memory controller, etc.)
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -248,10 +248,11 @@ int __init tegra_mc_init(void)
 	reg = 0x0F7F1010;
 	writel(reg, mc + MC_RESERVED_RSV);
 
+#if defined(CONFIG_TEGRA_MC_EARLY_ACK)
 	reg = readl(mc + MC_EMEM_ARB_OVERRIDE);
 	reg |= 3;
 	writel(reg, mc + MC_EMEM_ARB_OVERRIDE);
-
+#endif
 	if (request_irq(INT_MC_GENERAL, tegra_mc_error_isr, 0,
 			"mc_status", NULL)) {
 		pr_err("%s: unable to register MC error interrupt\n", __func__);

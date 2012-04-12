@@ -68,6 +68,7 @@ MODULE_PARM_DESC(usb_net_raw_ip_tx_debug, "usb net (raw-ip) - tx debug");
 
 struct baseband_usb {
 	int baseband_index;
+	struct net_device_stats stats;
 	struct {
 		struct usb_driver *driver;
 		struct usb_device *device;
@@ -488,10 +489,25 @@ static netdev_tx_t baseband_usb_netdev_start_xmit(
 	err = usb_net_raw_ip_tx_urb_submit(usb, skb);
 	if (err < 0) {
 		pr_err("tx urb submit error\n");
+		usb->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
 
 	return NETDEV_TX_OK;
+}
+
+static struct net_device_stats *baseband_usb_netdev_get_stats(
+				struct net_device *dev)
+{
+	int i;
+	for (i = 0; i < max_intfs; i++) {
+		if (dev == usb_net_raw_ip_dev[i]) {
+			pr_debug("%s idx(%d)\n", __func__, i);
+			return &baseband_usb_net[i]->stats;
+		}
+	}
+	pr_debug("%s mismatch dev, default idx(0)\n", __func__);
+	return &baseband_usb_net[0]->stats;
 }
 
 static struct net_device_ops usb_net_raw_ip_ops = {
@@ -500,6 +516,7 @@ static struct net_device_ops usb_net_raw_ip_ops = {
 	.ndo_open =		baseband_usb_netdev_open,
 	.ndo_stop =		baseband_usb_netdev_stop,
 	.ndo_start_xmit =	baseband_usb_netdev_start_xmit,
+	.ndo_get_stats = baseband_usb_netdev_get_stats,
 };
 
 static int usb_net_raw_ip_rx_urb_submit(struct baseband_usb *usb)
@@ -629,6 +646,11 @@ static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 				pr_err("usb_net_raw_ip_rx_urb_comp_work - "
 					"netif_rx(%p) failed\n", skb);
 				kfree_skb(skb);
+				usb->stats.rx_errors++;
+			} else {
+				usb->stats.rx_packets++;
+				usb->stats.rx_bytes +=
+				    (14 + urb->actual_length);
 			}
 		} else {
 			pr_err("usb_net_raw_ip_rx_urb_comp_work - "
@@ -812,6 +834,7 @@ static void usb_net_raw_ip_tx_urb_work(struct work_struct *work)
 				urb->transfer_buffer = (void *) 0;
 			}
 			usb_free_urb(urb);
+			usb->stats.tx_errors++;
 			continue;
 		}
 		/* submit tx urb */
@@ -867,7 +890,12 @@ static void usb_net_raw_ip_tx_urb_comp(struct urb *urb)
 			__func__, urb, urb->status);
 		break;
 	}
-
+	if (urb->status)
+		usb->stats.tx_errors++;
+	else {
+		usb->stats.tx_packets++;
+		usb->stats.tx_bytes += urb->transfer_buffer_length;
+	}
 	/* autosuspend after tx completed */
 	if (!usb->usb.interface) {
 		pr_err("%s: usb interface disconnected"

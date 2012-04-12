@@ -43,4 +43,12 @@
 #define MAX8907C_VRTC   27
 #define MAX8907C_WLED   27
 
+/*
+ * struct max8907c_chip_regulator_data - max8907c chip regulator data.
+ *
+ * @enable_time_us: microseconds delay required after enabling rail regulator.
+ */
+struct max8907c_chip_regulator_data {
+	int enable_time_us;
+};
 #endif

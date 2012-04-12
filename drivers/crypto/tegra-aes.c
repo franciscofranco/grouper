@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 
 #include <mach/arb_sema.h>
 #include <mach/clk.h>
@@ -166,7 +167,6 @@ struct tegra_aes_engine {
 	int res_id;
 	unsigned long busy;
 	u8 irq;
-	bool new_key;
 	u32 status;
 };
 
@@ -615,15 +615,6 @@ static int tegra_aes_handle_req(struct tegra_aes_engine *eng)
 	dd->flags = (dd->flags & ~FLAGS_MODE_MASK) | rctx->mode;
 	eng->ctx = ctx;
 
-	if (eng->new_key) {
-		if (ctx->use_ssk)
-			aes_set_key(eng, SSK_SLOT_NUM);
-		else
-			aes_set_key(eng, ctx->slot->slot_num);
-
-		eng->new_key = false;
-	}
-
 	if (((dd->flags & FLAGS_CBC) || (dd->flags & FLAGS_OFB)) && req->info) {
 		/* set iv to the aes hw slot
 		 * Hw generates updated iv only after iv is set in slot.
@@ -690,12 +681,67 @@ out:
 	return ret;
 }
 
+static int tegra_aes_key_save(struct tegra_aes_ctx *ctx)
+{
+	struct tegra_aes_dev *dd = aes_dev;
+	int retry_count, eng_busy, ret, eng_no;
+	struct tegra_aes_engine *eng[2] = {&dd->bsev, &dd->bsea};
+	unsigned long flags;
+
+	/* check for engine free state */
+	for (eng_no = 0; eng_no < ARRAY_SIZE(eng); eng_no++) {
+		for (retry_count = 0; retry_count <= 10; retry_count++) {
+			spin_lock_irqsave(&dd->lock, flags);
+			eng_busy = test_and_set_bit(FLAGS_BUSY,
+							&eng[eng_no]->busy);
+			spin_unlock_irqrestore(&dd->lock, flags);
+
+			if (!eng_busy)
+				break;
+
+			if (retry_count == 10) {
+				dev_err(dd->dev,
+					"%s: eng=%d busy, wait timeout\n",
+					__func__, eng[eng_no]->res_id);
+				ret = -EBUSY;
+				goto out;
+			}
+			mdelay(5);
+		}
+	}
+
+	/* save key in the engine */
+	for (eng_no = 0;  eng_no < ARRAY_SIZE(eng); eng_no++) {
+		ret = aes_hw_init(eng[eng_no]);
+		if (ret < 0) {
+			dev_err(dd->dev, "%s: eng=%d hw init fail(%d)\n",
+			__func__, eng[eng_no]->res_id, ret);
+			goto out;
+		}
+		eng[eng_no]->ctx = ctx;
+		if (ctx->use_ssk)
+			aes_set_key(eng[eng_no], SSK_SLOT_NUM);
+		else
+			aes_set_key(eng[eng_no], ctx->slot->slot_num);
+
+		aes_hw_deinit(eng[eng_no]);
+	}
+out:
+	spin_lock_irqsave(&dd->lock, flags);
+	while (--eng_no >= 0)
+		clear_bit(FLAGS_BUSY, &eng[eng_no]->busy);
+	spin_unlock_irqrestore(&dd->lock, flags);
+
+	return ret;
+}
+
 static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	unsigned int keylen)
 {
 	struct tegra_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	struct tegra_aes_dev *dd = aes_dev;
 	struct tegra_aes_slot *key_slot;
+	int ret = 0;
 
 	if (!ctx || !dd) {
 		pr_err("ctx=0x%x, dd=0x%x\n",
@@ -722,7 +768,6 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	}
 
 	dev_dbg(dd->dev, "keylen: %d\n", keylen);
-
 	ctx->dd = dd;
 
 	if (key) {
@@ -730,6 +775,7 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			key_slot = aes_find_key_slot(dd);
 			if (!key_slot) {
 				dev_err(dd->dev, "no empty slot\n");
+				ret = -EBUSY;
 				goto out;
 			}
 			ctx->slot = key_slot;
@@ -745,14 +791,14 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		ctx->keylen = AES_KEYSIZE_128;
 	}
 
-	dd->bsev.new_key = true;
-	dd->bsea.new_key = true;
-
+	ret = tegra_aes_key_save(ctx);
+	if (ret != 0)
+		dev_err(dd->dev, "%s failed\n", __func__);
 out:
 	tegra_arb_mutex_unlock(dd->bsev.res_id);
 	tegra_arb_mutex_unlock(dd->bsea.res_id);
 	dev_dbg(dd->dev, "done\n");
-	return 0;
+	return ret;
 }
 
 static void bsev_workqueue_handler(struct work_struct *work)

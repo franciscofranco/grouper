@@ -25,6 +25,38 @@
 #include <linux/types.h>
 #include <linux/power_supply.h>
 
+#define ADD_FIXED_VOLTAGE_REG(_name)	(&_name##_fixed_voltage_device)
+
+/* Macro for defining fixed voltage regulator */
+#define FIXED_VOLTAGE_REG_INIT(_id, _name, _microvolts, _gpio,		\
+		_startup_delay, _enable_high, _enabled_at_boot,		\
+		_valid_ops_mask, _always_on)				\
+	static struct regulator_init_data _name##_initdata = {		\
+		.consumer_supplies = _name##_consumer_supply,		\
+		.num_consumer_supplies =				\
+				ARRAY_SIZE(_name##_consumer_supply),	\
+		.constraints = {					\
+			.valid_ops_mask = _valid_ops_mask ,		\
+			.always_on = _always_on,			\
+		},							\
+	};								\
+	static struct fixed_voltage_config _name##_config = {		\
+		.supply_name		= #_name,			\
+		.microvolts		= _microvolts,			\
+		.gpio			= _gpio,			\
+		.startup_delay		= _startup_delay,		\
+		.enable_high		= _enable_high,			\
+		.enabled_at_boot	= _enabled_at_boot,		\
+		.init_data		= &_name##_initdata,		\
+	};								\
+	static struct platform_device _name##_fixed_voltage_device = {	\
+		.name			= "reg-fixed-voltage",		\
+		.id			= _id,				\
+		.dev			= {				\
+			.platform_data	= &_name##_config,		\
+		},							\
+	}
+
 #if defined(CONFIG_TEGRA_NVMAP)
 #define NVMAP_HEAP_CARVEOUT_IRAM_INIT	\
 	{	.name		= "iram",					\
@@ -58,6 +90,7 @@ void __init tegra_ram_console_debug_reserve(unsigned long ram_console_size);
 void __init tegra_ram_console_debug_init(void);
 void __init tegra_release_bootloader_fb(void);
 void __init tegra_protected_aperture_init(unsigned long aperture);
+int  __init tegra_init_board_info(void);
 void tegra_move_framebuffer(unsigned long to, unsigned long from,
 	unsigned long size);
 bool is_tegra_debug_uartport_hs(void);
@@ -106,6 +139,11 @@ enum audio_codec_type {
 	audio_codec_wm8903,
 };
 
+enum image_type {
+	system_image = 0,
+	rck_image,
+};
+
 void tegra_get_board_info(struct board_info *);
 void tegra_get_pmu_board_info(struct board_info *bi);
 void tegra_get_display_board_info(struct board_info *bi);
@@ -126,5 +164,6 @@ int tegra_get_modem_id(void);
 enum power_supply_type get_power_supply_type(void);
 enum audio_codec_type get_audio_codec_type(void);
 int get_maximum_cpu_current_supported(void);
+enum image_type get_tegra_image_type(void);
 
 #endif

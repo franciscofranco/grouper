@@ -845,21 +845,17 @@ static void mpuirq_init(void)
 		ARRAY_SIZE(inv_mpu_i2c2_board_info));
 }
 
-#ifdef CONFIG_SENSORS_ISL29028
 static struct i2c_board_info cardhu_i2c2_isl_board_info[] = {
 	{
 		I2C_BOARD_INFO("isl29028", 0x44),
 	}
 };
-#endif
 
-#ifdef CONFIG_SENSORS_LTR558
 static struct i2c_board_info cardhu_i2c2_ltr_board_info[] = {
 	{
 		I2C_BOARD_INFO("LTR_558ALS", 0x23),
 	}
 };
-#endif
 
 int __init cardhu_sensors_init(void)
 {
@@ -914,15 +910,12 @@ int __init cardhu_sensors_init(void)
 		i2c_register_board_info(4, cardhu_i2c4_bq27510_board_info,
 			ARRAY_SIZE(cardhu_i2c4_bq27510_board_info));
 
-#ifdef CONFIG_SENSORS_ISL29028
-	i2c_register_board_info(2, cardhu_i2c2_isl_board_info,
-		ARRAY_SIZE(cardhu_i2c2_isl_board_info));
-#endif
-
-#ifdef CONFIG_SENSORS_LTR558
-	i2c_register_board_info(2, cardhu_i2c2_ltr_board_info,
-		ARRAY_SIZE(cardhu_i2c2_ltr_board_info));
-#endif
+	if (board_info.sku == BOARD_SKU_B11)
+		i2c_register_board_info(2, cardhu_i2c2_ltr_board_info,
+			ARRAY_SIZE(cardhu_i2c2_ltr_board_info));
+	else
+		i2c_register_board_info(2, cardhu_i2c2_isl_board_info,
+			ARRAY_SIZE(cardhu_i2c2_isl_board_info));
 
 	err = cardhu_nct1008_init();
 	if (err)

@@ -3,21 +3,19 @@
  *
  * Tegra Graphics Host 3D clock scaling
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -155,6 +153,9 @@ static void scale3d_clocks_handler(struct work_struct *work)
 
 void nvhost_scale3d_suspend(struct nvhost_device *dev)
 {
+	if (!scale3d.enable)
+		return;
+
 	cancel_work_sync(&scale3d.work);
 	cancel_delayed_work(&scale3d.idle_timer);
 }
@@ -175,6 +176,9 @@ static void reset_3d_clocks(void)
 static int scale3d_is_enabled(void)
 {
 	int enable;
+
+	if (!scale3d.enable)
+		return 0;
 
 	mutex_lock(&scale3d.lock);
 	enable = scale3d.enable;
@@ -375,10 +379,10 @@ void nvhost_scale3d_notify_idle(struct nvhost_device *dev)
 	ktime_t t;
 	unsigned long dt;
 
-	mutex_lock(&scale3d.lock);
-
 	if (!scale3d.enable)
-		goto done;
+		return;
+
+	mutex_lock(&scale3d.lock);
 
 	t = ktime_get();
 
@@ -400,7 +404,6 @@ void nvhost_scale3d_notify_idle(struct nvhost_device *dev)
 		msecs_to_jiffies((scale3d.idle_max * scale3d.fast_response)
 			/ 50000));
 
-done:
 	mutex_unlock(&scale3d.lock);
 }
 
@@ -410,10 +413,10 @@ void nvhost_scale3d_notify_busy(struct nvhost_device *dev)
 	unsigned long short_term_idle;
 	ktime_t t;
 
-	mutex_lock(&scale3d.lock);
-
 	if (!scale3d.enable)
-		goto done;
+		return;
+
+	mutex_lock(&scale3d.lock);
 
 	cancel_delayed_work(&scale3d.idle_timer);
 
@@ -431,7 +434,6 @@ void nvhost_scale3d_notify_busy(struct nvhost_device *dev)
 
 	scaling_state_check(t);
 
-done:
 	mutex_unlock(&scale3d.lock);
 }
 
@@ -439,10 +441,12 @@ static void scale3d_idle_handler(struct work_struct *work)
 {
 	int notify_idle = 0;
 
+	if (!scale3d.enable)
+		return;
+
 	mutex_lock(&scale3d.lock);
 
-	if (scale3d.enable && scale3d.is_idle &&
-		tegra_is_clk_enabled(scale3d.clk_3d)) {
+	if (scale3d.is_idle && tegra_is_clk_enabled(scale3d.clk_3d)) {
 		unsigned long curr = clk_get_rate(scale3d.clk_3d);
 		if (curr > scale3d.min_rate_3d)
 			notify_idle = 1;
@@ -456,7 +460,12 @@ static void scale3d_idle_handler(struct work_struct *work)
 
 void nvhost_scale3d_reset()
 {
-	ktime_t t = ktime_get();
+	ktime_t t;
+
+	if (!scale3d.enable)
+		return;
+
+	t = ktime_get();
 	mutex_lock(&scale3d.lock);
 	reset_scaling_counters(t);
 	mutex_unlock(&scale3d.lock);
@@ -530,6 +539,9 @@ void nvhost_scale3d_init(struct nvhost_device *d)
 		unsigned long max_emc, min_emc;
 		long correction;
 		mutex_init(&scale3d.lock);
+
+		INIT_WORK(&scale3d.work, scale3d_clocks_handler);
+		INIT_DELAYED_WORK(&scale3d.idle_timer, scale3d_idle_handler);
 
 		scale3d.clk_3d = d->clk[0];
 		if (tegra_get_chipid() == TEGRA_CHIPID_TEGRA3) {
@@ -619,9 +631,6 @@ void nvhost_scale3d_init(struct nvhost_device *d)
 				scale3d.emc_dip_slope *
 				POW2(scale3d.max_rate_3d - scale3d.emc_xmid);
 		scale3d.emc_dip_offset -= correction;
-
-		INIT_WORK(&scale3d.work, scale3d_clocks_handler);
-		INIT_DELAYED_WORK(&scale3d.idle_timer, scale3d_idle_handler);
 
 		/* set scaling parameter defaults */
 		scale3d.enable = 1;

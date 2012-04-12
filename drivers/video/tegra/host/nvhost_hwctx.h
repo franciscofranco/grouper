@@ -3,21 +3,19 @@
  *
  * Tegra Graphics Host Hardware Context Interface
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NVHOST_HWCTX_H
@@ -34,30 +32,21 @@ struct nvhost_cdma;
 
 struct nvhost_hwctx {
 	struct kref ref;
-
+	struct nvhost_hwctx_handler *h;
 	struct nvhost_channel *channel;
 	bool valid;
-
-	struct nvmap_handle_ref *save;
-	u32 save_incrs;
-	u32 save_thresh;
-	u32 save_slots;
-
-	struct nvmap_handle_ref *restore;
-	u32 *restore_virt;
-	phys_addr_t restore_phys;
-	u32 restore_size;
-	u32 restore_incrs;
-
 	bool has_timedout;
 };
 
 struct nvhost_hwctx_handler {
-	struct nvhost_hwctx * (*alloc) (struct nvhost_channel *ch);
+	struct nvhost_hwctx * (*alloc) (struct nvhost_hwctx_handler *h,
+			struct nvhost_channel *ch);
 	void (*get) (struct nvhost_hwctx *ctx);
 	void (*put) (struct nvhost_hwctx *ctx);
-	void (*save_push) (struct nvhost_cdma *cdma, struct nvhost_hwctx *ctx);
+	void (*save_push) (struct nvhost_hwctx *ctx,
+			struct nvhost_cdma *cdma);
 	void (*save_service) (struct nvhost_hwctx *ctx);
+	void *priv;
 };
 
 

@@ -87,6 +87,32 @@ module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
 static unsigned int cpu_user_cap;
 
+static inline void _cpu_user_cap_set_locked(void)
+{
+#ifndef CONFIG_TEGRA_CPU_CAP_EXACT_FREQ
+	if (cpu_user_cap != 0) {
+		int i;
+		for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+			if (freq_table[i].frequency > cpu_user_cap)
+				break;
+		}
+		i = (i == 0) ? 0 : i - 1;
+		cpu_user_cap = freq_table[i].frequency;
+	}
+#endif
+	tegra_cpu_set_speed_cap(NULL);
+}
+
+void tegra_cpu_user_cap_set(unsigned int speed_khz)
+{
+	mutex_lock(&tegra_cpu_lock);
+
+	cpu_user_cap = speed_khz;
+	_cpu_user_cap_set_locked();
+
+	mutex_unlock(&tegra_cpu_lock);
+}
+
 static int cpu_user_cap_set(const char *arg, const struct kernel_param *kp)
 {
 	int ret;
@@ -94,21 +120,8 @@ static int cpu_user_cap_set(const char *arg, const struct kernel_param *kp)
 	mutex_lock(&tegra_cpu_lock);
 
 	ret = param_set_uint(arg, kp);
-	if (ret == 0) {
-#ifndef CONFIG_TEGRA_CPU_CAP_EXACT_FREQ
-		if (cpu_user_cap != 0) {
-			int i;
-			for (i = 0; freq_table[i].frequency !=
-				CPUFREQ_TABLE_END; i++) {
-				if (freq_table[i].frequency > cpu_user_cap)
-					break;
-			}
-			i = (i == 0) ? 0 : i - 1;
-			cpu_user_cap = freq_table[i].frequency;
-		}
-#endif
-		tegra_cpu_set_speed_cap(NULL);
-	}
+	if (ret == 0)
+		_cpu_user_cap_set_locked();
 
 	mutex_unlock(&tegra_cpu_lock);
 	return ret;
@@ -249,13 +262,15 @@ int tegra_system_edp_alarm(bool alarm)
 	system_edp_alarm = alarm;
 
 	/* Update cpu rate if cpufreq (at least on cpu0) is already started
-	   and cancel emergency throttling after edp limit is applied */
+	   and cancel emergency throttling after either edp limit is applied
+	   or alarm is canceled */
 	if (target_cpu_speed[0]) {
 		edp_update_limit();
 		ret = tegra_cpu_set_speed_cap(NULL);
-		if (!ret && alarm)
-			tegra_edp_throttle_cpu_now(0);
 	}
+	if (!ret || !alarm)
+		tegra_edp_throttle_cpu_now(0);
+
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
@@ -578,6 +593,20 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	if (ret == 0)
 		tegra_auto_hotplug_governor(new_speed, false);
 	return ret;
+}
+
+int tegra_suspended_target(unsigned int target_freq)
+{
+	unsigned int new_speed = target_freq;
+
+	if (!is_suspended)
+		return -EBUSY;
+
+	/* apply only "hard" caps */
+	new_speed = tegra_throttle_governor_speed(new_speed);
+	new_speed = edp_governor_speed(new_speed);
+
+	return tegra_update_cpu_speed(new_speed);
 }
 
 static int tegra_target(struct cpufreq_policy *policy,

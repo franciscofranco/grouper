@@ -5,29 +5,27 @@
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/slab.h>
-#include <linux/platform_device.h>
 #include "nvhost_cdma.h"
 #include "dev.h"
 
 #include "host1x_hardware.h"
 #include "host1x_syncpt.h"
 #include "host1x_cdma.h"
+#include "host1x_hwctx.h"
 
 static inline u32 host1x_channel_dmactrl(int stop, int get_rst, int init_get)
 {
@@ -73,7 +71,7 @@ static int push_buffer_init(struct push_buffer *pb)
 
 	/* allocate and map pushbuffer memory */
 	pb->mem = nvmap_alloc(nvmap, PUSH_BUFFER_SIZE + 4, 32,
-			      NVMAP_HANDLE_WRITE_COMBINE);
+			      NVMAP_HANDLE_WRITE_COMBINE, 0);
 	if (IS_ERR_OR_NULL(pb->mem)) {
 		pb->mem = NULL;
 		goto fail;
@@ -210,7 +208,7 @@ static int cdma_timeout_init(struct nvhost_cdma *cdma,
 	/* allocate and map syncpt incr memory */
 	sb->mem = nvmap_alloc(nvmap,
 			(SYNCPT_INCR_BUFFER_SIZE_WORDS * sizeof(u32)), 32,
-			NVMAP_HANDLE_WRITE_COMBINE);
+			NVMAP_HANDLE_WRITE_COMBINE, 0);
 	if (IS_ERR_OR_NULL(sb->mem)) {
 		sb->mem = NULL;
 		goto fail;
@@ -338,7 +336,7 @@ static void cdma_timeout_pb_incr(struct nvhost_cdma *cdma, u32 getptr,
 	struct nvhost_master *dev = cdma_to_dev(cdma);
 	struct syncpt_buffer *sb = &cdma->syncpt_buffer;
 	struct push_buffer *pb = &cdma->push_buffer;
-	struct nvhost_hwctx *hwctx = cdma->timeout.ctx;
+	struct host1x_hwctx *hwctx = to_host1x_hwctx(cdma->timeout.ctx);
 	u32 getidx, *p;
 
 	/* should have enough slots to incr to desired count */

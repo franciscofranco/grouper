@@ -6,7 +6,7 @@
  * Author:
  *	Erik Gilling <konkers@google.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -132,6 +132,7 @@ struct tegra_dsi_out {
 	u8		n_data_lanes;			/* required */
 	u8		pixel_format;			/* required */
 	u8		refresh_rate;			/* required */
+	u8		rated_refresh_rate;
 	u8		panel_reset;			/* required */
 	u8		virtual_channel;		/* required */
 	u8		dsi_instance;
@@ -197,6 +198,7 @@ struct tegra_stereo_out {
 
 struct tegra_dc_mode {
 	int	pclk;
+	int	rated_pclk;
 	int	h_ref_to_sync;
 	int	v_ref_to_sync;
 	int	h_sync_width;
@@ -521,6 +523,8 @@ int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n);
 
 int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode);
 struct fb_videomode;
+int tegra_dc_to_fb_videomode(struct fb_videomode *fbmode,
+	const struct tegra_dc_mode *mode);
 int tegra_dc_set_fb_mode(struct tegra_dc *dc, const struct fb_videomode *fbmode,
 	bool stereo_mode);
 

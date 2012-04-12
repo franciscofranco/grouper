@@ -74,6 +74,7 @@ enum tegra_dma_mode {
 
 /*
  * tegra_dma_req_status: Dma request status
+ * TEGRA_DMA_REQ_PENDING: Request is pending and not programmed in hw.
  * TEGRA_DMA_REQ_SUCCESS: The request has been successfully completed.
  *	  	The byte_transferred tells number of bytes transferred.
  * TEGRA_DMA_REQ_ERROR_ABORTED: The request is aborted by client after
@@ -96,7 +97,8 @@ enum tegra_dma_mode {
  */
 
 enum tegra_dma_req_status {
-	TEGRA_DMA_REQ_SUCCESS = 0,
+	TEGRA_DMA_REQ_PENDING = 0,
+	TEGRA_DMA_REQ_SUCCESS,
 	TEGRA_DMA_REQ_ERROR_ABORTED,
 	TEGRA_DMA_REQ_ERROR_STOPPED,
 	TEGRA_DMA_REQ_INFLIGHT,
@@ -187,6 +189,15 @@ bool tegra_dma_is_empty(struct tegra_dma_channel *ch);
 struct tegra_dma_channel *tegra_dma_allocate_channel(int mode,
 		const char namefmt[], ...);
 void tegra_dma_free_channel(struct tegra_dma_channel *ch);
+
+/*
+ * tegra_dma_cancel: Stop the dma and remove all request from pending request
+ * queue for transfer.
+ * The pending list for data transfer will become empty after this callback.
+ * The status of each request will be marked as ABORTED.
+ * bytes_transferred in each requests shows the actual bytes transferred by dma.
+ * Callbacks will not be called when cancel the requests.
+*/
 int tegra_dma_cancel(struct tegra_dma_channel *ch);
 
 int __init tegra_dma_init(void);

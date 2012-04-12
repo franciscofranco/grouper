@@ -41,6 +41,14 @@ static void apb_dma_complete(struct tegra_dma_req *req)
 	complete(&tegra_apb_wait);
 }
 
+static void cancel_dma(struct tegra_dma_channel *dma_chan,
+		struct tegra_dma_req *req)
+{
+		tegra_dma_cancel(dma_chan);
+		if (req->status == -TEGRA_DMA_REQ_ERROR_ABORTED)
+			req->complete(req);
+}
+
 static inline u32 apb_readl(unsigned long offset)
 {
 	struct tegra_dma_req req;
@@ -69,13 +77,14 @@ static inline u32 apb_readl(unsigned long offset)
 		msecs_to_jiffies(400));
 
 	if (WARN(ret == 0, "apb read dma timed out")) {
-		tegra_dma_dequeue_req(tegra_apb_dma, &req);
+		cancel_dma(tegra_apb_dma, &req);
 		*(u32 *)tegra_apb_bb = 0;
 	}
 
 	mutex_unlock(&tegra_apb_dma_lock);
 	return *((u32 *)tegra_apb_bb);
 }
+
 
 static inline void apb_writel(u32 value, unsigned long offset)
 {
@@ -108,7 +117,7 @@ static inline void apb_writel(u32 value, unsigned long offset)
 		msecs_to_jiffies(400));
 
 	if (WARN(ret == 0, "apb write dma timed out"))
-		tegra_dma_dequeue_req(tegra_apb_dma, &req);
+		cancel_dma(tegra_apb_dma, &req);
 
 	mutex_unlock(&tegra_apb_dma_lock);
 }

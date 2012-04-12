@@ -5,19 +5,17 @@
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __NVHOST_ACM_H
@@ -32,7 +30,7 @@
 /* Sets clocks and powergating state for a module */
 int nvhost_module_init(struct nvhost_device *ndev);
 void nvhost_module_deinit(struct nvhost_device *dev);
-int nvhost_module_suspend(struct nvhost_device *dev, bool system_suspend);
+int nvhost_module_suspend(struct nvhost_device *dev);
 
 void nvhost_module_reset(struct nvhost_device *dev);
 void nvhost_module_busy(struct nvhost_device *dev);

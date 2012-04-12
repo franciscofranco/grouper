@@ -3111,6 +3111,8 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
+	codec->dapm.idle_bias_off = 1;
+
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);

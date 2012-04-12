@@ -163,4 +163,8 @@ int __init tegra_usb_phy_init(struct usb_phy_plat_data *pdata, int size);
 
 bool tegra_usb_phy_is_remotewake_detected(struct tegra_usb_phy *phy);
 
+void tegra_usb_phy_memory_prefetch_on(struct tegra_usb_phy *phy);
+
+void tegra_usb_phy_memory_prefetch_off(struct tegra_usb_phy *phy);
+
 #endif /* __MACH_USB_PHY_H */

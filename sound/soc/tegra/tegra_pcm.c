@@ -262,8 +262,11 @@ static int tegra_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		spin_lock_irqsave(&prtd->lock, flags);
 		prtd->running = 0;
 		spin_unlock_irqrestore(&prtd->lock, flags);
-		tegra_dma_dequeue_req(prtd->dma_chan, &prtd->dma_req[0]);
-		tegra_dma_dequeue_req(prtd->dma_chan, &prtd->dma_req[1]);
+		tegra_dma_cancel(prtd->dma_chan);
+		if (prtd->dma_req[0].status == -TEGRA_DMA_REQ_ERROR_ABORTED)
+			prtd->dma_req[0].complete(&prtd->dma_req[0]);
+		if (prtd->dma_req[1].status == -TEGRA_DMA_REQ_ERROR_ABORTED)
+			prtd->dma_req[1].complete(&prtd->dma_req[1]);
 		break;
 	default:
 		return -EINVAL;

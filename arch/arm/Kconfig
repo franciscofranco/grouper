@@ -1479,6 +1479,49 @@ config PAGE_OFFSET
 	default 0x80000000 if VMSPLIT_2G
 	default 0xC0000000
 
+choice
+	prompt "Task size"
+	depends on MMU
+	default TASK_SIZE_1G_LESS_16M if VMSPLIT_1G
+	default TASK_SIZE_2G_LESS_16M if VMSPLIT_2G
+	default TASK_SIZE_3G_LESS_16M
+
+config TASK_SIZE_1G_LESS_16M
+	bool "Task size is 1GiB less 16MiB"
+	depends on VMSPLIT_1G
+
+config TASK_SIZE_1G_LESS_24M
+	bool "Task size is 1GiB less 24MiB"
+	depends on VMSPLIT_1G
+
+config TASK_SIZE_2G_LESS_16M
+	bool "Task size is 2GiB less 16MiB"
+	depends on VMSPLIT_2G
+
+config TASK_SIZE_2G_LESS_24M
+	bool "Task size is 2GiB less 24MiB"
+	depends on VMSPLIT_2G
+
+config TASK_SIZE_3G_LESS_16M
+	bool "Task size is 3GiB less 16MiB"
+	depends on VMSPLIT_3G
+
+config TASK_SIZE_3G_LESS_24M
+	bool "Task size is 3GiB less 24MiB"
+	depends on VMSPLIT_3G
+
+endchoice
+
+config TASK_SIZE
+	hex
+	depends on MMU
+	default 0x3E800000 if TASK_SIZE_1G_LESS_24M
+	default 0x3F000000 if TASK_SIZE_1G_LESS_16M
+	default 0x7E800000 if TASK_SIZE_2G_LESS_24M
+	default 0x7F000000 if TASK_SIZE_2G_LESS_16M
+	default 0xBE800000 if TASK_SIZE_3G_LESS_24M
+	default 0xBF000000
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32

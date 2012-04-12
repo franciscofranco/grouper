@@ -28,6 +28,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/intel_mid_dma.h>
 
+#include "dmaengine.h"
+
 #define MAX_CHAN	4 /*max ch across controllers*/
 #include "intel_mid_dma_regs.h"
 
@@ -288,7 +290,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 	struct intel_mid_dma_lli	*llitem;
 	void *param_txd = NULL;
 
-	midc->completed = txd->cookie;
+	dma_cookie_complete(txd);
 	callback_txd = txd->callback;
 	param_txd = txd->callback_param;
 
@@ -433,14 +435,7 @@ static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	dma_cookie_t		cookie;
 
 	spin_lock_bh(&midc->lock);
-	cookie = midc->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	midc->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
+	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&midc->active_list))
 		list_add_tail(&desc->desc_node, &midc->active_list);
@@ -481,29 +476,14 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 						dma_cookie_t cookie,
 						struct dma_tx_state *txstate)
 {
-	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
-	dma_cookie_t		last_used;
-	dma_cookie_t		last_complete;
-	int				ret;
+	enum dma_status ret;
 
-	last_complete = midc->completed;
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret != DMA_SUCCESS) {
 		midc_scan_descriptors(to_middma_device(chan->device), midc);
-
-		last_complete = midc->completed;
-		last_used = chan->cookie;
-
-		ret = dma_async_is_complete(cookie, last_complete, last_used);
+		ret = dma_cookie_status(chan, cookie, txstate);
 	}
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = 0;
-	}
 	return ret;
 }
 
@@ -728,13 +708,14 @@ err_desc_get:
  * @sg_len: length of sg txn
  * @direction: DMA transfer dirtn
  * @flags: DMA flags
+ * @context: transfer context (ignored)
  *
  * Prepares LLI based periphral transfer
  */
 static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 			struct dma_chan *chan, struct scatterlist *sgl,
-			unsigned int sg_len, enum dma_data_direction direction,
-			unsigned long flags)
+			unsigned int sg_len, enum dma_transfer_direction direction,
+			unsigned long flags, void *context)
 {
 	struct intel_mid_dma_chan *midc = NULL;
 	struct intel_mid_dma_slave *mids = NULL;
@@ -882,7 +863,7 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 		pm_runtime_put(&mid->pdev->dev);
 		return -EIO;
 	}
-	midc->completed = chan->cookie = 1;
+	dma_cookie_init(chan);
 
 	spin_lock_bh(&midc->lock);
 	while (midc->descs_allocated < DESCS_PER_CHANNEL) {
@@ -1113,8 +1094,8 @@ static int mid_setup_dma(struct pci_dev *pdev)
 		struct intel_mid_dma_chan *midch = &dma->ch[i];
 
 		midch->chan.device = &dma->common;
-		midch->chan.cookie =  1;
 		midch->chan.chan_id = i;
+		dma_cookie_init(&midch->chan);
 		midch->ch_id = dma->chan_base + i;
 		pr_debug("MDMA:Init CH %d, ID %d\n", i, midch->ch_id);
 

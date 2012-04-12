@@ -229,8 +229,8 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 			 DMA_FROM_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
-		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
-			DMA_FROM_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
+			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 
 	if (desc) {
@@ -277,8 +277,13 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 			 DMA_TO_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
+<<<<<<< HEAD
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+=======
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
+			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+>>>>>>> 1605282... dmaengine/dma_slave: introduce inline wrappers
 	}
 
 	if (desc) {

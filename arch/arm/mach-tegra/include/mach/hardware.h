@@ -20,14 +20,10 @@
 #define MACH_TEGRA_HARDWARE_H
 
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-#define PCIBIOS_MIN_IO				0x1000
-#define PCIBIOS_MIN_MEM				0
 #define pcibios_assign_all_busses()		1
 
 #else
 
-#define PCIBIOS_MIN_IO				0x03000000ul
-#define PCIBIOS_MIN_MEM				0x10000000ul
 #define pcibios_assign_all_busses()		0
 #endif
 

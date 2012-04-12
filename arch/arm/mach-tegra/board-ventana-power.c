@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 NVIDIA, Inc.
+ * Copyright (C) 2010-2012 NVIDIA, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -90,7 +90,7 @@ static struct regulator_consumer_supply tps658621_ldo5_supply[] = {
 static struct regulator_consumer_supply tps658621_ldo6_supply[] = {
 	REGULATOR_SUPPLY("vdd_ldo6", NULL),
 	REGULATOR_SUPPLY("vcsi", "tegra_camera"),
-	REGULATOR_SUPPLY("vdd_dmic", "tegra-snd-wm8903"),
+	REGULATOR_SUPPLY("vdd_dmic", "tegra-snd-wm8903.0"),
 	REGULATOR_SUPPLY("vdd_i2c", "3-0030"),
 	REGULATOR_SUPPLY("vdd_i2c", "6-0072"),
 	REGULATOR_SUPPLY("vdd_i2c", "7-0072"),
@@ -108,7 +108,7 @@ static struct regulator_consumer_supply tps658621_ldo9_supply[] = {
 	REGULATOR_SUPPLY("vdd_ldo9", NULL),
 	REGULATOR_SUPPLY("avdd_2v85", NULL),
 	REGULATOR_SUPPLY("vdd_ddr_rx", NULL),
-	REGULATOR_SUPPLY("vdd_spk_amp", "tegra-snd-wm8903"),
+	REGULATOR_SUPPLY("vdd_spk_amp", "tegra-snd-wm8903.0"),
 };
 
 static struct tps6586x_settings sm0_config = {
@@ -242,6 +242,31 @@ static struct tegra_suspend_platform_data ventana_suspend_data = {
 	.board_resume = ventana_board_resume,
 };
 
+static struct regulator_consumer_supply pnl_pwr_consumer_supply[] = {
+	REGULATOR_SUPPLY("pnl_pwr", NULL),
+};
+
+FIXED_VOLTAGE_REG_INIT(2, pnl_pwr, 2800000, PANEL_POWER_EN_GPIO,
+				0, 1, 0, REGULATOR_CHANGE_STATUS, 0);
+
+static struct platform_device *fixed_voltage_regulators[] __initdata = {
+	ADD_FIXED_VOLTAGE_REG(pnl_pwr),
+};
+
+int __init ventana_fixed_voltage_regulator_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fixed_voltage_regulators); ++i) {
+		struct fixed_voltage_config *fixed_voltage_regulators_pdata =
+				fixed_voltage_regulators[i]->dev.platform_data;
+		if (fixed_voltage_regulators_pdata->gpio < TEGRA_NR_GPIOS)
+			tegra_gpio_enable(fixed_voltage_regulators_pdata->gpio);
+	}
+	return platform_add_devices(fixed_voltage_regulators,
+				ARRAY_SIZE(fixed_voltage_regulators));
+}
+
 int __init ventana_regulator_init(void)
 {
 	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
@@ -264,6 +289,8 @@ int __init ventana_regulator_init(void)
 //	regulator_has_full_constraints();
 
 	tegra_init_suspend(&ventana_suspend_data);
+
+	ventana_fixed_voltage_regulator_init();
 
 	return 0;
 }
@@ -319,38 +346,6 @@ fail:
 	return ret;
 }
 
-#define ADD_FIXED_VOLTAGE_REG(_name)	(&_name##_fixed_voltage_device)
-
-/* Macro for defining fixed voltage regulator */
-#define FIXED_VOLTAGE_REG_INIT(_id, _name, _microvolts, _gpio,		\
-		_startup_delay, _enable_high, _enabled_at_boot,		\
-		_valid_ops_mask, _always_on)				\
-	static struct regulator_init_data _name##_initdata = {		\
-		.consumer_supplies = _name##_consumer_supply,		\
-		.num_consumer_supplies =				\
-				ARRAY_SIZE(_name##_consumer_supply),	\
-		.constraints = {					\
-			.valid_ops_mask = _valid_ops_mask ,		\
-			.always_on = _always_on,			\
-		},							\
-	};								\
-	static struct fixed_voltage_config _name##_config = {		\
-		.supply_name		= #_name,			\
-		.microvolts		= _microvolts,			\
-		.gpio			= _gpio,			\
-		.startup_delay		= _startup_delay,		\
-		.enable_high		= _enable_high,			\
-		.enabled_at_boot	= _enabled_at_boot,		\
-		.init_data		= &_name##_initdata,		\
-	};								\
-	static struct platform_device _name##_fixed_voltage_device = {	\
-		.name			= "reg-fixed-voltage",		\
-		.id			= _id,				\
-		.dev			= {				\
-			.platform_data	= &_name##_config,		\
-		},							\
-	}
-
 static struct regulator_consumer_supply cam1_2v8_consumer_supply[] = {
 	REGULATOR_SUPPLY("cam1_2v8", NULL),
 };
@@ -364,15 +359,15 @@ FIXED_VOLTAGE_REG_INIT(0, cam1_2v8, 2800000, CAM1_LDO_SHUTDN_L_GPIO,
 FIXED_VOLTAGE_REG_INIT(1, cam2_2v8, 2800000, CAM2_LDO_SHUTDN_L_GPIO,
 				0, 1, 0, REGULATOR_CHANGE_STATUS, 0);
 
-static struct platform_device *fixed_voltage_regulators[] __initdata = {
+static struct platform_device *cam_fixed_voltage_regulators[] __initdata = {
 	ADD_FIXED_VOLTAGE_REG(cam1_2v8),
 	ADD_FIXED_VOLTAGE_REG(cam2_2v8),
 };
 
-int __init ventana_gpio_fixed_voltage_regulator_init(void)
+int __init ventana_cam_fixed_voltage_regulator_init(void)
 {
-	return platform_add_devices(fixed_voltage_regulators,
-				ARRAY_SIZE(fixed_voltage_regulators));
+	return platform_add_devices(cam_fixed_voltage_regulators,
+				ARRAY_SIZE(cam_fixed_voltage_regulators));
 }
 
 late_initcall(ventana_pcie_init);

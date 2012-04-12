@@ -39,7 +39,7 @@
 #include <linux/switch.h>
 #endif
 
-#include <mach/tegra_wm8753_pdata.h>
+#include <mach/tegra_asoc_pdata.h>
 
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -67,7 +67,7 @@ extern int g_is_call_mode;
 
 struct tegra_wm8753 {
 	struct tegra_asoc_utils_data util_data;
-	struct tegra_wm8753_platform_data *pdata;
+	struct tegra_asoc_platform_data *pdata;
 	struct regulator *audio_reg;
 	int gpio_requested;
 	int is_call_mode;
@@ -614,7 +614,7 @@ static int tegra_wm8753_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8753_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_SPKR_EN))
 		return 0;
@@ -631,7 +631,7 @@ static int tegra_wm8753_event_hp(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8753_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_HP_MUTE))
 		return 0;
@@ -687,7 +687,7 @@ static int tegra_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8753_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 	int ret;
 
 	if (machine_is_whistler()) {
@@ -854,7 +854,7 @@ static __devinit int tegra_wm8753_driver_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_tegra_wm8753;
 	struct tegra_wm8753 *machine;
-	struct tegra_wm8753_platform_data *pdata;
+	struct tegra_asoc_platform_data *pdata;
 	int ret;
 
 
@@ -916,7 +916,7 @@ static int __devexit tegra_wm8753_driver_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_wm8753 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8753_platform_data *pdata = machine->pdata;
+	struct tegra_asoc_platform_data *pdata = machine->pdata;
 
 	snd_soc_unregister_card(card);
 

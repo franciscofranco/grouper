@@ -6,7 +6,7 @@
  * Author:
  *	Colin Cross <ccross@google.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -156,6 +156,7 @@ static void __iomem *reg_pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
 static void __iomem *misc_gp_hidrev_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
 
 #define MISC_GP_HIDREV			0x804
+#define PLLDU_LFCON_SET_DIVN		600
 
 static int tegra2_clk_shared_bus_update(struct clk *bus);
 
@@ -748,6 +749,8 @@ static void tegra2_pll_clk_disable(struct clk *c)
 static int tegra2_pll_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	u32 val;
+	u32 p_div = 0;
+	u32 old_base = 0;
 	unsigned long input_rate;
 	const struct clk_pll_freq_table *sel;
 
@@ -756,52 +759,119 @@ static int tegra2_pll_clk_set_rate(struct clk *c, unsigned long rate)
 	input_rate = clk_get_rate(c->parent);
 	for (sel = c->u.pll.freq_table; sel->input_rate != 0; sel++) {
 		if (sel->input_rate == input_rate && sel->output_rate == rate) {
-			c->mul = sel->n;
-			c->div = sel->m * sel->p;
-
-			val = clk_readl(c->reg + PLL_BASE);
-			if (c->flags & PLL_FIXED)
-				val |= PLL_BASE_OVERRIDE;
-			val &= ~(PLL_BASE_DIVP_MASK | PLL_BASE_DIVN_MASK |
-				 PLL_BASE_DIVM_MASK);
-			val |= (sel->m << PLL_BASE_DIVM_SHIFT) |
-				(sel->n << PLL_BASE_DIVN_SHIFT);
-			BUG_ON(sel->p < 1 || sel->p > 128);
 			if (c->flags & PLLU) {
+				BUG_ON(sel->p < 1 || sel->p > 2);
 				if (sel->p == 1)
-					val |= PLLU_BASE_POST_DIV;
+					p_div = PLLU_BASE_POST_DIV;
 			} else {
-				if (sel->p == 2)
-					val |= 1 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 4)
-					val |= 2 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 8)
-					val |= 3 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 16)
-					val |= 4 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 32)
-					val |= 5 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 64)
-					val |= 6 << PLL_BASE_DIVP_SHIFT;
-				else if (sel->p == 128)
-					val |= 7 << PLL_BASE_DIVP_SHIFT;
+				BUG_ON(sel->p < 1);
+				for (val = sel->p;
+					val > 1; val >>= 1, p_div++)
+						;
+				p_div <<= PLL_BASE_DIVP_SHIFT;
 			}
-			clk_writel(val, c->reg + PLL_BASE);
-
-			if (c->flags & PLL_HAS_CPCON) {
-				val = clk_readl(c->reg + PLL_MISC(c));
-				val &= ~PLL_MISC_CPCON_MASK;
-				val |= sel->cpcon << PLL_MISC_CPCON_SHIFT;
-				clk_writel(val, c->reg + PLL_MISC(c));
-			}
-
-			if (c->state == ON)
-				tegra2_pll_clk_enable(c);
-
-			return 0;
+			break;
 		}
 	}
-	return -EINVAL;
+
+	/*If required rate is not available in pll's frequency table, prepare
+	parameters manually */
+
+	if (sel->input_rate == 0) {
+		unsigned long cfreq;
+		BUG_ON(c->flags & PLLU);
+		struct clk_pll_freq_table cfg;
+		sel = &cfg;
+
+		switch (input_rate) {
+		case 12000000:
+		case 26000000:
+			cfreq = (rate <= 1000000 * 1000) ? 1000000 : 2000000;
+			break;
+		case 13000000:
+			cfreq = (rate <= 1000000 * 1000) ? 1000000 : 2600000;
+			break;
+		case 16800000:
+		case 19200000:
+			cfreq = (rate <= 1200000 * 1000) ? 1200000 : 2400000;
+			break;
+		default:
+			if (c->parent->flags & DIV_U71_FIXED) {
+				/* PLLP_OUT1 rate is not in PLLA table */
+				pr_warn("%s: failed %s ref/out rates %lu/%lu\n",
+					__func__, c->name, input_rate, rate);
+				cfreq = input_rate/(input_rate/1000000);
+				break;
+			}
+			pr_err("%s: Unexpected reference rate %lu\n",
+			       __func__, input_rate);
+			BUG();
+		}
+
+		/* Raise VCO to guarantee 0.5% accuracy */
+		for (cfg.output_rate = rate;
+			cfg.output_rate < 200 * cfreq;
+			cfg.output_rate <<= 1, p_div++)
+				;
+
+		cfg.p = 0x1 << p_div;
+		cfg.m = input_rate / cfreq;
+		cfg.n = cfg.output_rate / cfreq;
+		cfg.cpcon = 0x08; /* OUT_OF_TABLE_CPCON */
+
+		if ((cfg.m > (PLL_BASE_DIVM_MASK >> PLL_BASE_DIVM_SHIFT)) ||
+		    (cfg.n > (PLL_BASE_DIVN_MASK >> PLL_BASE_DIVN_SHIFT)) ||
+		    (p_div > (PLL_BASE_DIVP_MASK >> PLL_BASE_DIVP_SHIFT)) ||
+		    (cfg.output_rate > c->u.pll.vco_max)) {
+			pr_err("%s: Failed to set %s out-of-table rate %lu\n",
+			       __func__, c->name, rate);
+			return -EINVAL;
+		}
+		p_div <<= PLL_BASE_DIVP_SHIFT;
+	}
+
+	/*Setup multipliers and divisors, then setup rate*/
+
+	c->mul = sel->n;
+	c->div = sel->m * sel->p;
+
+	old_base = val = clk_readl(c->reg + PLL_BASE);
+	if (c->flags & PLL_FIXED)
+		val |= PLL_BASE_OVERRIDE;
+	val &= ~(PLL_BASE_DIVM_MASK | PLL_BASE_DIVN_MASK |
+		 ((c->flags & PLLU) ? PLLU_BASE_POST_DIV : PLL_BASE_DIVP_MASK));
+	val |= (sel->m << PLL_BASE_DIVM_SHIFT) |
+		(sel->n << PLL_BASE_DIVN_SHIFT) | p_div;
+	if (val == old_base)
+		return 0;
+
+	if (c->state == ON) {
+		tegra2_pll_clk_disable(c);
+		val &= ~(PLL_BASE_BYPASS | PLL_BASE_ENABLE);
+	}
+	clk_writel(val, c->reg + PLL_BASE);
+
+	if (c->flags & PLL_HAS_CPCON) {
+		val = clk_readl(c->reg + PLL_MISC(c));
+		val &= ~PLL_MISC_CPCON_MASK;
+		val |= sel->cpcon << PLL_MISC_CPCON_SHIFT;
+		if (c->flags & (PLLU | PLLD)) {
+			val &= ~PLL_MISC_LFCON_MASK;
+			if (sel->n >= PLLDU_LFCON_SET_DIVN)
+				val |= 0x1 << PLL_MISC_LFCON_SHIFT;
+		} else if (c->flags & (PLLX | PLLM)) {
+			val &= ~(0x1 << PLL_MISC_DCCON_SHIFT);
+			if (rate >= (c->u.pll.vco_max >> 1))
+				val |= 0x1 << PLL_MISC_DCCON_SHIFT;
+		}
+		clk_writel(val, c->reg + PLL_MISC(c));
+	}
+
+	if (c->state == ON)
+		tegra2_pll_clk_enable(c);
+
+	return 0;
+
 }
 
 static struct clk_ops tegra_pll_ops = {
@@ -2368,10 +2438,10 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("spi",	"spi",			NULL,	43,	0x114,	0x31E,	40000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("xio",	"xio",			NULL,	45,	0x120,	0x31E,	150000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("twc",	"twc",			NULL,	16,	0x12c,	0x31E,	150000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc1",	"spi_tegra.0",		NULL,	41,	0x134,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc2",	"spi_tegra.1",		NULL,	44,	0x118,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc3",	"spi_tegra.2",		NULL,	46,	0x11c,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc4",	"spi_tegra.3",		NULL,	68,	0x1b4,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc1",	"spi_tegra.0",		"spi",	41,	0x134,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc2",	"spi_tegra.1",		"spi",	44,	0x118,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc3",	"spi_tegra.2",		"spi",	46,	0x11c,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc4",	"spi_tegra.3",		"spi",	68,	0x1b4,	0x31E,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("ide",	"ide",			NULL,	25,	0x144,	0x31E,	100000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71), /* requires min voltage */
 	PERIPH_CLK("ndflash",	"tegra_nand",		NULL,	13,	0x160,	0x31E,	164000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71), /* scales with voltage */
 	PERIPH_CLK("vfir",	"vfir",			NULL,	7,	0x168,	0x31E,	72000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
@@ -2436,6 +2506,10 @@ struct clk tegra_list_shared_clks[] = {
 	SHARED_CLK("usb1.sclk",	"tegra-ehci.0",		"sclk",	&tegra_clk_virtual_sclk),
 	SHARED_CLK("usb2.sclk",	"tegra-ehci.1",		"sclk",	&tegra_clk_virtual_sclk),
 	SHARED_CLK("usb3.sclk",	"tegra-ehci.2",		"sclk",	&tegra_clk_virtual_sclk),
+	SHARED_CLK("sbc1.sclk",	"spi_tegra.0",		"sclk",	&tegra_clk_virtual_sclk),
+	SHARED_CLK("sbc2.sclk",	"spi_tegra.1",		"sclk",	&tegra_clk_virtual_sclk),
+	SHARED_CLK("sbc3.sclk",	"spi_tegra.2",		"sclk",	&tegra_clk_virtual_sclk),
+	SHARED_CLK("sbc4.sclk",	"spi_tegra.3",		"sclk",	&tegra_clk_virtual_sclk),
 	SHARED_CLK("avp.emc",	"tegra-avp",		"emc",	&tegra_clk_emc),
 	SHARED_CLK("cpu.emc",	"cpu",			"emc",	&tegra_clk_emc),
 	SHARED_CLK("disp1.emc",	"tegradc.0",		"emc",	&tegra_clk_emc),

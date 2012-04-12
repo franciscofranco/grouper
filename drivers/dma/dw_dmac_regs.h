@@ -140,12 +140,12 @@ struct dw_dma_chan {
 	u8			mask;
 	u8			priority;
 	bool			paused;
+	bool			initialized;
 
 	spinlock_t		lock;
 
 	/* these other elements are all protected by lock */
 	unsigned long		flags;
-	dma_cookie_t		completed;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;

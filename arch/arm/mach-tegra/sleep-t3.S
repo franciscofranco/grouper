@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/include/mach/sleep-t3.S
  *
- * Copyright (c) 2010-2011, NVIDIA Corporation.
+ * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -201,14 +201,13 @@ ENDPROC(tegra3_cpu_reset)
 #ifdef CONFIG_PM_SLEEP
 
 /*
- * tegra3_sleep_core(unsigned long v2p)
+ * tegra3_sleep_core_finish(unsigned long int)
  *
  * enters suspend in LP0 or LP1 by turning off the mmu and jumping to
  * tegra3_tear_down_core in IRAM
  */
-ENTRY(tegra3_sleep_core)
-	mov	r12, pc 		@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra3_sleep_core_finish)
+	bl	tegra_cpu_exit_coherency
 
 	/* preload all the address literals that are needed for the
 	 * CPU power-gating process, to avoid loads from SDRAM (which are
@@ -227,22 +226,33 @@ ENTRY(tegra3_sleep_core)
 	mov32	r2, TEGRA_IRAM_CODE_AREA
 	add	r1, r1, r2
 	b	tegra_turn_off_mmu
-ENDPROC(tegra3_sleep_core)
+ENDPROC(tegra3_sleep_core_finish)
 
 /*
- * tegra3_sleep_cpu_secondary(unsigned long v2p)
+ * tegra3_sleep_cpu_secondary_finish(unsigned long v2p)
  *
  * Enters LP2 on secondary CPU by exiting coherency and powergating the CPU.
  */
-ENTRY(tegra3_sleep_cpu_secondary)
-	mov	r12, pc 			@ return here is via r12
-	b	tegra_cpu_save
+ENTRY(tegra3_sleep_cpu_secondary_finish)
+	mov	r6, lr
+
+	dsb
+#ifdef MULTI_CACHE
+	mov32	r10, cpu_cache
+	mov	lr, pc
+	ldr	pc, [r10, #CACHE_FLUSH_KERN_ALL]
+#else
+	bl	__cpuc_flush_kern_all
+#endif
+
+	bl	tegra_cpu_exit_coherency
 
 	/* Powergate this CPU. */
 	mov	r0, #0				@ power mode flags (!hotplug)
 	bl	tegra3_cpu_reset
-	b	.				@ should never get here
-ENDPROC(tegra3_sleep_cpu_secondary)
+	mov	r0, #1				@ never return here
+	mov	pc, r6
+ENDPROC(tegra3_sleep_cpu_secondary_finish)
 
 /*
  * tegra3_tear_down_cpu
@@ -519,7 +529,7 @@ tegra3_cpu_clk32k:
 
 	/* enable PLLM via PMC in LP0 */
 	ldr	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
-	orr	r0, r0, #((1<<12) | (1 << 11))
+	orr	r0, r0, #((1 << 12) | (1 << 11))
 	str	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
 	mov	pc, lr
 
@@ -543,29 +553,28 @@ lp1_clocks_prepare:
 	add	r1, r1, #2
 	wait_until r1, r7, r9
 
-#if 1
 	/* switch to CLKS */
 	mov	r0, #0	/* burst policy = 32KHz */
 	str	r0, [r5, #CLK_RESET_SCLK_BURST]
-#endif
 
 	/* disable PLLM via PMC in LP1 */
 	ldr	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
-	bic	r0, r0, #(1<<12)
+	bic	r0, r0, #(1 << 12)
 	str	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
 	b	powerdown_pll_pcx
 
 powerdown_pll_pcx:
-	/* disable PLLP, PLLA, PLLC, and PLLX in LP0 and LP1 states */
-	ldr	r0, [r4, #PMC_CTRL]
-	tst	r0, #PMC_CTRL_SIDE_EFFECT_LP0
-	beq	powerdown_pll_cx
+	ldr	r11, [r4, #PMC_SCRATCH37]	@ load the LP1 flags
+	tst	r11, #TEGRA_POWER_LP1_AUDIO	@ check if voice call is going on
+	bne	powerdown_pll_cx		@ if yes, do not turn off pll-p/pll-a
+
 	ldr	r0, [r5, #CLK_RESET_PLLP_BASE]
 	bic	r0, r0, #(1<<30)
 	str	r0, [r5, #CLK_RESET_PLLP_BASE]
 	ldr	r0, [r5, #CLK_RESET_PLLA_BASE]
 	bic	r0, r0, #(1<<30)
 	str	r0, [r5, #CLK_RESET_PLLA_BASE]
+
 powerdown_pll_cx:
 	ldr	r0, [r5, #CLK_RESET_PLLC_BASE]
 	bic	r0, r0, #(1<<30)

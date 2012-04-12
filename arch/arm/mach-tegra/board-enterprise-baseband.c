@@ -106,9 +106,10 @@ static irqreturn_t mdm_start_thread(int irq, void *data)
 		pr_info("BB_RST_OUT high\n");
 	} else {
 		pr_info("BB_RST_OUT low\n");
-		/* hold wait lock to complete the enumeration */
-		wake_lock_timeout(&mdm_wake_lock, HZ * 10);
 	}
+
+	/* hold wait lock to complete the enumeration */
+	wake_lock_timeout(&mdm_wake_lock, HZ * 10);
 
 	return IRQ_HANDLED;
 }

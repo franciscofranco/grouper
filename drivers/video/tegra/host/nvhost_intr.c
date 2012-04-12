@@ -5,19 +5,17 @@
  *
  * Copyright (c) 2010-2012, NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "nvhost_intr.h"
@@ -144,17 +142,8 @@ static void action_ctxsave(struct nvhost_waitlist *waiter)
 	struct nvhost_hwctx *hwctx = waiter->data;
 	struct nvhost_channel *channel = hwctx->channel;
 
-	if (channel->ctxhandler.save_service)
-		channel->ctxhandler.save_service(hwctx);
-	channel->ctxhandler.put(hwctx);
-}
-
-static void action_ctxrestore(struct nvhost_waitlist *waiter)
-{
-	struct nvhost_hwctx *hwctx = waiter->data;
-	struct nvhost_channel *channel = hwctx->channel;
-
-	channel->ctxhandler.put(hwctx);
+	if (channel->ctxhandler->save_service)
+		channel->ctxhandler->save_service(hwctx);
 }
 
 static void action_wakeup(struct nvhost_waitlist *waiter)
@@ -176,7 +165,6 @@ typedef void (*action_handler)(struct nvhost_waitlist *waiter);
 static action_handler action_handlers[NVHOST_INTR_ACTION_COUNT] = {
 	action_submit_complete,
 	action_ctxsave,
-	action_ctxrestore,
 	action_wakeup,
 	action_wakeup_interruptible,
 };

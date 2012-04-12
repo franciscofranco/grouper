@@ -2,6 +2,7 @@
  * arch/arm/mach-tegra/board-ventana.h
  *
  * Copyright (C) 2011 Google, Inc.
+ * Copyright (C) 2012 NVIDIA Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -26,7 +27,7 @@ int ventana_sensors_init(void);
 int ventana_kbc_init(void);
 int ventana_emc_init(void);
 int ventana_charger_init(void);
-int ventana_gpio_fixed_voltage_regulator_init(void);
+int ventana_cam_fixed_voltage_regulator_init(void);
 
 /* PCA954x I2C bus expander bus addresses */
 #define PCA954x_I2C_BUS_BASE	6
@@ -42,6 +43,8 @@ int ventana_gpio_fixed_voltage_regulator_init(void);
 #define CAMERA_POWER_GPIO	TEGRA_GPIO_PV4
 #define CAMERA_CSI_MUX_SEL_GPIO	TEGRA_GPIO_PBB4
 #define CAMERA_FLASH_ACT_GPIO	TEGRA_GPIO_PD2
+
+#define PANEL_POWER_EN_GPIO	TEGRA_GPIO_PC6
 
 /* TPS6586X gpios */
 #define TPS6586X_GPIO_BASE	TEGRA_NR_GPIOS

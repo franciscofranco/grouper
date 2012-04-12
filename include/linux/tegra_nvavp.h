@@ -76,9 +76,10 @@ struct nvavp_clock_args {
 					struct nvavp_clock_args)
 #define NVAVP_IOCTL_GET_CLOCK		_IOR(NVAVP_IOCTL_MAGIC, 0x65, \
 					struct nvavp_clock_args)
-
+#define NVAVP_IOCTL_WAKE_AVP		_IOR(NVAVP_IOCTL_MAGIC, 0x66, \
+					__u32)
 
 #define NVAVP_IOCTL_MIN_NR		_IOC_NR(NVAVP_IOCTL_SET_NVMAP_FD)
-#define NVAVP_IOCTL_MAX_NR		_IOC_NR(NVAVP_IOCTL_GET_CLOCK)
+#define NVAVP_IOCTL_MAX_NR		_IOC_NR(NVAVP_IOCTL_WAKE_AVP)
 
 #endif /* __LINUX_TEGRA_NVAVP_H */

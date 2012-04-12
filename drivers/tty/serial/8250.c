@@ -3401,6 +3401,7 @@ out:
 	return ret;
 }
 
+#ifdef MODULE
 static void __exit serial8250_exit(void)
 {
 	struct platform_device *isa_dev = serial8250_isa_devs;
@@ -3424,6 +3425,9 @@ static void __exit serial8250_exit(void)
 
 module_init(serial8250_init);
 module_exit(serial8250_exit);
+#else
+postcore_initcall(serial8250_init);
+#endif
 
 EXPORT_SYMBOL(serial8250_suspend_port);
 EXPORT_SYMBOL(serial8250_resume_port);

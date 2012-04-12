@@ -9,7 +9,7 @@ config ARCH_TEGRA_2x_SOC
 	select ARCH_TEGRA_HAS_PCIE
 	select CPU_V7
 	select ARM_GIC
-	select ARM_SAVE_DEBUG_CONTEXT
+	select ARM_SAVE_DEBUG_CONTEXT if PM_SLEEP
 	select ARCH_REQUIRE_GPIOLIB
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select USB_ULPI if USB_SUPPORT
@@ -33,7 +33,7 @@ config ARCH_TEGRA_3x_SOC
 	select ARCH_TEGRA_HAS_DUAL_CPU_CLUSTERS
 	select CPU_V7
 	select ARM_GIC
-	select ARM_SAVE_DEBUG_CONTEXT
+	select ARM_SAVE_DEBUG_CONTEXT if PM_SLEEP
 	select GIC_SET_MULTIPLE_CPUS if SMP
 	select ARCH_REQUIRE_GPIOLIB
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
@@ -162,6 +162,7 @@ config MACH_TEGRA_ENTERPRISE
        bool "Enterprise board"
        depends on ARCH_TEGRA_3x_SOC
        select MACH_HAS_SND_SOC_TEGRA_MAX98088 if SND_SOC
+       select MACH_HAS_SND_SOC_TEGRA_TLV320AIC326X if SND_SOC
        select TEGRA_SLOW_CSITE
        help
          Support for NVIDIA Enterprise development platform
@@ -369,6 +370,15 @@ config TEGRA_AUTO_HOTPLUG
 	  high/low power CPU clusters automatically, corresponding to
 	  CPU frequency scaling.
 
+config TEGRA_MC_EARLY_ACK
+	bool "Enable early acknowledgement from mermory controller"
+	depends on ARCH_TEGRA_3x_SOC
+	default y
+	help
+	  This option enables early acknowledgement from memory
+	  controller. This feature is used to improve CPU memory
+	  write performance.
+
 config TEGRA_MC_PROFILE
 	tristate "Enable profiling memory controller utilization"
 	default y
@@ -399,13 +409,6 @@ config TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
 	default n
 	help
 	 Also will restore to original cpu frequency governor when device is resumed
-
-config TEGRA_LEGACY_AUDIO
-	bool "Enable Tegra Legacy Audio APIs"
-	default n
-	help
-	  Say Y if you want to add support legacy (non-ALSA) audio APIs on
-	  Tegra. This will disable ALSA (ASoC) support.
 
 config TEGRA_STAT_MON
         bool "Enable H/W statistics monitor"
