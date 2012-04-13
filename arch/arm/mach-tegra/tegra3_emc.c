@@ -350,6 +350,12 @@ static inline void disable_early_ack(u32 mc_override)
 	override_val |= mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK;
 }
 
+static inline void enable_early_ack(u32 mc_override)
+{
+	mc_writel((mc_override | MC_EMEM_ARB_OVERRIDE_EACK_MASK),
+			MC_EMEM_ARB_OVERRIDE);
+}
+
 static inline bool dqs_preset(const struct tegra_emc_table *next_timing,
 			      const struct tegra_emc_table *last_timing)
 {
@@ -1161,6 +1167,26 @@ int tegra_emc_set_over_temp_state(unsigned long state)
 			emc_writel(EMC_REF_FORCE_CMD, EMC_REF);
 		dram_over_temp_state = state;
 	}
+
+	spin_unlock_irqrestore(&emc_access_lock, flags);
+	return 0;
+
+}
+
+int tegra_emc_set_eack_state(unsigned long state)
+{
+	unsigned long flags;
+	u32 mc_override;
+
+	spin_lock_irqsave(&emc_access_lock, flags);
+
+	mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
+
+	if (state)
+		enable_early_ack(mc_override);
+	else
+		disable_early_ack(mc_override);
+
 	spin_unlock_irqrestore(&emc_access_lock, flags);
 	return 0;
 }
@@ -1168,6 +1194,7 @@ int tegra_emc_set_over_temp_state(unsigned long state)
 #ifdef CONFIG_DEBUG_FS
 
 static struct dentry *emc_debugfs_root;
+static bool eack_state = true;
 
 static int emc_stats_show(struct seq_file *s, void *data)
 {
@@ -1224,6 +1251,28 @@ static int over_temp_state_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(over_temp_state_fops, over_temp_state_get,
 			over_temp_state_set, "%llu\n");
 
+static int eack_state_get(void *data, u64 *val)
+{
+	unsigned long flags;
+	u32 mc_override;
+
+	spin_lock_irqsave(&emc_access_lock, flags);
+	mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
+	spin_unlock_irqrestore(&emc_access_lock, flags);
+
+	*val = (mc_override & MC_EMEM_ARB_OVERRIDE_EACK_MASK);
+	return 0;
+}
+
+static int eack_state_set(void *data, u64 val)
+{
+	tegra_emc_set_eack_state(val);
+	eack_state = val;
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(eack_state_fops, eack_state_get,
+			eack_state_set, "%llu\n");
+
 static int __init tegra_emc_debug_init(void)
 {
 	if (!tegra_emc_table)
@@ -1243,6 +1292,10 @@ static int __init tegra_emc_debug_init(void)
 
 	if (!debugfs_create_file("over_temp_state", S_IRUGO | S_IWUSR,
 				 emc_debugfs_root, NULL, &over_temp_state_fops))
+		goto err_out;
+
+	if (!debugfs_create_file(
+		"eack_state", S_IRUGO | S_IWUGO, emc_debugfs_root, NULL, &eack_state_fops))
 		goto err_out;
 
 	return 0;
