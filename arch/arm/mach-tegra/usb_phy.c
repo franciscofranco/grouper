@@ -1208,7 +1208,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 	val |= UTMIP_XCVR_LSFSLEW(config->xcvr_lsfslew);
 	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
-	val |= UTMIP_XCVR_HSSLEW_MSB(0x8);
+	val |= UTMIP_XCVR_HSSLEW_MSB(0x0);
 #endif
 	writel(val, base + UTMIP_XCVR_CFG0);
 
@@ -2564,6 +2564,10 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) {
 		err = utmip_pad_open(phy);
 		phy->xcvr_setup_value = tegra_phy_xcvr_setup_value(phy->config);
+		if(phy->instance == 0) {
+			phy->xcvr_setup_value = phy->xcvr_setup_value + 2;
+			pr_info("phy->instance = %d, phy->xcvr_setup_value = %d\n", phy->instance, phy->xcvr_setup_value);
+		}
 		if (err < 0)
 			goto err1;
 	} else if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_LINK_ULPI) {
