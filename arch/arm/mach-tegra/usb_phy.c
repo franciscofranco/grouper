@@ -34,6 +34,7 @@
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
 #include "fuse.h"
+#include "board-grouper.h"
 
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -608,6 +609,8 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 #define AHB_MEM_PREFETCH_CFG1		0xec
 #define AHB_MEM_PREFETCH_CFG2		0xf0
 #define PREFETCH_ENB			(1 << 31)
+
+extern u8 g_cid4;
 
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
@@ -2618,6 +2621,15 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		pr_err("couldn't get regulator avdd_usb: %ld \n",
 			 PTR_ERR(phy->reg_vdd));
 		phy->reg_vdd = NULL;
+	}
+
+	if (instance == 0 && g_cid4 == 0x23) {
+		usb_phy_data[0].vbus_irq = MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_RISING;
+		printk(KERN_INFO "%s instance %d g_cid4 %#X MAX77663_IRQ_ACOK_RISING\n", __func__, instance, g_cid4);
+	}
+	else if(instance == 0 && g_cid4 == 0x20) {
+		usb_phy_data[0].vbus_irq = MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_FALLING;
+		printk(KERN_INFO "%s instance %d g_cid4 %#X MAX77663_IRQ_ACOK_FALLING\n", __func__, instance, g_cid4);
 	}
 
 	if (instance == 0 && usb_phy_data[0].vbus_irq) {
