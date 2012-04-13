@@ -1589,7 +1589,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 		0x00000000, /* EMC_CFG.DYN_SELF_REF */
 	},
 };
-static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
+static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0413[] ={
 	{
 		0x32,       /* Rev 3.2 */
 		25500,      /* SDRAM frequency */
@@ -1682,7 +1682,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
 			0x00000000, /* EMC_CTT_DURATION */
 			0x80000287, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00020001, /* MC_EMEM_ARB_CFG */
-			0xc0000008, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000010, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RC */
@@ -1802,7 +1802,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
 			0x00000000, /* EMC_CTT_DURATION */
 			0x8000040b, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00010001, /* MC_EMEM_ARB_CFG */
-			0xc000000a, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000010, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RC */
@@ -1922,7 +1922,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
 			0x00000000, /* EMC_CTT_DURATION */
 			0x80000713, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00000001, /* MC_EMEM_ARB_CFG */
-			0xc0000013, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000018, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000003, /* MC_EMEM_ARB_TIMING_RC */
@@ -2162,7 +2162,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
 			0x00000000, /* EMC_CTT_DURATION */
 			0x800014d4, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00000005, /* MC_EMEM_ARB_CFG */
-			0x8000003d, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc000003d, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000008, /* MC_EMEM_ARB_TIMING_RC */
@@ -2282,7 +2282,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0411[] ={
 			0x00000000, /* EMC_CTT_DURATION */
 			0x800028a5, /* EMC_DYN_SELF_REF_CONTROL */
 			0x0000000a, /* MC_EMEM_ARB_CFG */
-			0x80000079, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000079, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000003, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000004, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000010, /* MC_EMEM_ARB_TIMING_RC */
@@ -2359,9 +2359,9 @@ int grouper_emc_init(void)
 			ARRAY_SIZE(Nakasi_dvfs_table_Elpida_EVT));
 		printk("grouper_emc_init:Nakasi_dvfs_table_Elpida_EVT\n");
 	}else{
-		tegra_init_emc(Nakasi_dvfs_Hynix_table_0411,
-			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0411));
-		printk("grouper_emc_init:Nakasi_dvfs_Hynix_table_0411\n");
+		tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
+			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413));
+		printk("grouper_emc_init:Nakasi_dvfs_Hynix_table_0413\n");
 	}
 
 	return 0;
@@ -2370,9 +2370,9 @@ err_handle:
 	if(tegra_init_emc(Nakasi_dvfs_table_Elpida_EVT,
 			ARRAY_SIZE(Nakasi_dvfs_table_Elpida_EVT))){
 		printk("[unknow bootstrap pin] use Nakasi_dvfs_table_Elpida_EVT \n");
-	}else if (tegra_init_emc(Nakasi_dvfs_Hynix_table_0411,
-			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0411))){
-		printk("[unknow bootstrap pin] use Nakasi_dvfs_Hynix_table_0411 \n");
+	}else if (tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
+			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413))){
+		printk("[unknow bootstrap pin] use Nakasi_dvfs_Hynix_table_0413 \n");
 	}else
 		printk("grouper_emc_init:no validate EMC tabe, disable EMC DVFS\n");
 	return 0;
