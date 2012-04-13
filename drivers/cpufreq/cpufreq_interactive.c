@@ -88,7 +88,7 @@ static unsigned long min_sample_time;
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE 10000;
+#define DEFAULT_TIMER_RATE 20000;
 static unsigned long timer_rate;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
