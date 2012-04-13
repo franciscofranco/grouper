@@ -84,7 +84,6 @@
 
 static struct smb349_charger *charger;
 static int smb349_configure_charger(struct i2c_client *client, int value);
-static int smb349_configure_interrupts(struct i2c_client *client);
 
 static int smb349_read(struct i2c_client *client, int reg)
 {
@@ -156,16 +155,6 @@ int smb349_volatile_writes(struct i2c_client *client, uint8_t value)
 		}
 	}
 	return ret;
-}
-
-static void smb349_clear_interrupts(struct i2c_client *client)
-{
-	uint8_t val, buf[6];
-
-	val = i2c_smbus_read_i2c_block_data(client, SMB349_INTR_STS_A, 6, buf);
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
 }
 
 static int smb349_configure_otg(struct i2c_client *client, int enable)
@@ -283,59 +272,6 @@ error:
 	return ret;
 }
 
-static irqreturn_t smb349_status_isr(int irq, void *dev_id)
-{
-	struct i2c_client *client = charger->client;
-	int ret, val;
-
-	val =  smb349_read(client, SMB349_STS_REG_D);
-	if (val < 0) {
-		dev_err(&client->dev, "%s(): Failed in reading register"
-				"0x%02x\n", __func__, SMB349_STS_REG_D);
-		goto irq_error;
-	} else if (val != 0) {
-		if (val & DEDICATED_CHARGER)
-			charger->chrg_type = AC;
-		else if (val & CHRG_DOWNSTRM_PORT)
-			charger->chrg_type = USB;
-
-		/* configure charger */
-		ret = smb349_configure_charger(client, 1);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-
-		charger->state = progress;
-	} else {
-		charger->state = stopped;
-
-		/* Disable charger */
-		ret = smb349_configure_charger(client, 0);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-
-		ret = smb349_configure_interrupts(client);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-
-	}
-
-	if (charger->charger_cb)
-		charger->charger_cb(charger->state, charger->chrg_type,
-						charger->charger_cb_data);
-irq_error:
-	smb349_clear_interrupts(client);
-	return IRQ_HANDLED;
-}
-
 int update_charger_status(void)
 {
 	struct i2c_client *client = charger->client;
@@ -349,28 +285,12 @@ int update_charger_status(void)
 	} else if (val != 0) {
 		if (val & DEDICATED_CHARGER)
 			charger->chrg_type = AC;
-		else if (val & CHRG_DOWNSTRM_PORT)
+		else
 			charger->chrg_type = USB;
-
-		/* configure charger */
-		ret = smb349_configure_charger(client, 1);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto ret_error;
-		}
 
 		charger->state = progress;
 	} else {
 		charger->state = stopped;
-
-		/* Disable charger */
-		ret = smb349_configure_charger(client, 0);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto ret_error;
-		}
 	}
 
 	if (charger->charger_cb)
@@ -413,43 +333,6 @@ int smb349_battery_online(void)
 		return 1;
 }
 
-static int smb349_configure_interrupts(struct i2c_client *client)
-{
-	int ret = 0;
-
-	/* Enable volatile writes to registers */
-	ret = smb349_volatile_writes(client, SMB349_ENABLE_WRITE);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() error in configuring charger..\n",
-								__func__);
-		goto error;
-	}
-
-	ret = smb349_update_reg(client, SMB349_FAULT_INTR, 0xff);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s(): Failed in writing register"
-				"0x%02x\n", __func__, SMB349_CMD_REG);
-		goto error;
-	}
-
-	ret = smb349_update_reg(client, SMB349_STS_INTR_1, 0xff);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
-		goto error;
-	}
-
-	 /* Disable volatile writes to registers */
-	ret = smb349_volatile_writes(client, SMB349_DISABLE_WRITE);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() error in configuring charger..\n",
-								__func__);
-		goto error;
-	}
-
-error:
-	return ret;
-}
-
 static void smb349_otg_status(enum usb_otg_state to, enum usb_otg_state from, void *data)
 {
 	struct i2c_client *client = charger->client;
@@ -482,18 +365,61 @@ static void smb349_otg_status(enum usb_otg_state to, enum usb_otg_state from, vo
 		if (ret < 0)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
-
-		ret = smb349_configure_interrupts(client);
-		if (ret < 0)
-			dev_err(&client->dev, "%s() error in configuring"
-						"otg..\n", __func__);
 	}
 }
+
+static int smb349_enable_charging(struct regulator_dev *rdev,
+					int min_uA, int max_uA)
+{
+	struct i2c_client *client = charger->client;
+	int ret;
+
+	if (!max_uA) {
+		charger->state = stopped;
+		/* Disable charger */
+		ret = smb349_configure_charger(client, 0);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			return ret;
+		}
+	} else {
+		ret =  smb349_read(client, SMB349_STS_REG_D);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s(): Failed in reading register"
+					"0x%02x\n", __func__, SMB349_STS_REG_D);
+			return ret;
+		} else if (ret != 0) {
+			if (ret & DEDICATED_CHARGER)
+				charger->chrg_type = AC;
+			else
+				charger->chrg_type = USB;
+
+			/* configure charger */
+			ret = smb349_configure_charger(client, 1);
+			if (ret < 0) {
+				dev_err(&client->dev, "%s() error in"
+					"configuring charger..\n", __func__);
+				return ret;
+			}
+			charger->state = progress;
+		}
+	}
+	if (charger->charger_cb)
+		charger->charger_cb(charger->state, charger->chrg_type,
+						charger->charger_cb_data);
+return 0;
+}
+
+static struct regulator_ops smb349_tegra_regulator_ops = {
+	.set_current_limit = smb349_enable_charging,
+};
 
 static int __devinit smb349_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct smb349_charger_platform_data *pdata;
 	int ret, irq_num;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
@@ -505,6 +431,12 @@ static int __devinit smb349_probe(struct i2c_client *client,
 
 	charger->client = client;
 	charger->dev = &client->dev;
+	pdata = client->dev.platform_data;
+	if(!pdata) {
+		ret = -ENXIO;
+		goto error;
+	}
+
 	i2c_set_clientdata(client, charger);
 
 	/* Check battery presence */
@@ -515,30 +447,76 @@ static int __devinit smb349_probe(struct i2c_client *client,
 		goto error;
 	}
 
+	charger->reg_desc.name  = "vbus_charger";
+	charger->reg_desc.ops   = &smb349_tegra_regulator_ops;
+	charger->reg_desc.type  = REGULATOR_CURRENT;
+	charger->reg_desc.id    = pdata->regulator_id;
+	charger->reg_desc.owner = THIS_MODULE;
+
+	charger->reg_init_data.supply_regulator         = NULL;
+	charger->reg_init_data.num_consumer_supplies    =
+				       pdata->num_consumer_supplies;
+	charger->reg_init_data.regulator_init           = NULL;
+	charger->reg_init_data.consumer_supplies        =
+				       pdata->consumer_supplies;
+	charger->reg_init_data.driver_data              = charger;
+	charger->reg_init_data.constraints.name         = "vbus_charger";
+	charger->reg_init_data.constraints.min_uA       = 0;
+	charger->reg_init_data.constraints.max_uA       =
+					pdata->max_charge_current_mA * 1000;
+
+	charger->reg_init_data.constraints.valid_modes_mask =
+					REGULATOR_MODE_NORMAL |
+					REGULATOR_MODE_STANDBY;
+
+	charger->reg_init_data.constraints.valid_ops_mask =
+					REGULATOR_CHANGE_MODE |
+					REGULATOR_CHANGE_STATUS |
+					REGULATOR_CHANGE_CURRENT;
+
+	charger->rdev = regulator_register(&charger->reg_desc, charger->dev,
+					&charger->reg_init_data, charger);
+	if (IS_ERR(charger->rdev)) {
+		dev_err(&client->dev, "failed to register %s\n",
+				charger->reg_desc.name);
+		ret = PTR_ERR(charger->rdev);
+		goto error;
+	}
+
+	/* disable OTG */
+	ret = smb349_configure_otg(client, 0);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s() error in configuring"
+			"charger..\n", __func__);
+		goto error;
+	}
+
+	ret =  smb349_read(client, SMB349_STS_REG_D);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s(): Failed in reading register"
+			"0x%02x\n", __func__, SMB349_STS_REG_D);
+		goto error;
+	} else if (ret != 0) {
+		/* configure charger */
+		ret = smb349_configure_charger(client, 1);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto error;
+		}
+	} else {
+		/* disable charger */
+		ret = smb349_configure_charger(client, 0);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+			goto error;
+		}
+	}
+
 	ret = register_otg_callback(smb349_otg_status, charger);
 	if (ret < 0)
 		goto error;
-
-	ret = smb349_configure_charger(client, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = smb349_configure_interrupts(client);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() error in configuring charger..\n",
-								__func__);
-		goto error;
-	}
-
-	irq_num = gpio_to_irq(client->irq);
-	ret = request_threaded_irq(irq_num,
-			NULL, smb349_status_isr, IRQ_TYPE_EDGE_FALLING,
-				"smb349", charger);
-	if (ret) {
-		dev_err(&client->dev, "%s(): Failed in requesting isr\n",
-				__func__);
-		goto error;
-	}
 
 	return 0;
 error:
@@ -575,7 +553,7 @@ static int __init smb349_init(void)
 {
 	return i2c_add_driver(&smb349_i2c_driver);
 }
-module_init(smb349_init);
+subsys_initcall(smb349_init);
 
 static void __exit smb349_exit(void)
 {
