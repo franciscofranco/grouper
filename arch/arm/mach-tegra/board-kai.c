@@ -292,10 +292,21 @@ static struct i2c_board_info kai_eeprom_mac_add = {
 	.platform_data = &eeprom_info,
 };
 
+static struct regulator_consumer_supply smb349_vbus_supply[] = {
+	REGULATOR_SUPPLY("usb_bat_chg", NULL),
+};
+
+static struct smb349_charger_platform_data smb349_charger_pdata = {
+	.max_charge_current_mA = 1000,
+	.charging_term_current_mA = 100,
+	.consumer_supplies = smb349_vbus_supply,
+	.num_consumer_supplies = ARRAY_SIZE(smb349_vbus_supply),
+};
+
 static struct i2c_board_info kai_i2c4_smb349_board_info[] = {
 	{
 		I2C_BOARD_INFO("smb349", 0x1B),
-		.irq = MAX77663_GPIO_BASE + MAX77663_GPIO1,
+		.platform_data = &smb349_charger_pdata,
 	},
 };
 
