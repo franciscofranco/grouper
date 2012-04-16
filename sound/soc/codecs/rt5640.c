@@ -34,6 +34,12 @@
 
 #define AUDIO_IOC_MAGIC	0xf7
 #define AUDIO_CAPTURE_MODE _IOW(AUDIO_IOC_MAGIC, 6,int)
+#define AUDIO_STRESS_TEST	_IOW(AUDIO_IOC_MAGIC, 1,int)
+#define AUDIO_IOCTL_START_HEAVY (2)
+#define AUDIO_IOCTL_START_NORMAL (1)
+#define AUDIO_IOCTL_STOP (0)
+#define START_NORMAL (HZ/2)
+#define START_HEAVY (HZ/20)
 
 #define INPUT_SOURCE_NORMAL 100
 #define INPUT_SOURCE_VR 101
@@ -47,6 +53,10 @@ static int input_source=INPUT_SOURCE_NORMAL;
 static int output_source=OUTPUT_SOURCE_NORMAL;
 static int input_agc = INPUT_SOURCE_NO_AGC;
 
+static int poll_rate = 0;
+static struct delayed_work poll_audio_work;
+static int count_base = 1;
+static int count_100 = 0;
 #include "rt5640.h"
 #if (CONFIG_SND_SOC_RT5642_MODULE | CONFIG_SND_SOC_RT5642)
 #include "rt5640-dsp.h"
@@ -117,6 +127,38 @@ static struct rt5640_init_reg init_list[] = {
 };
 #define RT5640_INIT_REG_LEN ARRAY_SIZE(init_list)
 
+
+static void audio_codec_stress(void)
+{
+	u16 temp;
+
+	if((count_base % 2))
+		temp = snd_soc_write(rt5640_audio_codec, RT5640_OUTPUT, 0xCACA); /* write codec register 0x03 to 0xCACA */
+	else
+		temp = snd_soc_write(rt5640_audio_codec, RT5640_OUTPUT, 0xCBCB); /* write codec register 0x03 to 0xCACA */
+
+	temp = snd_soc_read(rt5640_audio_codec, RT5640_OUTPUT); /* write codec register 0x03 to 0xCACA */
+
+	if((count_base % 2)){
+		if(temp != 0xCACA)
+			printk("tegra.i2c-4:audio codec rt5642 write fail\n");
+	}else{
+		if(temp != 0xCBCB)
+			printk("tegra.i2c-4:audio codec rt5642 write fail\n");
+	}
+
+	count_base = count_base+1;
+
+	if (count_base == 100){
+		count_base = 0;
+		count_100 = count_100 + 1;
+		printk("AUDIO_CODEC: count = %d (* 100), the register 0x03h is %x\n",count_100,temp);
+	}
+
+	schedule_delayed_work(&poll_audio_work, poll_rate);
+
+	return 0;
+}
 int rt5640_conn_mux_path(struct snd_soc_codec *codec,
 		char *widget_name, char *path_name)
 {
@@ -3075,6 +3117,19 @@ static int rt56xx_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigned 
 				break;
 			}
 		break;
+	case AUDIO_STRESS_TEST:
+			printk("AUDIO_CODEC: AUDIO_STRESS_TEST: %lu (1: Start, 0: Stop)\n",arg);
+			if(arg==AUDIO_IOCTL_START_HEAVY){
+				poll_rate = START_HEAVY;
+				schedule_delayed_work(&poll_audio_work, poll_rate);
+			}else if(arg==AUDIO_IOCTL_START_NORMAL){
+				poll_rate = START_NORMAL;
+				schedule_delayed_work(&poll_audio_work,poll_rate);
+			}else if(arg==AUDIO_IOCTL_STOP){
+				cancel_delayed_work_sync(&poll_audio_work);
+			}
+
+			break;
 #if (CONFIG_SND_SOC_RT5642_MODULE | CONFIG_SND_SOC_RT5642)
 	case RT_READ_CODEC_DSP_IOCTL:
 	case RT_WRITE_CODEC_DSP_IOCTL:
@@ -3332,6 +3387,7 @@ static int __devinit rt5640_i2c_probe(struct i2c_client *i2c,
 			rt5640_dai, ARRAY_SIZE(rt5640_dai));
 	if (ret < 0)
 		kfree(rt5640);
+	INIT_DELAYED_WORK(&poll_audio_work, audio_codec_stress);
 
 	return ret;
 }
