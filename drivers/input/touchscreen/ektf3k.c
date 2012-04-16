@@ -330,14 +330,13 @@ static int isOldFW(struct i2c_client *client)
         
 	//msleep(90);
         touch_debug(DEBUG_MESSAGES, "[elan] GPIO_TP_INT_N=%d\n", ts->intr_gpio);
-	if (gpio_get_value(ts->intr_gpio) == 0) 
-        {
+	if (gpio_get_value(ts->intr_gpio) == 0) {
 		// Old FW 
 		touch_debug(DEBUG_INFO,  "[elan]detect intr=>Old FW\n");
 		return 1;
 	}
-        else
-                return 0;
+	
+      return 0;
 
 }
 
@@ -489,7 +488,7 @@ static void elan_touch_sysfs_deinit(void)
 static int __elan_ktf3k_ts_poll(struct i2c_client *client)
 {
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
-	int status = 0, retry = 100;
+	int status = 0, retry = 150;
 
 	do {
 		status = gpio_get_value(ts->intr_gpio);
@@ -642,7 +641,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 	    minor = ((buf_recv[2] & 0x0f) << 4) | ((buf_recv[3] & 0xf0) >> 4);
 	    ts->fw_ver = major << 8 | minor;
 	    FW_VERSION = ts->fw_ver;
-	    dev_info(&client->dev, "[elan] %s: firmware version: 0x%4.4x\n", __func__, ts->fw_ver);
+	    touch_debug(DEBUG_INFO, "[elan] %s: firmware version: 0x%4.4x\n", __func__, ts->fw_ver);
 	}
 // X Resolution
 	rc = elan_ktf3k_ts_read_command(client, cmd_x, 4, buf_recv, 4);
@@ -654,7 +653,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 	    minor = ((buf_recv[2])) | ((buf_recv[3] & 0xf0) << 4);
 	    ts->x_resolution =minor;
 	    X_RESOLUTION = ts->x_resolution;
-	    dev_info(&client->dev, "[elan] %s: X resolution: 0x%4.4x\n", __func__, ts->x_resolution);
+	    touch_debug(DEBUG_INFO, "[elan] %s: X resolution: 0x%4.4x\n", __func__, ts->x_resolution);
 	}
 // Y Resolution	
 	rc = elan_ktf3k_ts_read_command(client, cmd_y, 4, buf_recv, 4);
@@ -666,7 +665,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 	    minor = ((buf_recv[2])) | ((buf_recv[3] & 0xf0) << 4);
 	    ts->y_resolution =minor;
 	    Y_RESOLUTION = ts->y_resolution;
-	    dev_info(&client->dev, "[elan] %s: Y resolution: 0x%4.4x\n", __func__, ts->y_resolution);
+	    touch_debug(DEBUG_INFO, "[elan] %s: Y resolution: 0x%4.4x\n", __func__, ts->y_resolution);
 	}
 // Firmware ID
 	rc = elan_ktf3k_ts_read_command(client, cmd_id, 4, buf_recv, 4);
@@ -679,7 +678,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 	    minor = ((buf_recv[2] & 0x0f) << 4) | ((buf_recv[3] & 0xf0) >> 4);
 	    ts->fw_id = major << 8 | minor;
 	    FW_ID = ts->fw_id;
-	    dev_info(&client->dev, "[elan] %s: firmware id: 0x%4.4x\n", __func__, ts->fw_id);
+	    touch_debug(DEBUG_INFO, "[elan] %s: firmware id: 0x%4.4x\n", __func__, ts->fw_id);
 	}
 	return 0;
 }
@@ -706,13 +705,15 @@ static int elan_ktf3k_ts_setup(struct i2c_client *client)
 retry:	
         // Reset
         elan_ktf3k_ts_hw_reset(client);
-	// Check if old firmware. If not, send the notmal_command to enter normal mode 
+	// Check if old firmware. If not, send the notmal_command to enter normal mode
        if( isOldFW(client) == 0 ){ //if check is new bootcode
         // do nothing
-	}      
+           touch_debug(DEBUG_INFO, "The boot code is new!\n");
+	}else
+	    touch_debug(DEBUG_INFO, "The boot code is old!\n");
+	
 	rc = __hello_packet_handler(client);
 	touch_debug(DEBUG_INFO, "[elan] hello packet's rc = %d\n",rc);
-	
 	if (rc < 0){ 
                if (rc == -ETIME && count > 0) {
 			count--;
@@ -723,9 +724,8 @@ retry:
 			goto hand_shake_failed;
 
 	}
-		//
-	dev_dbg(&client->dev, "[elan] %s: hello packet got.\n", __func__);
 
+	dev_dbg(&client->dev, "[elan] %s: hello packet got.\n", __func__);
 	mdelay(200);
 	rc = __fw_packet_handler(client, 1);
 	if (rc < 0)
@@ -767,7 +767,7 @@ static int elan_ktf3k_ts_rough_calibrate(struct i2c_client *client){
 
 	//dev_info(&client->dev, "[elan] %s: enter\n", __func__);
 	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
-	dev_info(&client->dev,
+	touch_debug(DEBUG_INFO,
 		"[elan] dump cmd: %02x, %02x, %02x, %02x\n",
 		cmd[0], cmd[1], cmd[2], cmd[3]);
 	
@@ -794,7 +794,7 @@ static int elan_ktf3k_ts_get_power_state(struct i2c_client *client)
 		return rc;
 
 	power_state = buf[1];
-	dev_info(&client->dev, "[elan] dump repsponse: %0x\n", power_state);
+	touch_debug(DEBUG_INFO, "[elan] dump repsponse: %0x\n", power_state);
 	power_state = power_state & 0x0F;
 	dev_dbg(&client->dev, "[elan] power state = %s\n",
 		power_state == PWR_STATE_DEEP_SLEEP ?
@@ -806,7 +806,7 @@ static int elan_ktf3k_ts_get_power_state(struct i2c_client *client)
 static int elan_ktf3k_ts_hw_reset(struct i2c_client *client)
 {
       struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
-      dev_info(&client->dev, "[ELAN] Start HW reset!\n");
+      touch_debug(DEBUG_INFO, "[ELAN] Start HW reset!\n");
       gpio_direction_output(ts->rst_gpio, 0);
 	mdelay(1);
 	gpio_direction_output(ts->rst_gpio, 1);
@@ -863,7 +863,7 @@ static void update_power_source(){
 	if(private_ts->abs_x_max == ELAN_X_MAX_202T) //TF 700T device
 	    return; // do nothing for TF700T;
 	    
-      dev_info(&private_ts->client->dev, "Update power source to %d\n", power_source);
+      touch_debug(DEBUG_INFO, "Update power source to %d\n", power_source);
       switch(power_source){
 	case USB_NO_Cable:
 	    elan_ktf3k_ts_set_power_source(private_ts->client, 0);
@@ -937,7 +937,7 @@ static void elan_ktf3k_ts_report_data(struct i2c_client *client, uint8_t *buf)
                       input_report_abs(idev, ABS_MT_PRESSURE, pressure_size);
                       input_report_abs(idev, ABS_MT_POSITION_X, y);
                       input_report_abs(idev, ABS_MT_POSITION_Y, x);
-                      if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
+                      if(unlikely(gPrint_point)) touch_debug(DEBUG_INFO, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
 		     }
 		 }
 		 mTouchStatus[i] = active;
@@ -987,7 +987,7 @@ static void elan_ktf3k_ts_report_data2(struct i2c_client *client, uint8_t *buf)
 			   input_report_abs(idev, ABS_MT_PRESSURE, pressure_size);
 			   input_report_abs(idev, ABS_MT_POSITION_X, y);
 			   input_report_abs(idev, ABS_MT_POSITION_Y, x);
-			   if(unlikely(gPrint_point)) dev_info(&client->dev, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
+			   if(unlikely(gPrint_point)) touch_debug(DEBUG_INFO, "[elan] finger id=%d X=%d y=%d size=%d pressure=%d\n", i, x, y, touch_size, pressure_size);
 		     }
 		 }
 		 mTouchStatus[i] = active;
@@ -1018,14 +1018,14 @@ static void process_resp_message(struct elan_ktf3k_ts_data *ts, const unsigned c
           break;
       case 0x20: // Rough calibrate response
           major = buf[2] & 0x0F;	  	
-          dev_info(&ts->client->dev, "Get the Rough Calibrate result:%d\n", major);
+          touch_debug(DEBUG_INFO, "Get the Rough Calibrate result:%d\n", major);
           break;
       case 0x40: // the power source
           major = buf[1] & 0x0f;
-          dev_info(&ts->client->dev, "Get the power source:%d\n", major);
+          touch_debug(DEBUG_INFO, "Get the power source:%d\n", major);
       case 0x50: // the power state
           major = buf[1] & 0x0f;
-          dev_info(&ts->client->dev, "Get the power mode:%d\n", major);
+          touch_debug(DEBUG_INFO, "Get the power mode:%d\n", major);
           break;
       case 0xF0: // firmware id
           major = ((buf[1] & 0x0f) << 4) | ((buf[2] & 0xf0) >> 4);
@@ -1034,7 +1034,7 @@ static void process_resp_message(struct elan_ktf3k_ts_data *ts, const unsigned c
           FW_ID = ts->fw_id;
           break;	   
       default: 
-          dev_info(&ts->client->dev, "[elan] Get unknow packet {0x%02X, 0x%02X, 0x%02X, 0x%02X}\n", buf[0], buf[1], buf[2], buf[3]);	
+          touch_debug(DEBUG_INFO, "[elan] Get unknow packet {0x%02X, 0x%02X, 0x%02X, 0x%02X}\n", buf[0], buf[1], buf[2], buf[3]);	
       }
 }
 
@@ -1128,7 +1128,7 @@ static void elan_ktf3k_ts_work_func(struct work_struct *work)
 		    break;
 		default:
 		    up(&pSem);	
-		    dev_info(&ts->client->dev, "[elan] Get unknow packet {0x%02X, 0x%02X, 0x%02X, 0x%02X}\n", buf[0], buf[1], buf[2], buf[3]);
+		    touch_debug(DEBUG_INFO, "[elan] Get unknow packet {0x%02X, 0x%02X, 0x%02X, 0x%02X}\n", buf[0], buf[1], buf[2], buf[3]);
 	       }		 
 #endif
 		enable_irq(ts->client->irq);
@@ -1267,67 +1267,76 @@ static int firmware_update_header(struct i2c_client *client, const unsigned char
     int retry_times = 3, write_times; 
     unsigned char packet_data[8] = {0};
     unsigned char isp_cmd[4] = {0x54, 0x00, 0x12, 0x34};
+    unsigned char nb_isp_cmd[4] = {0x45, 0x49, 0x41, 0x50};
     unsigned char *cursor; 
+    int boot_code = 0;
     struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
 	
     if(ts == NULL) 
         return -1;
 
-    dev_info(&client->dev, "Start firmware update!\n");
+    touch_debug(DEBUG_INFO, "Start firmware update!\n");
     disable_irq(client->irq);
     msleep(50); // wait for IRQ handler finish;
     wake_lock(&ts->wakelock);
     work_lock = 1;
-    elan_ktf3k_ts_hw_reset(client); 
+    elan_ktf3k_ts_hw_reset(client);
     // Step 1: Check boot code version
-    if(gpio_get_value(ts->intr_gpio) == 0){ // if the boot code is old 
+    boot_code = gpio_get_value(ts->intr_gpio);
+    if(boot_code == 0){ // if the boot code is old
+        touch_debug(DEBUG_INFO, "The firmware update of old boot code\n");
         if(recvI2CPacket(client, packet_data, 4) < 0) 
 	      goto fw_update_failed;
 
-	  dev_info(&client->dev, "The received bytes 0x%X 0x%X 0x%X 0x%X\n", packet_data[0], packet_data[1], 
+	  touch_debug(DEBUG_INFO, "The received bytes 0x%X 0x%X 0x%X 0x%X\n", packet_data[0], packet_data[1], 
 	  	           packet_data[2], packet_data[3]);
         if(packet_data[0] == 0x55 && packet_data[1] == 0x55 && packet_data[2] == 0x80 && packet_data[3] == 0x80)
-	      dev_info(&client->dev, "In the recovery mode\n");
+	      touch_debug(DEBUG_INFO, "In the recovery mode\n");
 
         if(sendI2CPacket(client, isp_cmd, sizeof(isp_cmd)) < 0) // get into ISP mode
+	      goto fw_update_failed;	  
+    }else{ // if the boot code is new
+        touch_debug(DEBUG_INFO, "The firmware update of new boot code\n");
+        if(sendI2CPacket(client, nb_isp_cmd, sizeof(nb_isp_cmd)) < 0) // get into ISP mode
+	      goto fw_update_failed;
+    }
+	
+    mdelay(100);
+    packet_data[0] = 0x10; 
+    if(sendI2CPacket(client, packet_data, 1) < 0) // send dummy byte
 	      goto fw_update_failed;
 	  
-	  mdelay(100);
-	  packet_data[0] = 0x10; 
-	  if(sendI2CPacket(client, packet_data, 1) < 0) // send dummy byte
-	      goto fw_update_failed;
-	  
-	  cursor = firmware;
-	  dev_info(&client->dev, "pages_number=%d\n", pages_number);
-	  for(i = 0; i < pages_number; i++){
-	  	write_times = 0; 
+    cursor = firmware;
+    touch_debug(DEBUG_INFO, "pages_number=%d\n", pages_number);
+    for(i = 0; i < pages_number; i++){
+        write_times = 0; 
 page_write_retry:
-	  	touch_debug(DEBUG_MESSAGES, "Update page number %d\n", i);
-	      if(sendI2CPacket(client, cursor, FIRMWARE_PAGE_SIZE) < 0){
-	          dev_err(&client->dev, "Fail to Update page number %d\n", i);
-		    goto fw_update_failed;
-		}
-		if(recvI2CPacket(client, packet_data, 2) < 0){
-		    dev_err(&client->dev, "Fail to Update page number %d\n", i);
-		    goto fw_update_failed;
-		}
-
-		if(packet_data[0] != 0xaa || packet_data[1] != 0xaa){
-		    dev_info(&client->dev, "Page %d rewrite\n", i);
-		    if(write_times++ > 3)
-		        goto fw_update_failed;
-			
-		    goto page_write_retry;
-		}
-		  
-		cursor += FIRMWARE_PAGE_SIZE;
+	  touch_debug(DEBUG_MESSAGES, "Update page number %d\n", i);
+	  if(sendI2CPacket(client, cursor, FIRMWARE_PAGE_SIZE) < 0){
+	      dev_err(&client->dev, "Fail to Update page number %d\n", i);
+		goto fw_update_failed;
 	  }
-    }else{
-        // do nothing 
+	  if(recvI2CPacket(client, packet_data, 2) < 0){
+	      dev_err(&client->dev, "Fail to Update page number %d\n", i);
+	      goto fw_update_failed;
+	  }
+
+	  if(packet_data[0] != 0xaa || packet_data[1] != 0xaa){
+	      touch_debug(DEBUG_INFO, "Page %d rewrite\n", i);
+		if(write_times++ > 3)
+		    goto fw_update_failed;
+			
+		goto page_write_retry;
+	  }
+		  
+	  cursor += FIRMWARE_PAGE_SIZE;
     }
 	
     elan_ktf3k_ts_hw_reset(client);
-    mdelay(400);
+    if(boot_code)
+        mdelay(2000);
+    else		
+        mdelay(300);
     if(recvI2CPacket(client, packet_data, 4) < 0) 
 	      goto fw_update_failed;	
     __fw_packet_handler(ts->client, 1);
@@ -1339,7 +1348,7 @@ fw_update_finish:
     work_lock = 0;
     wake_unlock(&ts->wakelock);
     enable_irq(client->irq);	
-    dev_info(&client->dev, "Finish the touch firmware update!\n");
+    touch_debug(DEBUG_INFO, "Finish the touch firmware update!\n");
     return ret; 
 }
 
@@ -1477,7 +1486,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 	ts->status = 1; // set I2C status is OK;
 	wake_lock_init(&ts->wakelock, WAKE_LOCK_SUSPEND, "elan_touch");
 	if(err==0x80)
-	    dev_info(&client->dev, "[ELAN] Touch is in boot mode!\n");
+	    touch_debug(DEBUG_INFO, "[ELAN] Touch is in boot mode!\n");
 
 	ts->input_dev = input_allocate_device();
 	if (ts->input_dev == NULL) {
@@ -1490,7 +1499,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 	//set_bit(BTN_TOUCH, ts->input_dev->keybit);
 	ts->abs_x_max =  pdata->abs_x_max;
 	ts->abs_y_max = pdata->abs_y_max;
-	dev_info(&client->dev, "[Elan] Max X=%d, Max Y=%d\n", ts->abs_x_max, ts->abs_y_max);
+	touch_debug(DEBUG_INFO, "[Elan] Max X=%d, Max Y=%d\n", ts->abs_x_max, ts->abs_y_max);
 
 	input_mt_init_slots(ts->input_dev, FINGER_NUM);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, pdata->abs_y_min,  pdata->abs_y_max, 0, 0); // for 800 * 1280 
@@ -1568,12 +1577,12 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
       ts->touch_sdev.print_name = elan_touch_switch_name;
 	ts->touch_sdev.print_state = elan_touch_switch_state;
 	if(switch_dev_register(&ts->touch_sdev) < 0){
-		dev_info(&client->dev, "switch_dev_register for dock failed!\n");
+		touch_debug(DEBUG_ERROR, "switch_dev_register for dock failed!\n");
 		//goto exit;
 	}
 	switch_set_state(&ts->touch_sdev, 0);
 	   
-	dev_info(&client->dev, "[elan] Start touchscreen %s in interrupt mode\n",
+	touch_debug(DEBUG_INFO, "[elan] Start touchscreen %s in interrupt mode\n",
 		ts->input_dev->name);
 
   ts->firmware.minor = MISC_DYNAMIC_MINOR;
@@ -1635,7 +1644,7 @@ static int elan_ktf3k_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
 	int rc = 0;
 
-	dev_info(&client->dev, "[elan] %s: enter\n", __func__);
+	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
 
 	disable_irq(client->irq);
 
@@ -1656,7 +1665,7 @@ static int elan_ktf3k_ts_resume(struct i2c_client *client)
       struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
       int delay_time;
 	  
-	dev_info(&client->dev, "[elan] %s: enter\n", __func__);
+	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
 	if(work_lock == 0){
 	    do {
 		rc = elan_ktf3k_ts_set_power_state(client, PWR_STATE_NORMAL);
