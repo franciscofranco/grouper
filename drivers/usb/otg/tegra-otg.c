@@ -473,10 +473,13 @@ static int tegra_otg_suspend(struct device *dev)
 	struct tegra_otg_data *tegra_otg = platform_get_drvdata(pdev);
 	struct otg_transceiver *otg = &tegra_otg->otg;
 	enum usb_otg_state from = otg->state;
+	unsigned int val;
+
 	/* store the interupt enable for cable ID and VBUS */
 	clk_enable(tegra_otg->clk);
 	tegra_otg->intr_reg_data = readl(tegra_otg->regs + USB_PHY_WAKEUP);
-	writel(0, (tegra_otg->regs + USB_PHY_WAKEUP));
+	val = tegra_otg->intr_reg_data & ~(USB_ID_INT_EN | USB_VBUS_INT_EN);
+	writel(val, (tegra_otg->regs + USB_PHY_WAKEUP));
 	clk_disable(tegra_otg->clk);
 	printk(KERN_INFO "%s(): tegra_otg->intr_reg_data = %#X\n", __func__, tegra_otg->intr_reg_data);
 	if (from == OTG_STATE_B_PERIPHERAL && otg->gadget) {
