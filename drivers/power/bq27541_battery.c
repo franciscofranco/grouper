@@ -36,6 +36,7 @@
 #include <linux/timer.h>
 #include "../../arch/arm/mach-tegra/gpio-names.h"
 #include "../../arch/arm/mach-tegra/wakeups-t3.h"
+#include <linux/delay.h>
 
 #define REMOVE_USB_POWER_SUPPLY
 #define SMBUS_RETRY                                     (0)
@@ -127,7 +128,6 @@ static enum power_supply_property bq27541_properties[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
-
 };
 
 void check_cabe_type(void)
@@ -145,6 +145,7 @@ void check_cabe_type(void)
 		usb_on = 0;
 	}
 }
+
 static int bq27541_get_property(struct power_supply *psy,
 	enum power_supply_property psp, union power_supply_propval *val);
 
@@ -161,7 +162,7 @@ static int power_get_property(struct power_supply *psy,
 	switch (psp) {
 
 	case POWER_SUPPLY_PROP_ONLINE:
-		   if(psy->type == POWER_SUPPLY_TYPE_MAINS &&  ac_on )
+		   if(psy->type == POWER_SUPPLY_TYPE_MAINS &&  ac_on)
 			val->intval =  1;
 		   else if (psy->type == POWER_SUPPLY_TYPE_USB && usb_on)
 			val->intval =  1;
@@ -216,7 +217,8 @@ static struct power_supply bq27541_supply[] = {
 static struct bq27541_device_info {
 	struct i2c_client	*client;
 	struct delayed_work battery_stress_test;
-	struct delayed_work status_poll_work ;
+	struct delayed_work status_poll_work;
+	struct delayed_work low_low_bat_work;
 	int smbus_status;
 	int battery_present;
 	int low_battery_present;
@@ -313,7 +315,7 @@ int bq27541_smbus_write_data(int reg_offset,int byte, unsigned int value)
 			ret = i2c_smbus_write_word_data(bq27541_device->client,bq27541_data[reg_offset].addr,value&0xFFFF);
 		}
 	}while((ret<0)&& (++count<=SMBUS_RETRY));
-      return ret;
+	return ret;
 }
 
 struct workqueue_struct *battery_work_queue=NULL;
@@ -346,7 +348,7 @@ static void battery_status_poll(struct work_struct *work)
        //bq27541_device->battery_present =!(gpio_get_value(bq27541_device->gpio_battery_detect));
 	//printk("battery_status_poll %u %u \n",BATTERY_POLLING_RATE,bq27541_device->battery_present);
 	//if(bq27541_device->battery_present)
-		queue_delayed_work(battery_work_queue, &battery_device->status_poll_work,BATTERY_POLLING_RATE*HZ);
+	queue_delayed_work(battery_work_queue, &battery_device->status_poll_work,BATTERY_POLLING_RATE*HZ);
 }
 
 
@@ -355,16 +357,25 @@ static irqreturn_t battery_detect_isr(int irq, void *dev_id)
 	//bq27541_device->battery_present =!(gpio_get_value(bq27541_device->gpio_battery_detect));
 	//printk("battery_detect_isr battery %s \n",bq27541_device->battery_present?"instered":"removed" );
 	//if( bq27541_device->battery_present)
-		queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work, BATTERY_POLLING_RATE*HZ);
+	queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work, BATTERY_POLLING_RATE*HZ);
 	return IRQ_HANDLED;
 }
+
+static void low_low_battery_check(struct work_struct *work)
+{
+	cancel_delayed_work(&bq27541_device->status_poll_work);
+	queue_delayed_work(battery_work_queue,&bq27541_device->status_poll_work,0.1*HZ);
+	msleep(2000);
+	enable_irq(bq27541_device->irq_low_battery_detect );
+}
+
 static irqreturn_t low_battery_detect_isr(int irq, void *dev_id)
 {
-	bq27541_device->low_battery_present=gpio_get_value(bq27541_device->gpio_low_battery_detect);
-	printk("low_battery_detect_isr battery is %x\n",bq27541_device->low_battery_present );
+	disable_irq_nosync(bq27541_device->irq_low_battery_detect);
+	bq27541_device->low_battery_present = gpio_get_value(bq27541_device->gpio_low_battery_detect);
+	printk("low_battery_detect_isr battery is %x\n", bq27541_device->low_battery_present);
 	wake_lock_timeout(&bq27541_device->low_battery_wake_lock, 10*HZ);
-	cancel_delayed_work(&bq27541_device->status_poll_work);
-	queue_delayed_work(battery_work_queue,&bq27541_device->status_poll_work,1*HZ);
+	queue_delayed_work(battery_work_queue, &bq27541_device->low_low_bat_work, 0.1*HZ);
 	return IRQ_HANDLED;
 }
 void setup_detect_irq(void )
@@ -612,7 +623,6 @@ static int bq27541_get_capacity(union power_supply_propval *val)
 	temp_capacity = ((temp_capacity <0) ? 0 : temp_capacity);
 	val->intval=temp_capacity;
 
-
 	bq27541_device->old_capacity=val->intval;
 	bq27541_device->cap_err=0;
 	printk("bq27541_get_capacity val->intval=%u ret=%u\n",val->intval,ret);
@@ -703,8 +713,9 @@ static int bq27541_probe(struct i2c_client *client,
 
 	dev_info(&bq27541_device->client->dev,"%s: battery driver registered\n", client->name);
        spin_lock_init(&bq27541_device->lock);
-	INIT_DELAYED_WORK(&bq27541_device->status_poll_work, battery_status_poll) ;
-       INIT_DELAYED_WORK(&bq27541_device->battery_stress_test,  battery_strees_test) ;
+	INIT_DELAYED_WORK(&bq27541_device->status_poll_work, battery_status_poll);
+	INIT_DELAYED_WORK(&bq27541_device->low_low_bat_work, low_low_battery_check);
+       INIT_DELAYED_WORK(&bq27541_device->battery_stress_test, battery_strees_test);
         battery_work_queue = create_singlethread_workqueue("battery_workqueue");
 	/* Register sysfs hooks */
 	if (sysfs_create_group(&client->dev.kobj, &battery_smbus_group )) {
@@ -750,7 +761,6 @@ static int bq27541_remove(struct i2c_client *client)
 static int bq27541_suspend(struct i2c_client *client,
 	pm_message_t state)
 {
-
 	cancel_delayed_work_sync(&bq27541_device->status_poll_work);
 	flush_workqueue(battery_work_queue);;
 	return 0;
