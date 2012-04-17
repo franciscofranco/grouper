@@ -243,7 +243,11 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(KB_COL3,         KBC,             PULL_UP,   NORMAL,     INPUT),
 	DEFAULT_PINMUX(KB_ROW0,         KBC,             PULL_UP,   NORMAL,     INPUT),
 	DEFAULT_PINMUX(KB_ROW1,         KBC,             PULL_UP,   NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_ROW2,         KBC,             PULL_UP,   NORMAL,     INPUT),
+
+	/* PCBID pins */
+	DEFAULT_PINMUX(KB_COL7,         KBC,             PULL_DOWN, NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_ROW2,         KBC,             PULL_DOWN, NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_COL5,         KBC,             PULL_DOWN, NORMAL,     INPUT),
 
 	/* PWR Key */
 	DEFAULT_PINMUX(GPIO_PV0,        RSVD,            PULL_UP,   NORMAL,     INPUT),

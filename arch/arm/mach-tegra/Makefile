@@ -189,6 +189,7 @@ obj-${CONFIG_MACH_KAI}                  += board-kai-sensors.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-kbc.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-memory.o
+obj-${CONFIG_MACH_GROUPER}              += board-grouper-misc.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-panel.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-pinmux.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-power.o

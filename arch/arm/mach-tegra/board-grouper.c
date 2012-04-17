@@ -55,6 +55,7 @@
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
 #include <mach/thermal.h>
+#include <mach/board-grouper-misc.h>
 
 #include "board.h"
 #include "clock.h"
@@ -877,6 +878,7 @@ static void __init tegra_grouper_init(void)
 	tegra_thermal_init(&thermal_data);
 	tegra_clk_init_from_table(grouper_clk_init_table);
 	grouper_pinmux_init();
+	grouper_misc_init();
 	tegra_booting_info();
 	grouper_i2c_init();
 	grouper_spi_init();
