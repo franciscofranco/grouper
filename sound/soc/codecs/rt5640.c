@@ -49,6 +49,8 @@
 #define INPUT_SOURCE_AGC 301
 #define END_RECORDING 400
 
+#define DEPOP_DELAY (1)
+
 static int input_source=INPUT_SOURCE_NORMAL;
 static int output_source=OUTPUT_SOURCE_NORMAL;
 static int input_agc = INPUT_SOURCE_NO_AGC;
@@ -1455,6 +1457,7 @@ static int rt5640_spk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		msleep(DEPOP_DELAY);
 		snd_soc_update_bits(codec, RT5640_PWR_DIG1,
 			RT5640_PWR_CLS_D, RT5640_PWR_CLS_D);
 		rt5640_index_update_bits(codec,
@@ -3205,7 +3208,7 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	rt5640->codec = codec;
 	rt5640_audio_codec = codec;
 	rt5640_dsp = rt5640;
-	rt5640->dsp_sw = RT5640_DSP_DIS;
+	rt5640->dsp_sw = RT5640_DSP_AEC_NS_FENS;
 
 	ret = device_create_file(codec->dev, &dev_attr_index_reg);
 	if (ret != 0) {
@@ -3229,7 +3232,7 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 	realtek_ce_init_hwdep(codec);
 #endif
 #endif
-
+	do_rt5640_dsp_set_mode(rt5640_audio_codec,RT5640_DSP_DIS);
 	return 0;
 }
 

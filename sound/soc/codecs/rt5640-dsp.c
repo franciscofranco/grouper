@@ -980,7 +980,7 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 
-	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_PRE_PMU:
 		pr_info("%s(): PMU\n", __func__);
 		if (rt5640->dsp_sw == RT5640_DSP_DIS || 2 <= power_on)
 			return 0;
@@ -1002,10 +1002,10 @@ static int rt5640_dsp_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget rt5640_dsp_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("DSP Downstream", SND_SOC_NOPM,
 		0, 0, NULL, 0, rt5640_dsp_event,
-		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_PGA_E("DSP Upstream", SND_SOC_NOPM,
 		0, 0, NULL, 0, rt5640_dsp_event,
-		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_PGA("RxDP", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("RxDC", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("TxDC", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -1174,7 +1174,11 @@ int do_rt5640_dsp_set_mode(struct snd_soc_codec *codec, int mode) {
 		rt5640->dsp_play_pass ? "IF1" : "IF2");
 	//Stereo DAC MIXL
 	rt5640_conn_mixer_path(codec, "Stereo DAC MIXL", "DAC L1 Switch", true);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXL",
+                "DAC L2 Switch", !rt5640->dsp_play_pass);
 	rt5640_conn_mixer_path(codec, "Stereo DAC MIXR", "DAC R1 Switch", true);
+	rt5640_conn_mixer_path(codec, "Stereo DAC MIXR",
+                "DAC R2 Switch", !rt5640->dsp_play_pass);
 	//Stereo ADC MIXL
 	rt5640_conn_mixer_path(codec, "Stereo ADC MIXL", "ADC1 Switch", true);
 	rt5640_conn_mixer_path(codec, "Stereo ADC MIXR", "ADC1 Switch", true);
