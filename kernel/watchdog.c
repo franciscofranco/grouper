@@ -35,6 +35,7 @@ static DEFINE_PER_CPU(struct task_struct *, softlockup_watchdog);
 static DEFINE_PER_CPU(struct hrtimer, watchdog_hrtimer);
 static DEFINE_PER_CPU(bool, softlockup_touch_sync);
 static DEFINE_PER_CPU(bool, soft_watchdog_warn);
+static DEFINE_PER_CPU(int, softlockup_count);
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 static DEFINE_PER_CPU(bool, hard_watchdog_warn);
 static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
@@ -135,6 +136,7 @@ static void __touch_watchdog(void)
 void touch_softlockup_watchdog(void)
 {
 	__this_cpu_write(watchdog_touch_ts, 0);
+	__this_cpu_write(softlockup_count,0);
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 
@@ -295,7 +297,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		/* only warn once */
 		if (__this_cpu_read(soft_watchdog_warn) == true)
 			return HRTIMER_RESTART;
-
+		__this_cpu_write(softlockup_count,__this_cpu_read(softlockup_count)+1);
 		printk(KERN_ERR "BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
 			smp_processor_id(), duration,
 			current->comm, task_pid_nr(current));
@@ -306,7 +308,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 		else
 			dump_stack();
 
-		if (softlockup_panic)
+		if (softlockup_panic || (__this_cpu_read(softlockup_count) > 3) )
 			panic("softlockup: hung tasks");
 		__this_cpu_write(soft_watchdog_warn, true);
 	} else
@@ -343,7 +345,7 @@ static int watchdog(void *unused)
 	while (!kthread_should_stop()) {
 		__touch_watchdog();
 		schedule();
-
+		__this_cpu_write(softlockup_count,0);
 		if (kthread_should_stop())
 			break;
 
