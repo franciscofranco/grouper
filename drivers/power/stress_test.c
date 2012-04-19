@@ -21,17 +21,15 @@
 extern unsigned int boot_reason;
 static void battery_strees_test(struct work_struct *work)
 {
+	int ret=0;
+	int rt_value;
+       struct bq27541_device_info *battery_device =container_of(work, struct bq27541_device_info, battery_stress_test.work);
 
-       int ret=0;
-	   int rt_value;
-       struct bq27541_device_info *battery_device =container_of(work, struct bq27541_device_info,battery_stress_test.work);
-
-	 ret=bq27541_smbus_read_data(REG_STATUS,0,&rt_value);
+	ret = bq27541_smbus_read_data(REG_STATUS,0,&rt_value);
 	if (ret < 0) {
 		printk("battery_strees_test: i2c read for REG_STATUS failed  ret=%d\n", ret);
 	}
 	queue_delayed_work(battery_work_queue , &battery_device->battery_stress_test, 2*HZ);
-
 }
 
 long battery_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
@@ -40,7 +38,7 @@ long battery_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
 	int battery_status=0;
 	if (_IOC_TYPE(cmd) == BATTERY_IOC_MAGIC ){
 	     //printk("  battery_ioctl vaild magic \n");
-		}
+	}
 	else	
 		return -ENOTTY;
 	switch(cmd)

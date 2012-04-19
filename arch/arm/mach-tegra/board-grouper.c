@@ -334,15 +334,15 @@ static void grouper_i2c_init(void)
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device1);
 
-	i2c_register_board_info(4, cardhu_i2c4_bq27541_board_info,
-		ARRAY_SIZE(cardhu_i2c4_bq27541_board_info));
-
 	i2c_register_board_info(4, grouper_i2c4_smb347_board_info,
 		ARRAY_SIZE(grouper_i2c4_smb347_board_info));
 
 	i2c_register_board_info(4, &rt5640_board_info, 1);
 
 	i2c_register_board_info(4, &grouper_eeprom_mac_add, 1);
+
+	i2c_register_board_info(4, cardhu_i2c4_bq27541_board_info,
+		ARRAY_SIZE(cardhu_i2c4_bq27541_board_info));
 
 	i2c_register_board_info(4, grouper_i2c4_max17048_board_info,
 		ARRAY_SIZE(grouper_i2c4_max17048_board_info));
