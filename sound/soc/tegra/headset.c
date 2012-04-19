@@ -38,9 +38,25 @@
 #include <sound/soc.h>
 #include "../gpio-names.h"
 #include "../codecs/rt5640.h"
-
+#include <mach/board-grouper-misc.h>
+#include <mach/pinmux.h>
+#include "../board.h"
+#include "../board-grouper.h"
 MODULE_DESCRIPTION("Headset detection driver");
 MODULE_LICENSE("GPL");
+
+
+#define DEFAULT_PINMUX(_pingroup, _mux, _pupd, _tri, _io)       \
+        {                                                       \
+                .pingroup       = TEGRA_PINGROUP_##_pingroup,   \
+                .func           = TEGRA_MUX_##_mux,             \
+                .pupd           = TEGRA_PUPD_##_pupd,           \
+                .tristate       = TEGRA_TRI_##_tri,             \
+                .io             = TEGRA_PIN_##_io,              \
+                .lock           = TEGRA_PIN_LOCK_DEFAULT,       \
+                .od             = TEGRA_PIN_OD_DEFAULT,         \
+                .ioreset        = TEGRA_PIN_IO_RESET_DEFAULT,   \
+        }
 
 /*----------------------------------------------------------------------------
 ** FUNCTION DECLARATION
@@ -60,7 +76,7 @@ int 			hs_micbias_power(int on);
 ** GLOBAL VARIABLES
 **----------------------------------------------------------------------------*/
 #define JACK_GPIO		(TEGRA_GPIO_PW2)
-#define LINEOUT_GPIO	(TEGRA_GPIO_PX3)
+#define LINEOUT_GPIO	(TEGRA_GPIO_PW3)
 #define HOOK_GPIO		(TEGRA_GPIO_PX2)
 #define ON	(1)
 #define OFF	(0)
@@ -91,7 +107,7 @@ static DECLARE_WORK(g_detection_work, detection_work);
 extern struct snd_soc_codec *rt5640_audio_codec;
 struct work_struct headset_work;
 struct work_struct lineout_work;
-
+static unsigned int revision;
 static ssize_t headset_name_show(struct switch_dev *sdev, char *buf)
 {
 	switch (switch_get_state(&hs_data->sdev)){
@@ -121,17 +137,41 @@ static ssize_t headset_state_show(struct switch_dev *sdev, char *buf)
 	return -EINVAL;
 }
 
+static void enable_uart(void)
+{
+	struct tegra_pingroup_config debug_uart [] = {
+        DEFAULT_PINMUX(ULPI_DATA0,      ULPI,          NORMAL,    NORMAL,   OUTPUT),
+        };
+        tegra_pinmux_config_table(debug_uart, ARRAY_SIZE(debug_uart));
+}
+
+
+static void disable_uart(void)
+{
+	struct tegra_pingroup_config debug_uart [] = {
+	DEFAULT_PINMUX(ULPI_DATA0,      ULPI,          PULL_UP,    TRISTATE,   OUTPUT),
+	};
+	tegra_pinmux_config_table(debug_uart, ARRAY_SIZE(debug_uart));
+}
 static void insert_headset(void)
 {
-	if(gpio_get_value(HOOK_GPIO)){
+
+	if(gpio_get_value(LINEOUT_GPIO) == 0 && revision != GROUPER_PCBA_SR3){
+                printk("%s: debug board\n", __func__);
+                switch_set_state(&hs_data->sdev, NO_DEVICE);
+                hs_micbias_power(OFF);
+                headset_alive = false;
+	}else if(gpio_get_value(HOOK_GPIO)){ 
 		printk("%s: headphone\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(OFF);
+		disable_uart();
 		headset_alive = false;
 	}else{
 		printk("%s: headset\n", __func__);
-		switch_set_state(&hs_data->sdev, HEADSET_WITH_MIC);
+		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(ON);
+		disable_uart();
 		headset_alive = true;
 	}
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
@@ -142,6 +182,7 @@ static void remove_headset(void)
 	switch_set_state(&hs_data->sdev, NO_DEVICE);
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
 	headset_alive = false;
+	enable_uart();
 }
 
 static void detection_work(struct work_struct *work)
@@ -222,7 +263,8 @@ static int jack_config_gpio()
 	}else {
 		hs_micbias_power(OFF);
 		headset_alive = false;
-		remove_headset();
+		switch_set_state(&hs_data->sdev, NO_DEVICE);
+		//remove_headset();
 	}
 
 	return 0;
@@ -276,8 +318,9 @@ static int lineout_config_gpio()
 	tegra_gpio_enable(LINEOUT_GPIO);
 	ret = gpio_request(LINEOUT_GPIO, "lineout_int");
 	ret = gpio_direction_input(LINEOUT_GPIO);
+#if 0
 	ret = request_irq(gpio_to_irq(LINEOUT_GPIO), &lineout_irq_handler, IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING, "lineout_int", 0);
-
+#endif
 	if (gpio_get_value(LINEOUT_GPIO) == 0)
 		lineout_alive = true;
 	else
@@ -331,9 +374,11 @@ static int codec_micbias_power(int on)
 			printk("%s: No rt5640_audio_codec - set micbias on fail\n", __func__);
 			return 0;
 		}
+#if 0
 		snd_soc_update_bits(rt5640_audio_codec, RT5640_PWR_ANLG1, RT5640_PWR_LDO2, RT5640_PWR_LDO2); /* Enable LDO2 */
 		snd_soc_update_bits(rt5640_audio_codec, RT5640_PWR_ANLG2, RT5640_PWR_MB1, RT5640_PWR_MB1); /*Enable MicBias1 */
 		//for ALC5642
+#endif
 	}else{
 		//for ALC5642
 		if(rt5640_audio_codec == NULL){
@@ -378,6 +423,8 @@ static int __init headset_init(void)
 	int ret;
 
 	printk("HEADSET: Headset detection init\n");
+
+	revision = grouper_query_pcba_revision();
 
 	hs_data = kzalloc(sizeof(struct headset_data), GFP_KERNEL);
 	if (!hs_data)
