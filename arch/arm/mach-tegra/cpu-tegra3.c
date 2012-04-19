@@ -285,10 +285,15 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 	mutex_unlock(tegra3_cpu_lock);
 
 	if (cpu < nr_cpu_ids) {
-		if (up)
+		if (up){
+			printk("cpu_up(%u)+\n",cpu);
 			cpu_up(cpu);
-		else
+			printk("cpu_up(%u)-\n",cpu);
+		}else{
+			printk("cpu_down(%u)+\n",cpu);
 			cpu_down(cpu);
+			printk("cpu_down(%u)-\n",cpu);
+		}
 	}
 }
 
