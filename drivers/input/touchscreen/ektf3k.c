@@ -880,7 +880,7 @@ static void update_power_source(){
 
 void touch_callback(unsigned cable_status){ 
       now_usb_cable_status = cable_status;
-      update_power_source();
+      //update_power_source();
 }
 
 static int elan_ktf3k_ts_recv_data(struct i2c_client *client, uint8_t *buf, int size)
@@ -1595,7 +1595,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
   else
     touch_debug(DEBUG_INFO, "[ELAN]misc_register finished!!");
 // End Firmware Update	
-      update_power_source();
+      //update_power_source();
 	return 0;
 
 err_input_register_device_failed:
