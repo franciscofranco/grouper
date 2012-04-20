@@ -1544,7 +1544,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 	}
 	
 #ifdef _ENABLE_DBG_LEVEL
-	dbgProcFile = create_proc_entry(PROC_FS_NAME, 0666, NULL);
+	dbgProcFile = create_proc_entry(PROC_FS_NAME, 0600, NULL);
 	if (dbgProcFile == NULL) 
 	{
 		remove_proc_entry(PROC_FS_NAME, NULL);
