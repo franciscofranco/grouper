@@ -239,9 +239,7 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	/*  KBC keys */
 	DEFAULT_PINMUX(KB_COL0,         KBC,             PULL_UP,   NORMAL,     INPUT),
 	DEFAULT_PINMUX(KB_COL1,         KBC,             PULL_UP,   NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_COL2,         KBC,             PULL_UP,   NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_COL3,         KBC,             PULL_UP,   NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_ROW0,         KBC,             PULL_UP,   NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_ROW0,         RSVD,            PULL_UP,   NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(KB_ROW1,         KBC,             PULL_UP,   NORMAL,     INPUT),
 
 	/* PCBID pins */
@@ -251,6 +249,12 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 
 	/* PWR Key */
 	DEFAULT_PINMUX(GPIO_PV0,        RSVD,            PULL_UP,   NORMAL,     INPUT),
+
+	/* VOL_UP Key */
+	DEFAULT_PINMUX(KB_COL2,         RSVD,            PULL_UP,   NORMAL,     INPUT),
+
+	/* VOL_DOWN Key */
+	DEFAULT_PINMUX(KB_COL3,         RSVD,            PULL_UP,   NORMAL,     INPUT),
 
 	/* I2S0 : for MODEM */
 	DEFAULT_PINMUX(DAP1_FS,         I2S0,            NORMAL,    NORMAL,     INPUT),
@@ -484,6 +488,7 @@ static void __init grouper_pinmux_audio_init(void)
 static struct gpio_init_pin_info init_gpio_mode_grouper_common[] = {
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PDD7, false, 0),
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PCC6, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PR0, false, 0),
 };
 
 static void __init grouper_gpio_init_configure(void)

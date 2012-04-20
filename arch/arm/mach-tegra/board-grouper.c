@@ -894,7 +894,6 @@ static void __init tegra_grouper_init(void)
 	grouper_suspend_init();
 	grouper_touch_init();
 	grouper_gps_init();
-	grouper_kbc_init();
 	grouper_keys_init();
 	grouper_panel_init();
 	grouper_nfc_init();
