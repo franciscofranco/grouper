@@ -38,7 +38,6 @@
 #include "../../arch/arm/mach-tegra/gpio-names.h"
 #include "../../arch/arm/mach-tegra/wakeups-t3.h"
 
-#define REMOVE_USB_POWER_SUPPLY
 #define SMBUS_RETRY                                     (0)
 #define BAT_IN_DET                                        TEGRA_GPIO_PN4
 #define GPIOPIN_BATTERY_DETECT	         BAT_IN_DET
