@@ -514,7 +514,18 @@ static int __devinit al3010_probe(struct i2c_client *client,
 		al3010_hardware_fail = true;
 		//goto exit_kfree;
 	}
-
+	//re-init , workaround to fix init fail when i2c arbitration lost
+	if(al3010_hardware_fail == true){
+		err = al3010_init_client(client);
+		if(err){
+			printk("light sensor info : al3010 re-init fail\n");
+			printk("light sensor info : keep al3010 driver alive\n");
+		}else{
+			printk("light sensor info : al3010 re-init success\n");
+			al3010_hardware_fail = false;
+		}
+		err = 0;
+	}
 	/* register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &al3010_attr_group);
 	if (err){
