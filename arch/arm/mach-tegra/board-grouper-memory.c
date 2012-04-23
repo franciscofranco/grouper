@@ -867,7 +867,7 @@ static const struct tegra_emc_table grouper_emc_tables_h5tc4g[] = {
 		0x00000000, /* EMC_CFG.DYN_SELF_REF */
 	},
 };
-static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
+static const struct tegra_emc_table Nakasi_dvfs_Elpida_table_0420[] = {
 	{
 		0x32,       /* Rev 3.2 */
 		25500,      /* SDRAM frequency */
@@ -914,18 +914,18 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00004288, /* EMC_FBIO_CFG5 */
 			0x007800a4, /* EMC_CFG_DIG_DLL */
 			0x00008000, /* EMC_CFG_DIG_DLL_PERIOD */
-			0x000cc000, /* EMC_DLL_XFORM_DQS0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS3 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS4 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS5 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS6 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS7 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -938,10 +938,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_DLI_TRIM_TXDQS5 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS6 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS7 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ3 */
 			0x000002a0, /* EMC_XM2CMDPADCTRL */
 			0x0800211c, /* EMC_XM2DQSPADCTRL2 */
 			0x00000000, /* EMC_XM2DQPADCTRL2 */
@@ -960,7 +960,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_CTT_DURATION */
 			0x80000287, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00020001, /* MC_EMEM_ARB_CFG */
-			0xc0000008, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000010, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RC */
@@ -1034,18 +1034,18 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00004288, /* EMC_FBIO_CFG5 */
 			0x007800a4, /* EMC_CFG_DIG_DLL */
 			0x00008000, /* EMC_CFG_DIG_DLL_PERIOD */
-			0x000cc000, /* EMC_DLL_XFORM_DQS0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS3 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS4 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS5 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS6 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS7 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -1058,10 +1058,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_DLI_TRIM_TXDQS5 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS6 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS7 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ3 */
 			0x000002a0, /* EMC_XM2CMDPADCTRL */
 			0x0800211c, /* EMC_XM2DQSPADCTRL2 */
 			0x00000000, /* EMC_XM2DQPADCTRL2 */
@@ -1080,7 +1080,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_CTT_DURATION */
 			0x8000040b, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00010001, /* MC_EMEM_ARB_CFG */
-			0xc000000a, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000010, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RC */
@@ -1154,18 +1154,18 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00004288, /* EMC_FBIO_CFG5 */
 			0x007800a4, /* EMC_CFG_DIG_DLL */
 			0x00008000, /* EMC_CFG_DIG_DLL_PERIOD */
-			0x000cc000, /* EMC_DLL_XFORM_DQS0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQS3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQS3 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS4 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS5 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS6 */
 			0x000fc000, /* EMC_DLL_XFORM_DQS7 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -1178,10 +1178,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_DLI_TRIM_TXDQS5 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS6 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS7 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ0 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ1 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ2 */
-			0x000cc000, /* EMC_DLL_XFORM_DQ3 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ0 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ1 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ2 */
+			0x000fc000, /* EMC_DLL_XFORM_DQ3 */
 			0x000002a0, /* EMC_XM2CMDPADCTRL */
 			0x0800211c, /* EMC_XM2DQSPADCTRL2 */
 			0x00000000, /* EMC_XM2DQPADCTRL2 */
@@ -1200,7 +1200,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_CTT_DURATION */
 			0x80000713, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00000001, /* MC_EMEM_ARB_CFG */
-			0xc0000013, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000018, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000003, /* MC_EMEM_ARB_TIMING_RC */
@@ -1282,10 +1282,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00080000, /* EMC_DLL_XFORM_DQS5 */
 			0x00080000, /* EMC_DLL_XFORM_DQS6 */
 			0x00080000, /* EMC_DLL_XFORM_DQS7 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -1402,10 +1402,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00014000, /* EMC_DLL_XFORM_DQS5 */
 			0x00014000, /* EMC_DLL_XFORM_DQS6 */
 			0x00014000, /* EMC_DLL_XFORM_DQS7 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00030000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -1418,10 +1418,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_DLI_TRIM_TXDQS5 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS6 */
 			0x00000000, /* EMC_DLI_TRIM_TXDQS7 */
-			0x00050000, /* EMC_DLL_XFORM_DQ0 */
-			0x00050000, /* EMC_DLL_XFORM_DQ1 */
-			0x00050000, /* EMC_DLL_XFORM_DQ2 */
-			0x00050000, /* EMC_DLL_XFORM_DQ3 */
+			0x00048000, /* EMC_DLL_XFORM_DQ0 */
+			0x00048000, /* EMC_DLL_XFORM_DQ1 */
+			0x00048000, /* EMC_DLL_XFORM_DQ2 */
+			0x00048000, /* EMC_DLL_XFORM_DQ3 */
 			0x000002a0, /* EMC_XM2CMDPADCTRL */
 			0x0800013d, /* EMC_XM2DQSPADCTRL2 */
 			0x00000000, /* EMC_XM2DQPADCTRL2 */
@@ -1440,7 +1440,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_CTT_DURATION */
 			0x800014d4, /* EMC_DYN_SELF_REF_CONTROL */
 			0x00000005, /* MC_EMEM_ARB_CFG */
-			0x8000003d, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc000003d, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000001, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000002, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000008, /* MC_EMEM_ARB_TIMING_RC */
@@ -1486,7 +1486,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000001, /* EMC_REXT */
 			0x00000000, /* EMC_WEXT */
 			0x00000007, /* EMC_WDV */
-			0x0000000a, /* EMC_QUSE */
+			0x0000000b, /* EMC_QUSE */
 			0x00000009, /* EMC_QRST */
 			0x0000000b, /* EMC_QSAFE */
 			0x00000011, /* EMC_RDV */
@@ -1507,8 +1507,8 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000006, /* EMC_TCLKSTABLE */
 			0x00000007, /* EMC_TCLKSTOP */
 			0x00001453, /* EMC_TREFBW */
-			0x0000000b, /* EMC_QUSE_EXTRA */
-			0x00000006, /* EMC_FBIO_CFG6 */
+			0x0000000c, /* EMC_QUSE_EXTRA */
+			0x00000004, /* EMC_FBIO_CFG6 */
 			0x00000000, /* EMC_ODT_WRITE */
 			0x00000000, /* EMC_ODT_READ */
 			0x00005088, /* EMC_FBIO_CFG5 */
@@ -1522,10 +1522,10 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x0000000a, /* EMC_DLL_XFORM_DQS5 */
 			0x0000000a, /* EMC_DLL_XFORM_DQS6 */
 			0x0000000a, /* EMC_DLL_XFORM_DQS7 */
-			0x00018000, /* EMC_DLL_XFORM_QUSE0 */
-			0x00018000, /* EMC_DLL_XFORM_QUSE1 */
-			0x00018000, /* EMC_DLL_XFORM_QUSE2 */
-			0x00018000, /* EMC_DLL_XFORM_QUSE3 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE0 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE1 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE2 */
+			0x00000000, /* EMC_DLL_XFORM_QUSE3 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE4 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE5 */
 			0x00000000, /* EMC_DLL_XFORM_QUSE6 */
@@ -1543,7 +1543,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x0000000c, /* EMC_DLL_XFORM_DQ2 */
 			0x0000000c, /* EMC_DLL_XFORM_DQ3 */
 			0x000002a0, /* EMC_XM2CMDPADCTRL */
-			0x0800013d, /* EMC_XM2DQSPADCTRL2 */
+			0x0600013d, /* EMC_XM2DQSPADCTRL2 */
 			0x22220000, /* EMC_XM2DQPADCTRL2 */
 			0x77fff884, /* EMC_XM2CLKPADCTRL */
 			0x01f1f501, /* EMC_XM2COMPPADCTRL */
@@ -1560,7 +1560,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00000000, /* EMC_CTT_DURATION */
 			0x800028a5, /* EMC_DYN_SELF_REF_CONTROL */
 			0x0000000a, /* MC_EMEM_ARB_CFG */
-			0x80000079, /* MC_EMEM_ARB_OUTSTANDING_REQ */
+			0xc0000079, /* MC_EMEM_ARB_OUTSTANDING_REQ */
 			0x00000003, /* MC_EMEM_ARB_TIMING_RCD */
 			0x00000004, /* MC_EMEM_ARB_TIMING_RP */
 			0x00000010, /* MC_EMEM_ARB_TIMING_RC */
@@ -1577,7 +1577,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 			0x00130b10, /* MC_EMEM_ARB_DA_COVERS */
 			0x70ea1f11, /* MC_EMEM_ARB_MISC0 */
 			0x001f0000, /* MC_EMEM_ARB_RING1_THROTTLE */
-			0xe8000000, /* EMC_FBIO_SPARE */
+			0xf8000000, /* EMC_FBIO_SPARE */
 			0xff00ff49, /* EMC_CFG_RSV */
 		},
 		0x00000040, /* EMC_ZCAL_WAIT_CNT after clock change */
@@ -1589,6 +1589,7 @@ static const struct tegra_emc_table Nakasi_dvfs_table_Elpida_EVT[] = {
 		0x00000000, /* EMC_CFG.DYN_SELF_REF */
 	},
 };
+
 static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0413[] ={
 	{
 		0x32,       /* Rev 3.2 */
@@ -2355,9 +2356,9 @@ int grouper_emc_init(void)
 	printk("grouper_emc_init:mem_bootstrap_ad4=%u mem_bootstrap_ad5=%u \n",mem_bootstrap_ad4,mem_bootstrap_ad5);
 
 	if(!mem_bootstrap_ad4 && !mem_bootstrap_ad5){
-		tegra_init_emc(Nakasi_dvfs_table_Elpida_EVT,
-			ARRAY_SIZE(Nakasi_dvfs_table_Elpida_EVT));
-		printk("grouper_emc_init:Nakasi_dvfs_table_Elpida_EVT\n");
+		tegra_init_emc(Nakasi_dvfs_Elpida_table_0420,
+			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0420));
+		printk("grouper_emc_init:Nakasi_dvfs_Elpida_table_0420\n");
 	}else{
 		tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
 			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413));
@@ -2367,9 +2368,9 @@ int grouper_emc_init(void)
 	return 0;
 
 err_handle:
-	if(tegra_init_emc(Nakasi_dvfs_table_Elpida_EVT,
-			ARRAY_SIZE(Nakasi_dvfs_table_Elpida_EVT))){
-		printk("[unknow bootstrap pin] use Nakasi_dvfs_table_Elpida_EVT \n");
+	if(tegra_init_emc(Nakasi_dvfs_Elpida_table_0420,
+			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0420))){
+		printk("[unknow bootstrap pin] use Nakasi_dvfs_Elpida_table_0420\n");
 	}else if (tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
 			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413))){
 		printk("[unknow bootstrap pin] use Nakasi_dvfs_Hynix_table_0413 \n");
