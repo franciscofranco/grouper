@@ -50,10 +50,6 @@
 #undef MPL_LOG_TAG
 #define MPL_LOG_TAG "MPL-compass"
 
-struct delayed_work ami306_init_work;
-#define AMI306_INIT_DELAY 200
-static int ami306_mod_delay_init(void);
-
 /* -------------------------------------------------------------------------- */
 #define AMI306_REG_DATAX		(0x10)
 #define AMI306_REG_STAT1		(0x18)
@@ -990,6 +986,7 @@ static struct ext_slave_descr ami306_descr = {
 	.trigger          = &ami306_read_trigger,
 };
 
+static
 struct ext_slave_descr *ami306_get_slave_descr(void)
 {
 	return &ami306_descr;
@@ -1090,15 +1087,6 @@ static struct i2c_driver ami306_mod_driver = {
 static int __init ami306_mod_init(void)
 {
 	printk(KERN_INFO "%s+ #####\n", __func__);
-	INIT_DELAYED_WORK(&ami306_init_work, ami306_mod_delay_init);
-	schedule_delayed_work(&ami306_init_work, AMI306_INIT_DELAY);
-	printk(KERN_INFO "%s- #####\n", __func__);
-}
-
-static int ami306_mod_delay_init(void)
-{
-	printk(KERN_INFO "%s+ #####\n", __func__);
-
 	int res = i2c_add_driver(&ami306_mod_driver);
 	pr_info("%s: Probe name %s\n", __func__, "ami306_mod");
 	if (res)
