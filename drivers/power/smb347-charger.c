@@ -771,22 +771,8 @@ static void inok_isr_work_function(struct work_struct *dat)
 	if (gpio_get_value(gpio)) {
 		printk("INOK=H\n");
 
-		/* disable charger */
-		retval = smb347_configure_charger(client, 0);
-		if (retval < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-		}
-
 	} else {
 		printk("INOK=L\n");
-
-		/* configure charger */
-		retval = smb347_configure_charger(client, 1);
-		if (retval < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-		}
 
 		/* cable type dection */
 		retval = smb347_read(client, smb347_STS_REG_E);
@@ -913,32 +899,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		dev_err(&client->dev, "%s(): Failed in requesting STAT pin isr\n",
 				__func__);
 		goto error;
-	}
-
-	/* Determine USB cable in or not to enable/disable charging */
-	ret =  smb347_read(client, smb347_STS_REG_E);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s(): Failed in reading register"
-			"0x%02x\n", __func__, smb347_STS_REG_E);
-		goto error;
-	} else {
-		if(ret & USBIN) {
-			/* configure charger */
-			ret = smb347_configure_charger(client, 1);
-			if (ret < 0) {
-				dev_err(&client->dev, "%s() error in configuring"
-					"charger..\n", __func__);
-				goto error;
-			}
-		} else {
-			/* disable charger */
-			ret = smb347_configure_charger(client, 0);
-			if (ret < 0) {
-				dev_err(&client->dev, "%s() error in configuring"
-					"charger..\n", __func__);
-				goto error;
-			}
-		}
 	}
 
 	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 30*HZ);
