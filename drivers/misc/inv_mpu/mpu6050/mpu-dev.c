@@ -1309,7 +1309,7 @@ static void __exit mpu_exit(void)
 	i2c_del_driver(&mpu_driver);
 }
 
-module_init(mpu_init);
+late_initcall(mpu_init);
 module_exit(mpu_exit);
 
 MODULE_AUTHOR("Invensense Corporation");

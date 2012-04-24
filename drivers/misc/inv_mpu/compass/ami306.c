@@ -1101,7 +1101,7 @@ static void __exit ami306_mod_exit(void)
 	i2c_del_driver(&ami306_mod_driver);
 }
 
-module_init(ami306_mod_init);
+late_initcall(ami306_mod_init);
 module_exit(ami306_mod_exit);
 
 MODULE_AUTHOR("Invensense Corporation");
