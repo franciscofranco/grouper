@@ -732,6 +732,7 @@ static void smb347_otg_status(enum usb_otg_state otg_state, void *data)
 	}
 }
 
+/* workqueue function */
 static void stat_isr_work_function(struct work_struct *dat)
 {
 	struct i2c_client *client = charger->client;
@@ -764,19 +765,6 @@ static void inok_isr_work_function(struct work_struct *dat)
 	int i;
 	int gpio = TEGRA_GPIO_PV1;
 	int irq = gpio_to_irq(gpio);
-
-	/* Debouncing time */
-	//msleep(200);
-	//smb347_clear_interrupts(client);
-	/*
-	val = i2c_smbus_read_i2c_block_data(client, smb347_INTR_STS_A, 11, buf);	//0x35 ~ 0x3F
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
-	for(i=smb347_INTR_STS_A; i<=smb347_STS_REG_E; i++)
-		printk("inok_isr_work_function: Reg addr [%02x], value= 0x%02x\n",i ,buf[i]);
-	*/
-	//SMB_NOTICE("GPIO smb347_INOK pin, state = %d\n", gpio_get_value(TEGRA_GPIO_PV1));
 
 if (gpio_get_value(gpio)) {
 	printk("INOK=H\n");
@@ -811,6 +799,39 @@ if (gpio_get_value(gpio)) {
 	printk("inok_isr_work_function -\n");
 	smb347_clear_interrupts(client);
 	enable_irq(irq);
+}
+
+static void regs_dump_work_func(struct work_struct *dat)
+{
+	struct i2c_client *client = charger->client;
+	uint8_t config_reg[2], cmd_reg[2], status_reg[2];
+	int ret = 0;
+
+	ret += i2c_smbus_read_i2c_block_data(client, smb347_PIN_CTRL, 3, config_reg)
+	     + i2c_smbus_read_i2c_block_data(client, smb347_CMD_REG, 2, cmd_reg)
+	     + i2c_smbus_read_i2c_block_data(client, smb347_STS_REG_C, 3, status_reg);
+
+	if (ret < 0)
+		SMB_ERR("failed to read charger reg !\n");
+
+	SMB_NOTICE("\n"
+		"Reg[06h]=0x%02x\n"
+		"Reg[08h]=0x%02x\n"
+		"Reg[30h]=0x%02x\n"
+		"Reg[31h]=0x%02x\n"
+		"Reg[3dh]=0x%02x\n"
+		"Reg[3eh]=0x%02x\n"
+		"Reg[3fh]=0x%02x\n",
+		config_reg[0],
+		config_reg[2],
+		cmd_reg[0],
+		cmd_reg[1],
+		status_reg[0],
+		status_reg[1],
+		status_reg[2]);
+
+	/* Schedule next polling */
+	queue_delayed_work(smb347_wq, &charger->regs_dump_work, REG_POLLING_RATE*HZ);
 }
 
 /* Sysfs function */
@@ -854,49 +875,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		goto error;
 	}
 
-	/* Dump interrupt setting register */
-	SMB_NOTICE("SMB347 Registers:\n");
-	SMB_NOTICE("===================================");
-	val = i2c_smbus_read_i2c_block_data(client, smb347_CHARGE, 15, buf);	//0x00 ~ 0x0E
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
-	for(i=smb347_CHARGE; i<=smb347_SYSOK_USB3; i++)
-		SMB_NOTICE("Reg addr [%02x], value= 0x%02x\n",i ,buf[i]);
-
-	val = i2c_smbus_read_i2c_block_data(client, smb347_CMD_REG, 2, buf);	//0x30 ~ 0x31
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
-	for(i=smb347_CMD_REG; i<=smb347_CMD_REG_B; i++)
-		SMB_NOTICE("Reg addr [%02x], value= 0x%02x\n",i ,buf[i]);
-
-	val =smb347_read(client, smb347_CMD_REG_c);		//0x33
-	SMB_NOTICE("Reg addr [%02x], value= 0x%02x\n",smb347_CMD_REG_c, val);
-
-	val = i2c_smbus_read_i2c_block_data(client, smb347_INTR_STS_A, 11, buf);	//0x35 ~ 0x3F
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
-	for(i=smb347_INTR_STS_A; i<=smb347_STS_REG_E; i++)
-		SMB_NOTICE("Reg addr [%02x], value= 0x%02x\n",i ,buf[i]);
-
-	ret = register_otg_callback(smb347_otg_status, charger);
-	if (ret < 0)
-		goto error;
-
-	/*
-	ret = smb347_configure_charger(client, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = smb347_configure_interrupts(client);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() error in configuring charger..\n",
-								__func__);
-		goto error;
-	}
-	*/
 	ret = sysfs_create_group(&client->dev.kobj, &smb347_group);
 	if (ret) {
 		dev_err(&client->dev, "smb347_probe: unable to create the sysfs\n");
@@ -905,6 +883,7 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	smb347_wq = create_singlethread_workqueue("smb347_wq");
 	INIT_DELAYED_WORK_DEFERRABLE(&charger->inok_isr_work, inok_isr_work_function);
 	INIT_DELAYED_WORK_DEFERRABLE(&charger->stat_isr_work, stat_isr_work_function);
+	INIT_DELAYED_WORK(&charger->regs_dump_work, regs_dump_work_func);
 
 	ret = smb347_inok_irq(charger);
 	if (ret) {
@@ -920,6 +899,12 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		goto error;
 	}
 
+	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 30*HZ);
+
+	ret = register_otg_callback(smb347_otg_status, charger);
+	if (ret < 0)
+		goto error;
+
 	return 0;
 error:
 	kfree(charger);
@@ -931,6 +916,19 @@ static int __devexit smb347_remove(struct i2c_client *client)
 	struct smb347_charger *charger = i2c_get_clientdata(client);
 
 	kfree(charger);
+	return 0;
+}
+
+static int smb347_suspend(struct i2c_client *client)
+{
+	cancel_delayed_work_sync(&charger->regs_dump_work);
+	return 0;
+}
+
+static int smb347_resume(struct i2c_client *client)
+{
+	cancel_delayed_work(&charger->regs_dump_work);
+	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 15*HZ);
 	return 0;
 }
 
@@ -946,6 +944,8 @@ static struct i2c_driver smb347_i2c_driver = {
 	},
 	.probe		= smb347_probe,
 	.remove		= __devexit_p(smb347_remove),
+	.suspend 		= smb347_suspend,
+	.resume 		= smb347_resume,
 	.id_table	= smb347_id,
 };
 

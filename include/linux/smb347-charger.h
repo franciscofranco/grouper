@@ -39,6 +39,9 @@
 #define SMB_ERR(format, arg...)	\
 	printk(KERN_ERR "smb347_charger: [%s] " format , __FUNCTION__ , ## arg)
 
+/* Debug setting */
+#define REG_POLLING_RATE	90
+
 enum charging_states {
 	idle,
 	progress,
@@ -59,6 +62,7 @@ struct smb347_charger {
 	struct device	*dev;
 	struct delayed_work	inok_isr_work;
 	struct delayed_work	stat_isr_work;
+	struct delayed_work	regs_dump_work;
 	void	*charger_cb_data;
 	enum charging_states state;
 	enum charger_type chrg_type;
