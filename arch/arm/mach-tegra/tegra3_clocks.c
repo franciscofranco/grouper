@@ -284,7 +284,7 @@
 #define PLLE_SS_COEFFICIENTS_12MHZ	\
 	((0x18<<PLLE_SS_INCINTRV_SHIFT) | (0x1<<PLLE_SS_INC_SHIFT) | \
 	 (0x24<<PLLE_SS_MAX_SHIFT))
-#define PLLE_SS_DISABLE			((1<<12) | (1<<11) | (1<<10))
+#define PLLE_SS_DISABLE			((1<<14) | (1<<12) | (1<<11) | (1<<10))
 
 #define PLLE_AUX			0x48c
 #define PLLE_AUX_PLLP_SEL		(1<<2)
