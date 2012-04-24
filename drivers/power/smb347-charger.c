@@ -314,11 +314,13 @@ static int smb347_configure_charger(struct i2c_client *client, int value)
 		}
 
 		/* Configure THERM ctrl */
+		/*
 		ret = smb347_update_reg(client, smb347_THERM_CTRL, THERM_CTRL);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
 		}
+		*/
 	} else {
 		/* Disable charging */
 		ret = smb347_read(client, smb347_CMD_REG);
@@ -766,11 +768,28 @@ static void inok_isr_work_function(struct work_struct *dat)
 	int gpio = TEGRA_GPIO_PV1;
 	int irq = gpio_to_irq(gpio);
 
-if (gpio_get_value(gpio)) {
-	printk("INOK=H\n");
-} else {
-	printk("INOK=L\n");
-	retval = smb347_read(client, smb347_STS_REG_E);
+	if (gpio_get_value(gpio)) {
+		printk("INOK=H\n");
+
+		/* disable charger */
+		retval = smb347_configure_charger(client, 0);
+		if (retval < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+		}
+
+	} else {
+		printk("INOK=L\n");
+
+		/* configure charger */
+		retval = smb347_configure_charger(client, 1);
+		if (retval < 0) {
+			dev_err(&client->dev, "%s() error in configuring"
+				"charger..\n", __func__);
+		}
+
+		/* cable type dection */
+		retval = smb347_read(client, smb347_STS_REG_E);
 		SMB_NOTICE("Reg3F : 0x%02x\n", retval);
 		if(retval & USBIN) {	//USBIN
 			retval = smb347_read(client, smb347_STS_REG_D);
@@ -785,16 +804,14 @@ if (gpio_get_value(gpio)) {
 					printk("Cable: OTHER\n");
 				} else if(retval == APSD_SDP) {
 					printk("Cable: SDP\n");
-				} else {
+				} else
 					printk("Unkown Plug In Cable type !\n");
-				}
-			}else {
+			}else
 				printk("APSD not completed\n");
-			}
-		}else {
+		} else {
 			printk("USBIN=0\n");
 		}
-}
+	}
 
 	printk("inok_isr_work_function -\n");
 	smb347_clear_interrupts(client);
@@ -844,7 +861,6 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 		" Reg[06h]=0x%02x\n Reg[08h]=0x%02x\n Reg[31h]=0x%02x\n Reg[3eh]=0x%02x\n Reg[3fh]=0x%02x\n",
 		smb347_read(client, smb347_PIN_CTRL),
 		smb347_read(client, smb347_SYSOK_USB_CTRL),
-		smb347_read(client, smb347_CMD_REG_B),
 		smb347_read(client, smb347_CMD_REG_B),
 		smb347_read(client, smb347_STS_REG_D),
 		smb347_read(client, smb347_STS_REG_E));
@@ -897,6 +913,32 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		dev_err(&client->dev, "%s(): Failed in requesting STAT pin isr\n",
 				__func__);
 		goto error;
+	}
+
+	/* Determine USB cable in or not to enable/disable charging */
+	ret =  smb347_read(client, smb347_STS_REG_E);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s(): Failed in reading register"
+			"0x%02x\n", __func__, smb347_STS_REG_E);
+		goto error;
+	} else {
+		if(ret & USBIN) {
+			/* configure charger */
+			ret = smb347_configure_charger(client, 1);
+			if (ret < 0) {
+				dev_err(&client->dev, "%s() error in configuring"
+					"charger..\n", __func__);
+				goto error;
+			}
+		} else {
+			/* disable charger */
+			ret = smb347_configure_charger(client, 0);
+			if (ret < 0) {
+				dev_err(&client->dev, "%s() error in configuring"
+					"charger..\n", __func__);
+				goto error;
+			}
+		}
 	}
 
 	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 30*HZ);
