@@ -1593,7 +1593,7 @@ static int fsl_vbus_session(struct usb_gadget *gadget, int is_active)
 			pm_qos_update_request(&boost_cpu_freq_req,
 				(s32)CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ * 1000);
 #endif
-			schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
+			schedule_delayed_work(&s_cable_info.cable_detection_work, 1*HZ);
 		}
 
 #ifndef CONFIG_USB_G_ANDROID
