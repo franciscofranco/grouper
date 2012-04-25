@@ -624,28 +624,28 @@ static struct sensor_reg_ex EV_minus_2[] = {
 
 /* ++ AE Lock & AE Unlock ++ */
 static struct sensor_reg_ex AE_lock_seq[] = {
-{SENSOR_WORD_WRITE,0x098E, 0xCC00} ,	// LOGICAL_ADDRESS_ACCESS [UVC_AE_MODE_CONTROL]
-{SENSOR_BYTE_WRITE,0xCC00, 0x01} ,	// UVC_AE_MODE_CONTROL - manual exposure
+{SENSOR_WORD_WRITE,0x098E, 0x0284} ,   // LOGICAL_ADDRESS_ACCESS [AE_TRACK_ALGO]
+{SENSOR_WORD_WRITE,0xA804, 0x0000} ,          // AE_TRACK_ALGO - AE disabled
 {SENSOR_TABLE_END, 0x0000}
 };
 
 static struct sensor_reg_ex AE_unlock_seq[] = {
-{SENSOR_WORD_WRITE,0x098E, 0xCC00} ,	// LOGICAL_ADDRESS_ACCESS [UVC_AE_MODE_CONTROL]
-{SENSOR_BYTE_WRITE,0xCC00, 0x02} ,	// UVC_AE_MODE_CONTROL - auto exposure
+{SENSOR_WORD_WRITE,0x098E, 0x0284} ,   // LOGICAL_ADDRESS_ACCESS [AE_TRACK_ALGO]
+{SENSOR_WORD_WRITE,0xA804, 0x00FF} ,          // AE_TRACK_ALGO - AE disabled
 {SENSOR_TABLE_END, 0x0000}
 };
 /* -- AE Lock & AE Unlock --*/
 
 /* ++ AWB Lock & AWB Unlock ++ */
 static struct sensor_reg_ex AWB_lock_seq[] = {
-{SENSOR_WORD_WRITE,0x098E, 0xCC01} ,	// LOGICAL_ADDRESS_ACCESS [UVC_AE_MODE_CONTROL]
-{SENSOR_BYTE_WRITE,0xCC01, 0x00} ,	// UVC_WHITE_BALANCE_TEMPERATURE_AUTO_CONTROL - manual white balance
+{SENSOR_WORD_WRITE,0x098E, 0x2C04} ,   // LOGICAL_ADDRESS_ACCESS [AWB_ALGO]
+{SENSOR_WORD_WRITE, 0xAC04, 0x0000} ,          // AWB_ALGO - manual white balance
 {SENSOR_TABLE_END, 0x0000}
 };
 
 static struct sensor_reg_ex AWB_unlock_seq[] = {
-{SENSOR_WORD_WRITE,0x098E, 0xCC01} ,	// LOGICAL_ADDRESS_ACCESS [UVC_AE_MODE_CONTROL]
-{SENSOR_BYTE_WRITE,0xCC01, 0x01} ,	// UVC_WHITE_BALANCE_TEMPERATURE_AUTO_CONTROL - auto white balance
+{SENSOR_WORD_WRITE,0x098E, 0x2C04} ,   // LOGICAL_ADDRESS_ACCESS [AWB_ALGO]
+{SENSOR_WORD_WRITE, 0xAC04, 0x0288} ,          // AWB_ALGO - auto white balance
 {SENSOR_TABLE_END, 0x0000}
 };
 /* -- AWB Lock & AWB Unlock --*/
