@@ -320,7 +320,7 @@ static struct prod_rev_map_t prod_rev_map[] = {
 	{MPL_PROD_KEY(4,  1), MPU_SILICON_REV_B1, 131,  8192},	/* (B3/F1)   */
 	{MPL_PROD_KEY(4,  3), MPU_SILICON_REV_B1, 131,  8192},	/* (B4/F1)   */
 	/* prod_ver = 5 */
-	{MPL_PROD_KEY(5, 3), MPU_SILICON_REV_B1, 131, 16384},	/* (B5/E2)   */
+	{MPL_PROD_KEY(5,  3), MPU_SILICON_REV_B1, 131, 16384},	/* (B4/F1)   */
 	/* prod_ver = 6 */
 	{MPL_PROD_KEY(6, 19), MPU_SILICON_REV_B1, 131, 16384},	/* (B5/E2)   */
 	/* prod_ver = 7 */
@@ -1700,6 +1700,7 @@ int inv_mpu_suspend(struct mldl_cfg *mldl_cfg,
 {
 	int result = INV_SUCCESS;
 	int ii;
+	unsigned char pwr_mgmt;
 	struct ext_slave_descr **slave = mldl_cfg->slave;
 	struct ext_slave_platform_data **pdata_slave = mldl_cfg->pdata_slave;
 	bool suspend_dmp = ((sensors & INV_DMP_PROCESSOR) == INV_DMP_PROCESSOR);
@@ -1776,6 +1777,27 @@ int inv_mpu_suspend(struct mldl_cfg *mldl_cfg,
 			}
 		}
 		mldl_cfg->inv_mpu_state->status |= (1 << ii);
+	}
+
+	/* Patch for Accelerometer only case*/
+	if (suspend_slave[EXT_SLAVE_TYPE_ACCEL] &&
+			(mldl_cfg->inv_mpu_state->status & MPU_GYRO_IS_SUSPENDED)) {
+
+		result = inv_serial_read(gyro_handle, mldl_cfg->mpu_chip_info->addr,
+						MPUREG_PWR_MGMT_1, 1, &pwr_mgmt);
+		if (result) {
+			LOG_RESULT_LOCATION(result);
+			return result;
+		}
+		mldl_cfg->inv_mpu_state->status |= MPU_DEVICE_IS_SUSPENDED;
+		pwr_mgmt |= BIT_SLEEP;
+		result = inv_serial_single_write(
+				gyro_handle, mldl_cfg->mpu_chip_info->addr,
+				MPUREG_PWR_MGMT_1, pwr_mgmt);
+		if (result) {
+			LOG_RESULT_LOCATION(result);
+			return result;
+		}
 	}
 
 	/* Re-enable the i2c master if there are configured slaves and DMP */

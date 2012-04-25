@@ -266,7 +266,8 @@ static int mpu6050_set_irq(void *mlsl_handle,
 		/* Do nothing, not even set the interrupt because it is
 		   shared with the gyro */
 		config->irq_type = irq_type;
-		return 0;
+		reg_int_cfg = BIT_DMP_INT_EN;
+		break;
 	default:
 		return INV_ERROR_INVALID_PARAMETER;
 	}
@@ -408,6 +409,7 @@ static int mpu6050_suspend(void *mlsl_handle,
 			   struct ext_slave_descr *slave,
 			   struct ext_slave_platform_data *pdata)
 {
+	printk("mpu6050(accel): OFF +\n");
 	unsigned char reg;
 	int result;
 	struct mpu6050_private_data *private_data =
@@ -442,6 +444,7 @@ static int mpu6050_suspend(void *mlsl_handle,
 		return result;
 	}
 
+	printk("mpu6050(accel): OFF -\n");
 	return 0;
 }
 
@@ -449,6 +452,7 @@ static int mpu6050_resume(void *mlsl_handle,
 			  struct ext_slave_descr *slave,
 			  struct ext_slave_platform_data *pdata)
 {
+	printk("mpu6050(accel): ON +\n");
 	int result;
 	unsigned char reg;
 	struct mpu6050_private_data *private_data =
@@ -480,6 +484,15 @@ static int mpu6050_resume(void *mlsl_handle,
 	reg &= ~(BIT_STBY_XA | BIT_STBY_YA | BIT_STBY_ZA);
 	result = inv_serial_single_write(mlsl_handle, pdata->address,
 				       MPUREG_PWR_MGMT_2, reg);
+	if (result) {
+		LOG_RESULT_LOCATION(result);
+		return result;
+	}
+
+	result = inv_serial_single_write(mlsl_handle, pdata->address,
+		MPUREG_CONFIG,
+		(unsigned char)MPUREG_CONFIG_VALUE(private_data->mldl_cfg_ref->mpu_gyro_cfg->ext_sync,
+		private_data->mldl_cfg_ref->mpu_gyro_cfg->lpf));
 	if (result) {
 		LOG_RESULT_LOCATION(result);
 		return result;
@@ -535,6 +548,8 @@ static int mpu6050_resume(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
+
+	printk("mpu6050(accel): ON -\n");
 	return 0;
 }
 
