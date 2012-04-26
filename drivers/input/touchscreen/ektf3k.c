@@ -401,7 +401,7 @@ static ssize_t update_firmware(struct device *dev, struct device_attribute *deva
 	 mm_segment_t oldfs;
 	 unsigned int page_number;
 	 static unsigned char firmware[MAX_FIRMWARE_SIZE];
-	 int ret = 0;
+	 int ret = 0, retry = 0;
 	 
 	 oldfs=get_fs();
 	 set_fs(KERNEL_DS);
@@ -425,9 +425,11 @@ static ssize_t update_firmware(struct device *dev, struct device_attribute *deva
 	 // check the firmware ID and version
 	 if(RECOVERY || check_fw_version(firmware, pos, ts->fw_ver) > 0){
 	     touch_debug(DEBUG_INFO, "Firmware update start!\n");	
-	     ret = firmware_update_header(client, firmware, page_number);
-	     touch_debug(DEBUG_INFO, "Firmware update finish!ret=%d\n", ret);
-	     if(RECOVERY) RECOVERY = 0;
+	     do{
+	         ret = firmware_update_header(client, firmware, page_number);
+	         touch_debug(DEBUG_INFO, "Firmware update finish ret=%d retry=%d !\n", ret, retry++);
+	     }while(ret != 0 && retry < 3);
+	     if(ret == 0 && RECOVERY) RECOVERY = 0;
 	 }else 
 	     touch_debug(DEBUG_INFO, "No need to update firmware\n");
 	     
@@ -1293,7 +1295,7 @@ page_write_retry:
 	  }
 
 	  if(packet_data[0] != 0xaa || packet_data[1] != 0xaa){
-	      touch_debug(DEBUG_INFO, "Page %d rewrite\n", i);
+	      touch_debug(DEBUG_INFO, "message received: %02X %02X Page %d rewrite\n", packet_data[0], packet_data[1], i);
 		if(write_times++ > 3)
 		    goto fw_update_failed;
 			
