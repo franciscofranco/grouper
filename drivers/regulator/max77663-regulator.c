@@ -704,15 +704,13 @@ skip_init_apply:
 				val |= (SD_SR_100 << SD_SR_SHIFT);
 		}
 
-		if (pdata->flags & SD_FORCED_PWM_MODE) {
-			mask |= SD_FPWM_MASK;
+		mask |= SD_FPWM_MASK;
+		if (pdata->flags & SD_FORCED_PWM_MODE)
 			val |= SD_FPWM_MASK;
-		}
 
-		if (pdata->flags & SD_FSRADE_DISABLE) {
-			mask |= SD_FSRADE_MASK;
+		mask |= SD_FSRADE_MASK;
+		if (pdata->flags & SD_FSRADE_DISABLE)
 			val |= SD_FSRADE_MASK;
-		}
 
 		ret = max77663_regulator_cache_write(reg,
 				reg->regs[CFG_REG].addr, mask, val,
