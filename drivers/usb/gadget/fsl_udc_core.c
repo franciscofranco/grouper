@@ -1519,7 +1519,7 @@ static int can_pullup(struct fsl_udc *udc)
 
 void detect_cable_status(void)
 {
-	schedule_delayed_work(&s_cable_info.cable_detection_work, 0*HZ);
+	schedule_delayed_work(&s_cable_info.cable_detection_work, 1*HZ);
 }
 EXPORT_SYMBOL(detect_cable_status);
 
