@@ -513,6 +513,9 @@ int smb347_hc_mode_callback(bool enable, int cur)
 	struct i2c_client *client = charger->client;
 	u8 ret = 0;
 
+	if (charger->suspend_ongoing)
+		return 0;
+
 	/* Enable volatile writes to registers */
 	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
 	if (ret < 0) {
@@ -923,12 +926,14 @@ static int __devexit smb347_remove(struct i2c_client *client)
 
 static int smb347_suspend(struct i2c_client *client)
 {
+	charger->suspend_ongoing = 1;
 	cancel_delayed_work_sync(&charger->regs_dump_work);
 	return 0;
 }
 
 static int smb347_resume(struct i2c_client *client)
 {
+	charger->suspend_ongoing = 0;
 	cancel_delayed_work(&charger->regs_dump_work);
 	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 15*HZ);
 	return 0;

@@ -67,6 +67,7 @@ struct smb347_charger {
 	enum charging_states state;
 	enum charger_type chrg_type;
 	charging_callback_t	charger_cb;
+	int suspend_ongoing;
 };
 
 int smb347_battery_online(void);
