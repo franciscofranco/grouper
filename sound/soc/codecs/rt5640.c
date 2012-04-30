@@ -801,7 +801,7 @@ static const SOC_ENUM_SINGLE_DECL(
 
 /* Interface data select */
 static const char *rt5640_data_select[] = {
-	"Normal", "left copy to right", "right copy to left", "Swap"};
+	"Normal", "swap", "left copy to right", "right copy to left"};
 
 static const SOC_ENUM_SINGLE_DECL(rt5640_if1_dac_enum, RT5640_DIG_INF_DATA,
 				RT5640_IF1_DAC_SEL_SFT, rt5640_data_select);
@@ -962,6 +962,7 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	/* DMIC */
 	SOC_ENUM_EXT("DMIC Switch", rt5640_dmic_enum,
 		rt5640_dmic_get, rt5640_dmic_put),
+	SOC_ENUM("ADC IF1 SWITCH", rt5640_if1_adc_enum),
 
 #ifdef RT5640_REG_RW
 	{
