@@ -867,7 +867,7 @@ static const struct tegra_emc_table grouper_emc_tables_h5tc4g[] = {
 		0x00000000, /* EMC_CFG.DYN_SELF_REF */
 	},
 };
-static const struct tegra_emc_table Nakasi_dvfs_Elpida_table_0420[] = {
+static const struct tegra_emc_table Nakasi_dvfs_Elpida_table_0430[] = {
 	{
 		0x32,       /* Rev 3.2 */
 		25500,      /* SDRAM frequency */
@@ -1350,7 +1350,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Elpida_table_0420[] = {
 	},
 	{
 		0x32,       /* Rev 3.2 */
-		333000,     /* SDRAM frequency */
+		333500,     /* SDRAM frequency */
 		{
 			0x0000000f, /* EMC_RC */
 			0x00000034, /* EMC_RFC */
@@ -1590,7 +1590,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Elpida_table_0420[] = {
 	},
 };
 
-static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0413[] ={
+static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0430[] ={
 	{
 		0x32,       /* Rev 3.2 */
 		25500,      /* SDRAM frequency */
@@ -2073,7 +2073,7 @@ static const struct tegra_emc_table Nakasi_dvfs_Hynix_table_0413[] ={
 	},
 	{
 		0x32,       /* Rev 3.2 */
-		333000,     /* SDRAM frequency */
+		333500,     /* SDRAM frequency */
 		{
 			0x0000000f, /* EMC_RC */
 			0x00000034, /* EMC_RFC */
@@ -2356,24 +2356,24 @@ int grouper_emc_init(void)
 	printk("grouper_emc_init:mem_bootstrap_ad4=%u mem_bootstrap_ad5=%u \n",mem_bootstrap_ad4,mem_bootstrap_ad5);
 
 	if(!mem_bootstrap_ad4 && !mem_bootstrap_ad5){
-		tegra_init_emc(Nakasi_dvfs_Elpida_table_0420,
-			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0420));
-		printk("grouper_emc_init:Nakasi_dvfs_Elpida_table_0420\n");
+		tegra_init_emc(Nakasi_dvfs_Elpida_table_0430,
+			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0430));
+		printk("grouper_emc_init:Nakasi_dvfs_Elpida_table_0430\n");
 	}else{
-		tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
-			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413));
-		printk("grouper_emc_init:Nakasi_dvfs_Hynix_table_0413\n");
+		tegra_init_emc(Nakasi_dvfs_Hynix_table_0430,
+			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0430));
+		printk("grouper_emc_init:Nakasi_dvfs_Hynix_table_0430\n");
 	}
 
 	return 0;
 
 err_handle:
-	if(tegra_init_emc(Nakasi_dvfs_Elpida_table_0420,
-			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0420))){
-		printk("[unknow bootstrap pin] use Nakasi_dvfs_Elpida_table_0420\n");
-	}else if (tegra_init_emc(Nakasi_dvfs_Hynix_table_0413,
-			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0413))){
-		printk("[unknow bootstrap pin] use Nakasi_dvfs_Hynix_table_0413 \n");
+	if(tegra_init_emc(Nakasi_dvfs_Elpida_table_0430,
+			ARRAY_SIZE(Nakasi_dvfs_Elpida_table_0430))){
+		printk("[unknow bootstrap pin] use Nakasi_dvfs_Elpida_table_0430\n");
+	}else if (tegra_init_emc(Nakasi_dvfs_Hynix_table_0430,
+			ARRAY_SIZE(Nakasi_dvfs_Hynix_table_0430))){
+		printk("[unknow bootstrap pin] use Nakasi_dvfs_Hynix_table_0430 \n");
 	}else
 		printk("grouper_emc_init:no validate EMC tabe, disable EMC DVFS\n");
 	return 0;
