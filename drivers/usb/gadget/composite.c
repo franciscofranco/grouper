@@ -39,15 +39,14 @@
 
 /* big enough to hold our biggest descriptor */
 #define USB_BUFSIZ	1024
-#define CHARGING_IC_PIN_CONTROL 0
+extern unsigned int pcb_id_version;
 
 static struct usb_composite_driver *composite;
 static int (*composite_gadget_bind)(struct usb_composite_dev *cdev);
-#if CHARGING_IC_PIN_CONTROL
+
 extern void charging_ic_usb51(int value);
-#else
 extern void fsl_smb347_hc_mode_callback_work(int mode, int current);
-#endif
+
 /* Some systems will need runtime overrides for the  product identifiers
  * published in the device descriptor, either numbers or strings or both.
  * String parameters are in UTF-8 (superset of ASCII's 7 bit characters).
@@ -600,13 +599,13 @@ static void reset_config(struct usb_composite_dev *cdev)
 	}
 	cdev->config = NULL;
 
+	if(pcb_id_version > 0X2)
+		charging_ic_usb51(0);
+	else
+		fsl_smb347_hc_mode_callback_work(0,0); //100 ma
+
 	wake_unlock(&usb_config_wake_lock);
 	printk(KERN_INFO "%s : usb reset config wake unlock --\n", __func__);
-#if CHARGING_IC_PIN_CONTROL
-	charging_ic_usb51(0);
-#else
-	fsl_smb347_hc_mode_callback_work(0,0); //100 ma
-#endif
 }
 
 static int set_config(struct usb_composite_dev *cdev,
@@ -632,11 +631,11 @@ static int set_config(struct usb_composite_dev *cdev,
 				wake_lock(&usb_config_wake_lock);
 				printk(KERN_INFO "%s : usb set config wake lock ++\n", __func__);
 				result = 0;
-#if CHARGING_IC_PIN_CONTROL
-				charging_ic_usb51(1);
-#else
-				fsl_smb347_hc_mode_callback_work(0,1); //500 ma
-#endif
+				if(pcb_id_version > 0x2)
+					charging_ic_usb51(1);
+				else
+					fsl_smb347_hc_mode_callback_work(0,1); //500 ma
+
 				break;
 			}
 		}

@@ -88,12 +88,9 @@ static struct usb_sys_interface *usb_sys_regs;
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
 
-/* Enable or disable the callback for the battery driver. */
-#define BATTERY_CALLBACK_ENABLED 1
-/* Enable or disable the callback for the battery driver. */
-#define TOUCH_CALLBACK_ENABLED 1
-/* Define to use PIN or I2C control for the charging IC. */
-#define CHARGING_IC_PIN_CONTROL 0
+extern unsigned int grouper_query_pcba_revision();
+unsigned int pcb_id_version = 0;
+EXPORT_SYMBOL(pcb_id_version);
 
 struct cable_info {
 	/*
@@ -112,20 +109,35 @@ struct cable_info {
 
 static struct cable_info s_cable_info;
 
+void read_hw_version(void)
+{
+	pcb_id_version = grouper_query_pcba_revision();
+	printk(KERN_INFO "%s %#X\n", __func__, pcb_id_version);
+}
+
+/* Enable or disable the callback for the battery driver. */
+#define BATTERY_CALLBACK_ENABLED 1
+
+/* Enable or disable the callback for the battery driver. */
+#define TOUCH_CALLBACK_ENABLED 1
+
 #if BATTERY_CALLBACK_ENABLED
 extern void battery_callback(unsigned cable_status);
 #endif
+
 #if TOUCH_CALLBACK_ENABLED
 extern void touch_callback(unsigned cable_status);
 #endif
-#if CHARGING_IC_PIN_CONTROL
+
 void charging_ic_usb51(int value);
-#else
+
 static int fsl_charging_mode = 0;
 static int fsl_charging_current = 0;
 static struct delayed_work smb347_hc_mode_work;
+
 extern int smb347_hc_mode_callback(bool enable, int cur);
-#endif
+
+
 /* Export the function "unsigned int get_usb_cable_status(void)" for others to query the USB cable status. */
 unsigned int get_usb_cable_status(void)
 {
@@ -244,17 +256,18 @@ static const u8 fsl_udc_test_packet[53] = {
 	/* JKKKKKKK x10, JK */
 	0xfc, 0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd, 0x7e
 };
-#if CHARGING_IC_PIN_CONTROL
+
 void charging_ic_usb51(int value)
 {
 	gpio_set_value(TEGRA_GPIO_PS1, value);
 }
 EXPORT_SYMBOL(charging_ic_usb51);
-#else
+
 static void fsl_smb347_hc_mode_handler(struct work_struct *w)
 {
 	smb347_hc_mode_callback(fsl_charging_mode, fsl_charging_current);
 }
+
 void fsl_smb347_hc_mode_callback_work(int set_mode, int set_current)
 {
 	printk(KERN_INFO"%s: fsl_charging_mode=%d , fsl_charging_current=%d\n", __func__, set_mode, set_current);
@@ -263,7 +276,7 @@ void fsl_smb347_hc_mode_callback_work(int set_mode, int set_current)
 	schedule_delayed_work(&smb347_hc_mode_work, 0*HZ);
 }
 EXPORT_SYMBOL(fsl_smb347_hc_mode_callback_work);
-#endif
+
 static void cable_detection_work_handler(struct work_struct *w)
 {
 	mutex_lock(&s_cable_info.cable_info_mutex);
@@ -278,19 +291,18 @@ static void cable_detection_work_handler(struct work_struct *w)
 			printk(KERN_INFO "The AC adapter is disconnected.\n");
 
 		s_cable_info.ac_connected = 0;
-#if CHARGING_IC_PIN_CONTROL
-		charging_ic_usb51(0);
-#else
-		fsl_smb347_hc_mode_callback_work(0,0); //100 ma
-#endif
+
+		if(pcb_id_version > 0x2)
+			charging_ic_usb51(0);
+		else {
+			fsl_smb347_hc_mode_callback_work(0,0); //100 ma
 #if BATTERY_CALLBACK_ENABLED
-		battery_callback(s_cable_info.cable_status);
+			battery_callback(s_cable_info.cable_status);
 #endif
+		}
 #if TOUCH_CALLBACK_ENABLED
 		touch_callback(s_cable_info.cable_status);
 #endif
-
-
 	} else if (!s_cable_info.udc_vbus_active && s_cable_info.is_active) {
 		switch (fsl_readl(&dr_regs->portsc1) & PORTSCX_LINE_STATUS_BITS) {
 			case PORTSCX_LINE_STATUS_SE0:
@@ -311,17 +323,19 @@ static void cable_detection_work_handler(struct work_struct *w)
 		} else {
 			printk(KERN_INFO "AC adapter connect\n");
 			s_cable_info.cable_status = 0x03; //0011
-#if !CHARGING_IC_PIN_CONTROL
-			fsl_smb347_hc_mode_callback_work(1,1);
+
+			if(pcb_id_version <= 0x2)
+				fsl_smb347_hc_mode_callback_work(1,1);
+		}
+
+		if(pcb_id_version <= 0x2) {
+#if BATTERY_CALLBACK_ENABLED
+			battery_callback(s_cable_info.cable_status);
 #endif
 		}
-#if BATTERY_CALLBACK_ENABLED
-		battery_callback(s_cable_info.cable_status);
-#endif
 #if TOUCH_CALLBACK_ENABLED
 		touch_callback(s_cable_info.cable_status);
 #endif
-
 	}
 	mutex_unlock(&s_cable_info.cable_info_mutex);
 }
@@ -3291,16 +3305,20 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 #endif
 #endif
 
-#if CHARGING_IC_PIN_CONTROL
-	ret = gpio_request(TEGRA_GPIO_PS1, "SMB347_USB51HC");
-	if (ret < 0) {
-		printk(KERN_ERR "SMB347_USB51HC GPIO%d request fault!%d\n",TEGRA_GPIO_PS1, ret);
-		return 0;
+	/* This should done ideally if board does not have pmu interrupt */
+	if (!udc_controller->transceiver)
+		fsl_udc_clk_enable();
+
+	if(pcb_id_version > 0x2) {
+		ret = gpio_request(TEGRA_GPIO_PS1, "SMB347_USB51HC");
+		if (ret < 0) {
+			printk(KERN_ERR "SMB347_USB51HC GPIO%d request fault!%d\n",TEGRA_GPIO_PS1, ret);
+			return 0;
+		}
+		gpio_direction_output(TEGRA_GPIO_PS1, 0);
 	}
-	gpio_direction_output(TEGRA_GPIO_PS1, 0);
-#else
-	INIT_DELAYED_WORK(&smb347_hc_mode_work, fsl_smb347_hc_mode_handler);
-#endif
+	else
+		INIT_DELAYED_WORK(&smb347_hc_mode_work, fsl_smb347_hc_mode_handler);
 
 	return 0;
 
@@ -3487,6 +3505,7 @@ static int __init udc_init(void)
 {
 	printk(KERN_INFO "%s (%s)\n", driver_desc, DRIVER_VERSION);
 	cable_status_init();
+	read_hw_version();
 	return platform_driver_probe(&udc_driver, fsl_udc_probe);
 }
 
@@ -3494,9 +3513,9 @@ module_init(udc_init);
 
 static void __exit udc_exit(void)
 {
-#if CHARGING_IC_PIN_CONTROL
-	gpio_free(TEGRA_GPIO_PS1);
-#endif
+	if(pcb_id_version > 0x2) {
+		gpio_free(TEGRA_GPIO_PS1);
+	}
 	platform_driver_unregister(&udc_driver);
 	printk(KERN_WARNING "%s unregistered\n", driver_desc);
 }
