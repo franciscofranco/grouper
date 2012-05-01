@@ -52,6 +52,11 @@ enum {
 	POWER_CPU_SCALE_DONE,
 };
 
+enum {
+	POWER_CPU_CLUSTER_START,
+	POWER_CPU_CLUSTER_DONE,
+};
+
 #endif
 
 TRACE_EVENT(cpu_hotplug,
@@ -96,6 +101,24 @@ TRACE_EVENT(cpu_scale,
 	TP_printk("cpu_id=%lu, freq=%lu, state=%lu",
 		  (unsigned long)__entry->cpu_id,
 		  (unsigned long)__entry->freq,
+		  (unsigned long)__entry->state)
+);
+
+TRACE_EVENT(cpu_cluster,
+
+	TP_PROTO(int state),
+
+	TP_ARGS(state),
+
+	TP_STRUCT__entry(
+		__field(u64, state)
+	),
+
+	TP_fast_assign(
+		__entry->state = state;
+	),
+
+	TP_printk("state=%lu",
 		  (unsigned long)__entry->state)
 );
 
