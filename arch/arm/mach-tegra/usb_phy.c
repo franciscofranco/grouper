@@ -2483,9 +2483,9 @@ static irqreturn_t usb_phy_vbus_irq_thr(int irq, void *pdata)
 		mdelay(15);
 	}
 
-#ifdef CONFIG_USB_TEGRA_OTG
-	tegra_otg_check_vbus_detection();
-#endif
+//#ifdef CONFIG_USB_TEGRA_OTG
+//	tegra_otg_check_vbus_detection();
+//#endif
 
 	return IRQ_HANDLED;
 }
