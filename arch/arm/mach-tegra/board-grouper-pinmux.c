@@ -362,7 +362,7 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(GMI_CS3_N,       RSVD1,           NORMAL,    NORMAL,     INPUT),
 
 	/* HALL SENSOR, LID# */
-	DEFAULT_PINMUX(KB_ROW14,        KBC,             PULL_UP,   NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_ROW14,        KBC,             NORMAL,    TRISTATE,   INPUT),
 	/* OTHERS */
 	DEFAULT_PINMUX(KB_ROW3,         KBC,             NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(GMI_DQS,         RSVD1,           NORMAL,    NORMAL,     INPUT),
