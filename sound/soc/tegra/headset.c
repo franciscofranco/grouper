@@ -71,6 +71,7 @@ static void 		lineout_work_queue(struct work_struct *work);
 static int               	lineout_config_gpio(void);
 static void 		detection_work(struct work_struct *work);
 static int               	btn_config_gpio(void);
+static int                      switch_config_gpio(void);
 int 			hs_micbias_power(int on);
 /*----------------------------------------------------------------------------
 ** GLOBAL VARIABLES
@@ -78,6 +79,7 @@ int 			hs_micbias_power(int on);
 #define JACK_GPIO		(TEGRA_GPIO_PW2)
 #define LINEOUT_GPIO	(TEGRA_GPIO_PW3)
 #define HOOK_GPIO		(TEGRA_GPIO_PX2)
+#define UART_HEADPHONE_SWITCH (TEGRA_GPIO_PS2)
 #define ON	(1)
 #define OFF	(0)
 
@@ -161,17 +163,26 @@ static void insert_headset(void)
                 switch_set_state(&hs_data->sdev, NO_DEVICE);
                 hs_micbias_power(OFF);
                 headset_alive = false;
+		gpio_direction_output(UART_HEADPHONE_SWITCH, 0);
 	}else if(gpio_get_value(HOOK_GPIO)){ 
 		printk("%s: headphone\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(OFF);
-		disable_uart();
+		if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
+			disable_uart();
+			printk("%s: SR3 or ER1\n", __func__);
+		}
+		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = false;
 	}else{
 		printk("%s: headset\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(ON);
-		disable_uart();
+		if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
+			disable_uart();
+			printk("%s: SR3 or ER1\n", __func__);
+		}
+		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = true;
 	}
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
@@ -182,7 +193,10 @@ static void remove_headset(void)
 	switch_set_state(&hs_data->sdev, NO_DEVICE);
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
 	headset_alive = false;
-	enable_uart();
+	if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
+		printk("%s: SR3 or ER1\n");
+		enable_uart();
+	}
 }
 
 static void detection_work(struct work_struct *work)
@@ -329,6 +343,18 @@ static int lineout_config_gpio()
 	return 0;
 }
 
+static int switch_config_gpio()
+{
+        int ret;
+
+        printk("HEADSET: Config uart<->headphone gpio\n");
+
+        tegra_gpio_enable(UART_HEADPHONE_SWITCH);
+        ret = gpio_request(UART_HEADPHONE_SWITCH, "uart_headphone_switch");
+
+        return 0;
+}
+
 /**********************************************************
 **  Function: LineOut detection interrupt handler
 **  Parameter: dedicated irq
@@ -447,7 +473,7 @@ static int __init headset_init(void)
 	printk("HEADSET: Headset detection mode\n");
 	btn_config_gpio();/*Config hook detection GPIO*/
 	jack_config_gpio();/*Config jack detection GPIO*/
-
+	switch_config_gpio(); /*Config uart and headphone switch*/
 	INIT_WORK(&lineout_work, lineout_work_queue);
 	lineout_config_gpio();
 
