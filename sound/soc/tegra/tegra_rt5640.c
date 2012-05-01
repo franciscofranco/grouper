@@ -69,6 +69,8 @@ struct tegra_rt5640 {
 #ifdef CONFIG_SWITCH
 	int jack_status;
 #endif
+	enum snd_soc_bias_level bias_level;
+	volatile int clock_enabled;
 };
 
 static int tegra_rt5640_hw_params(struct snd_pcm_substream *substream,
@@ -477,6 +479,9 @@ static int tegra_rt5640_init(struct snd_soc_pcm_runtime *rtd)
 
 
 
+	machine->bias_level = SND_SOC_BIAS_STANDBY;
+	machine->clock_enabled = 1;
+
 	ret = snd_soc_add_controls(codec, cardhu_controls,
 			ARRAY_SIZE(cardhu_controls));
 	if (ret < 0)
@@ -531,10 +536,43 @@ static struct snd_soc_dai_link tegra_rt5640_dai[] = {
 	},
 };
 
+static int tegra_rt5640_set_bias_level(struct snd_soc_card *card,
+	struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level)
+{
+	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
+
+	if (machine->bias_level == SND_SOC_BIAS_OFF &&
+		level != SND_SOC_BIAS_OFF && (!machine->clock_enabled)) {
+		machine->clock_enabled = 1;
+		tegra_asoc_utils_clk_enable(&machine->util_data);
+		machine->bias_level = level;
+	}
+
+	return 0;
+}
+
+static int tegra_rt5640_set_bias_level_post(struct snd_soc_card *card,
+	struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level)
+{
+	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(card);
+
+	if (machine->bias_level != SND_SOC_BIAS_OFF &&
+		level == SND_SOC_BIAS_OFF && machine->clock_enabled) {
+		machine->clock_enabled = 0;
+		tegra_asoc_utils_clk_disable(&machine->util_data);
+	}
+
+	machine->bias_level = level;
+
+	return 0 ;
+}
+
 static struct snd_soc_card snd_soc_tegra_rt5640 = {
 	.name = "tegra-rt5640",
 	.dai_link = tegra_rt5640_dai,
 	.num_links = ARRAY_SIZE(tegra_rt5640_dai),
+	.set_bias_level = tegra_rt5640_set_bias_level,
+	.set_bias_level_post = tegra_rt5640_set_bias_level_post,
 };
 
 static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
@@ -574,7 +612,7 @@ static __devinit int tegra_rt5640_driver_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
-
+	card->dapm.idle_bias_off = 1;
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
