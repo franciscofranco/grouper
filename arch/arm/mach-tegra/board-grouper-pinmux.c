@@ -237,24 +237,21 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(GMI_A19,         UARTD,           NORMAL,    NORMAL,     OUTPUT),
 
 	/*  KBC keys */
-	DEFAULT_PINMUX(KB_COL0,         KBC,             PULL_UP,   NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_COL1,         KBC,             PULL_UP,   NORMAL,     INPUT),
 	DEFAULT_PINMUX(KB_ROW0,         RSVD,            PULL_UP,   NORMAL,     OUTPUT),
-	DEFAULT_PINMUX(KB_ROW1,         KBC,             PULL_UP,   NORMAL,     INPUT),
 
 	/* PCBID pins */
-	DEFAULT_PINMUX(KB_COL7,         KBC,             PULL_DOWN, NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_ROW2,         KBC,             PULL_DOWN, NORMAL,     INPUT),
-	DEFAULT_PINMUX(KB_COL5,         KBC,             PULL_DOWN, NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_COL7,         KBC,             NORMAL,    TRISTATE,   INPUT),
+	DEFAULT_PINMUX(KB_ROW2,         KBC,             NORMAL,    TRISTATE,   INPUT),
+	DEFAULT_PINMUX(KB_COL5,         KBC,             NORMAL,    TRISTATE,   INPUT),
 
 	/* PWR Key */
-	DEFAULT_PINMUX(GPIO_PV0,        RSVD,            PULL_UP,   NORMAL,     INPUT),
+	DEFAULT_PINMUX(GPIO_PV0,        RSVD,            PULL_UP,   TRISTATE,     INPUT),
 
 	/* VOL_UP Key */
-	DEFAULT_PINMUX(KB_COL2,         RSVD,            PULL_UP,   NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_COL2,         RSVD,            PULL_UP,   TRISTATE,     INPUT),
 
 	/* VOL_DOWN Key */
-	DEFAULT_PINMUX(KB_COL3,         RSVD,            PULL_UP,   NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_COL3,         RSVD,            PULL_UP,   TRISTATE,     INPUT),
 
 	/* I2S0 : for MODEM */
 	DEFAULT_PINMUX(DAP1_FS,         I2S0,            NORMAL,    NORMAL,     INPUT),
@@ -403,7 +400,6 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 /*Do not use for now*/
 static __initdata struct tegra_pingroup_config unused_pins_lowpower[] = {
 	/*
-	DEFAULT_PINMUX(ULPI_CLK,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_DATA0,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_DATA1,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_DATA2,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
@@ -412,7 +408,6 @@ static __initdata struct tegra_pingroup_config unused_pins_lowpower[] = {
 	DEFAULT_PINMUX(ULPI_DATA5,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_DATA6,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_DATA7,      ULPI,          NORMAL,    TRISTATE,   OUTPUT),
-	DEFAULT_PINMUX(ULPI_DIR,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_NXT,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(ULPI_STP,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 	*/
@@ -464,6 +459,18 @@ static __initdata struct tegra_pingroup_config unused_pins_lowpower[] = {
 	DEFAULT_PINMUX(DAP3_DOUT,       I2S2,          NORMAL,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(DAP3_SCLK,       I2S2,          NORMAL,    TRISTATE,   OUTPUT),
 	*/
+
+	/* asus non-used pins */
+
+	/* KB_COL0 is reserved for power button */
+	DEFAULT_PINMUX(KB_COL0,         KBC,           NORMAL,    TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(KB_COL1,         KBC,           NORMAL,    TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(KB_ROW1,         KBC,           NORMAL,    TRISTATE,   OUTPUT),
+
+	/* UART4_TXD is reserved for UART debug */
+	DEFAULT_PINMUX(ULPI_CLK,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
+	/* UART4_RXD is reserved for UART debug */
+	DEFAULT_PINMUX(ULPI_DIR,        ULPI,          NORMAL,    TRISTATE,   OUTPUT),
 };
 
 static void __init grouper_pinmux_audio_init(void)
