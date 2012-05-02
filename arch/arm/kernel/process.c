@@ -275,12 +275,17 @@ void machine_halt(void)
 	machine_shutdown();
 	while (1);
 }
-
+extern unsigned battery_cable_status;
 void machine_power_off(void)
 {
-	machine_shutdown();
-	if (pm_power_off)
-		pm_power_off();
+	if(!battery_cable_status){
+		machine_shutdown();
+		if (pm_power_off)
+			pm_power_off();
+	}else{
+		printk("machine_power_off:go to charger mode!");
+		machine_restart("chrager-mode");
+	}
 }
 
 void machine_restart(char *cmd)
