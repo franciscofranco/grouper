@@ -2,7 +2,7 @@
  * tegra_pcm.c - Tegra PCM driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2010 - NVIDIA, Inc.
+ * Copyright (C) 2010-2012 - NVIDIA, Inc.
  *
  * Based on code copyright/by:
  *
@@ -29,6 +29,7 @@
  *
  */
 
+#include <asm/mach-types.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -389,10 +390,19 @@ static void tegra_pcm_free(struct snd_pcm *pcm)
 	tegra_pcm_deallocate_dma_buffer(pcm, SNDRV_PCM_STREAM_PLAYBACK);
 }
 
+static int tegra_pcm_probe(struct snd_soc_platform *platform)
+{
+	if(machine_is_kai())
+		platform->dapm.idle_bias_off = 1;
+
+	return 0;
+}
+
 struct snd_soc_platform_driver tegra_pcm_platform = {
 	.ops		= &tegra_pcm_ops,
 	.pcm_new	= tegra_pcm_new,
 	.pcm_free	= tegra_pcm_free,
+	.probe		= tegra_pcm_probe,
 };
 
 static int __devinit tegra_pcm_platform_probe(struct platform_device *pdev)
