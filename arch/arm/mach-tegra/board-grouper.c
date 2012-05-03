@@ -807,8 +807,9 @@ static void grouper_usb_init(void)
 	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
-	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
-	platform_device_register(&tegra_ehci2_device);
+	/* Mark the ehci2 port because it isn't used */
+	//tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
+	//platform_device_register(&tegra_ehci2_device);
 }
 
 static void grouper_modem_init(void)
