@@ -231,6 +231,7 @@ enum
 	OPPO,
 	TREBLE,
 	BASS,
+	NAKASI,
 };
 
 typedef struct  _HW_EQ_PRESET
@@ -253,6 +254,7 @@ static HW_EQ_PRESET HwEq_Preset[]={
 	{OPPO  ,{0x0000,0x0000,0xCA4A,0x17F8,0x0FEC,0xCA4A,0x17F8,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000},0x000F},
 	{TREBLE,{0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x188D,0x1699,0x0000,0x0000,0x0000},0x0020},
 	{BASS  ,{0x1A43,0x0C00,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000},0x0001},
+	{NAKASI,{0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x1F60,0x0000,0x1FAE,0x0089,0x1FAF},0x0160},
 };
 
 //*************************************************************************************************
@@ -480,9 +482,9 @@ static void rt5640_update_eqmode(struct snd_soc_codec *codec, int mode)
 		}
 		//update EQ parameter
 		printk("\n\n************call snd_soc_update_bits(codec, 0xb0,0x6000,0x6000);****************\n\n");
-		snd_soc_update_bits(codec, 0xb0,0x6000,0x6000);
-		snd_soc_update_bits(codec, 0xb0,0x6000,0x0000); //clean the bits
-		//snd_soc_write(codec, 0xb0,0x6000);
+		//snd_soc_update_bits(codec, 0xb0,0xE000,0xE000);
+		//snd_soc_update_bits(codec, 0xb0,0x6000,0x0000); //clean the bits
+		snd_soc_write(codec, 0xb0,0xE000);
 	}
 }
 
@@ -1448,6 +1450,10 @@ static int rt5640_adc_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		rt5640_index_update_bits(codec,
 			RT5640_CHOP_DAC_ADC, 0x1000, 0x1000);
+		rt5640_update_eqmode(codec,NAKASI);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		rt5640_update_eqmode(codec,NORMAL);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		rt5640_index_update_bits(codec,
@@ -1697,10 +1703,10 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 	/* ADCs */
 	SND_SOC_DAPM_ADC_E("ADC L", NULL, RT5640_PWR_DIG1,
 		RT5640_PWR_ADC_L_BIT, 0, rt5640_adc_event,
-		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_ADC_E("ADC R", NULL, RT5640_PWR_DIG1,
 		RT5640_PWR_ADC_R_BIT, 0, rt5640_adc_event,
-		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 	/* ADC Mux */
 	SND_SOC_DAPM_MUX("Stereo ADC L2 Mux", SND_SOC_NOPM, 0, 0,
 				&rt5640_sto_adc_l2_mux),
