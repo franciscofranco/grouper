@@ -180,9 +180,8 @@ static struct platform_device grouper_backlight_device = {
 	},
 };
 
-static int grouper_panel_enable(void)
+static int grouper_panel_postpoweron(void)
 {
-
 	if (grouper_lvds_reg == NULL) {
 		grouper_lvds_reg = regulator_get(NULL, "vdd_lvds");
 		if (WARN_ON(IS_ERR(grouper_lvds_reg)))
@@ -190,15 +189,6 @@ static int grouper_panel_enable(void)
 			       __func__, PTR_ERR(grouper_lvds_reg));
 		else
 			regulator_enable(grouper_lvds_reg);
-	}
-
-	if (grouper_lvds_vdd_panel == NULL) {
-		grouper_lvds_vdd_panel = regulator_get(NULL, "vdd_lcd_panel");
-		if (WARN_ON(IS_ERR(grouper_lvds_vdd_panel)))
-			pr_err("%s: couldn't get regulator vdd_lcd_panel: %ld\n",
-			       __func__, PTR_ERR(grouper_lvds_vdd_panel));
-		else
-			regulator_enable(grouper_lvds_vdd_panel);
 	}
 
 	mdelay(20);
@@ -216,11 +206,26 @@ static int grouper_panel_enable(void)
 	return 0;
 }
 
+static int grouper_panel_enable(void)
+{
+
+	if (grouper_lvds_vdd_panel == NULL) {
+		grouper_lvds_vdd_panel = regulator_get(NULL, "vdd_lcd_panel");
+		if (WARN_ON(IS_ERR(grouper_lvds_vdd_panel)))
+			pr_err("%s: couldn't get regulator vdd_lcd_panel: %ld\n",
+			       __func__, PTR_ERR(grouper_lvds_vdd_panel));
+		else
+			regulator_enable(grouper_lvds_vdd_panel);
+	}
+
+	return 0;
+}
+
 static int grouper_panel_disable(void)
 {
 //	gpio_set_value(grouper_lvds_lr, 0);
-	mdelay(200);
-	gpio_set_value(grouper_lvds_shutdown, 0);
+//	mdelay(200);
+//	gpio_set_value(grouper_lvds_shutdown, 0);
 //	gpio_set_value(grouper_lvds_rst, 0);
 	//gpio_set_value(grouper_lvds_stdby, 0);
 
@@ -539,6 +544,7 @@ static struct tegra_dc_out grouper_disp1_out = {
 
 	.enable		= grouper_panel_enable,
 	.disable	= grouper_panel_disable,
+	.postpoweron	= grouper_panel_postpoweron,
 
 	.height		= 162,
 	.width		= 104,
