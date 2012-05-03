@@ -24,6 +24,16 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <mach/board-grouper-misc.h>
+#include <mach/pinmux.h>
+#include "../board.h"
+#include "../board-grouper.h"
+
+#include <linux/input.h>
+#include <linux/debugfs.h>
+#include <linux/cdev.h>
+#include <linux/slab.h>
+#include <linux/gpio.h>
 
 #define RTK_IOCTL
 #ifdef RTK_IOCTL
@@ -3243,6 +3253,36 @@ static int rt5640_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int rt5640_suspend_i2c(struct i2c_client  *codec, pm_message_t state)
+{
+	int ret =0;
+	printk("rt5640_suspend_i2c+\n");
+	snd_soc_update_bits(rt5640_audio_codec, RT5640_SPK_VOL,
+			RT5640_L_MUTE | RT5640_R_MUTE,
+			RT5640_L_MUTE | RT5640_R_MUTE);
+	rt5640_index_update_bits(rt5640_audio_codec,
+			RT5640_CLSD_INT_REG1, 0xf000, 0x0000);
+	rt5640_pmd_depop(rt5640_audio_codec);
+	rt5640_set_bias_level(rt5640_audio_codec, SND_SOC_BIAS_OFF);
+	tegra_gpio_enable(TEGRA_GPIO_PW4);
+	ret = gpio_request(TEGRA_GPIO_PW4, "audio_mclk");
+	if (ret < 0)
+		pr_err("%s: gpio_request failed for gpio %s\n",__func__, "AUDIO_MCLK");
+	gpio_direction_output(TEGRA_GPIO_PW4, 0);
+	gpio_free(TEGRA_GPIO_PW4);
+	printk("rt5640_suspend_i2c-\n");
+	return 0;
+}
+
+static int rt5640_resume_i2c(struct i2c_client  *codec)
+{
+	printk("rt5640_resume_i2c+\n");
+	tegra_gpio_disable(TEGRA_GPIO_PW4);
+	rt5640_set_bias_level(rt5640_audio_codec, SND_SOC_BIAS_STANDBY);
+	printk("rt5640_resume_i2c-\n");
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static int rt5640_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
@@ -3419,6 +3459,8 @@ struct i2c_driver rt5640_i2c_driver = {
 		.name = "rt5640",
 		.owner = THIS_MODULE,
 	},
+	.suspend = rt5640_suspend_i2c,
+	.resume	= rt5640_resume_i2c,
 	.probe = rt5640_i2c_probe,
 	.remove   = __devexit_p(rt5640_i2c_remove),
 	.shutdown = rt5640_i2c_shutdown,
