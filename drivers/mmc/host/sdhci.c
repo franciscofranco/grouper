@@ -2332,8 +2332,11 @@ int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 			host->tuning_count * HZ);
 	}
 
-	if (mmc->card)
+	if (mmc->card) {
 		ret = mmc_suspend_host(host->mmc);
+		if (ret)
+			goto err_suspend_host;
+	}
 
 	if (mmc->pm_flags & MMC_PM_KEEP_POWER)
 		host->card_int_set = sdhci_readl(host, SDHCI_INT_ENABLE) &
@@ -2341,11 +2344,24 @@ int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 
 	sdhci_mask_irqs(host, SDHCI_INT_ALL_MASK);
 
-	if (host->vmmc)
+	if (host->vmmc) {
 		ret = regulator_disable(host->vmmc);
+		if (ret)
+			pr_err("%s: failed to disable regulator\n", __func__);
+	}
 
 	if (host->irq)
 		disable_irq(host->irq);
+
+	return 0;
+
+err_suspend_host:
+	/* Set the re-tuning expiration flag */
+	if ((host->version >= SDHCI_SPEC_300) && host->tuning_count &&
+	    (host->tuning_mode == SDHCI_TUNING_MODE_1))
+		host->flags |= SDHCI_NEEDS_RETUNING;
+
+	sdhci_enable_card_detection(host);
 
 	return ret;
 }
