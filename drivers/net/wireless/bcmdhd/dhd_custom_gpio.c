@@ -195,12 +195,13 @@ dhd_custom_get_mac_address(unsigned char *buf)
 }
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
-#define EXAMPLE_TABLE
 /* Customized Locale table : OPTIONAL feature */
 const struct cntry_locales_custom translate_custom_table[] = {
 /* Table should be filled out based on custom platform regulatory requirement */
 #ifdef EXAMPLE_TABLE
 	{"",   "XY", 4},  /* Universal if Country code is unknown or empty */
+	{"US", "US", 69}, /* input ISO "US" to : US regrev 69 */
+	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
 	{"EU", "EU", 5},  /* European union countries to : EU regrev 05 */
 	{"AT", "EU", 5},
 	{"BE", "EU", 5},
@@ -230,27 +231,17 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"ES", "EU", 5},
 	{"SE", "EU", 5},
 	{"GB", "EU", 5},
+	{"KR", "XY", 3},
+	{"AU", "XY", 3},
+	{"CN", "XY", 3}, /* input ISO "CN" to : XY regrev 03 */
+	{"TW", "XY", 3},
+	{"AR", "XY", 3},
+	{"MX", "XY", 3},
 	{"IL", "IL", 0},
 	{"CH", "CH", 0},
 	{"TR", "TR", 0},
 	{"NO", "NO", 0},
-	{"KR", "XY", 4},
-	{"AU", "XY", 4},
-	{"CN", "XY", 4},  /* input ISO "CN" to : XY regrev 03 */
-	{"AR", "XY", 4},
-	{"MX", "XY", 4},
-	{"AS", "US", 69},
-	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
-	{"KY", "US", 69},
-	{"GU", "US", 69},
-	{"FM", "US", 69},
-	{"MP", "US", 69},
-	{"PR", "US", 69},
-	{"TW", "US", 69},
-	{"VI", "US", 69},
-	{"UM", "US", 69},
-	{"US", "US", 69}  /* input ISO "US" to : US regrev 69 */
-#endif /* EXAMPLE_TABLE */
+#endif /* EXMAPLE_TABLE */
 };
 
 
@@ -260,8 +251,8 @@ const struct cntry_locales_custom translate_custom_table[] = {
 */
 void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 {
-//#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-#if 0  // Use Broadcom country code table
+#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+
 	struct cntry_locales_custom *cloc_ptr;
 
 	if (!cspec)
@@ -296,7 +287,7 @@ void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 	/* if no country code matched return first universal code from translate_custom_table */
 	memcpy(cspec->ccode, translate_custom_table[0].custom_locale, WLC_CNTRY_BUF_SZ);
 	cspec->rev = translate_custom_table[0].custom_locale_rev;
-#endif /* EXAMPLE_TABLE */
+#endif /* EXMAPLE_TABLE */
 	return;
 #endif /* defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) */
 }

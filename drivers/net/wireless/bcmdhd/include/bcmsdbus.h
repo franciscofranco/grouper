@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdbus.h,v 13.17.86.2 2010-12-23 01:13:20 Exp $
+ * $Id: bcmsdbus.h 300017 2011-12-01 20:30:27Z $
  */
 
 #ifndef	_sdio_api_h_

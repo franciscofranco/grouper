@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdefs.h,v 13.68.2.8 2011-01-08 04:04:19 Exp $
+ * $Id: bcmdefs.h 279282 2011-08-23 22:44:02Z $
  */
 
 
