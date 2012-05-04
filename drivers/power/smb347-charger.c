@@ -106,6 +106,7 @@
 /* Functions declaration */
 static int smb347_configure_charger(struct i2c_client *client, int value);
 static int smb347_configure_interrupts(struct i2c_client *client);
+extern unsigned int grouper_query_pcba_revision();
 
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf);
 
@@ -348,66 +349,11 @@ error:
 
 static irqreturn_t smb347_status_isr(int irq, void *dev_id)
 {
-	//SMB_NOTICE("\n");
+
 	struct smb347_charger *smb = dev_id;
 	disable_irq_nosync(irq);
-	//printk("interrupt: %s +, disable irq=%d\n",__func__, irq);
 	queue_delayed_work(smb347_wq, &smb->stat_isr_work, 0);
-	//printk("interrupt: %s  -\n",__func__);
-	//struct i2c_client *client = smb->client;
-	/*
-	int ret, val;
 
-	val =  smb347_read(client, smb347_STS_REG_D);
-	if (val < 0) {
-		dev_err(&client->dev, "%s(): Failed in reading register"
-				"0x%02x\n", __func__, smb347_STS_REG_D);
-		goto irq_error;
-	} else if (val != 0) {
-		if (val & DEDICATED_CHARGER) {
-			charger->chrg_type = AC;
-			SMB_NOTICE("Dedicated Charging Port (Wall Adapter)\n");
-		} else if (val & CHRG_DOWNSTRM_PORT) {
-			charger->chrg_type = USB;
-			SMB_NOTICE("Standard Downstream Port\n");
-		}
-
-		// Enable charging + configure Thermal
-		ret = smb347_configure_charger(client, 1);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-
-		charger->state = progress;
-	} else {
-		charger->state = stopped;
-
-		// Disable charging
-		ret = smb347_configure_charger(client, 0);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-
-		ret = smb347_configure_interrupts(client);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s() error in configuring"
-				"charger..\n", __func__);
-			goto irq_error;
-		}
-	}
-
-	if (charger->charger_cb) {
-		SMB_NOTICE("charger->state=%d, charger->chrg_type=%d\n",charger->state, charger->chrg_type);
-		charger->charger_cb(charger->state, charger->chrg_type,
-						charger->charger_cb_data);
-	}
-
-irq_error:
-	*/
 	return IRQ_HANDLED;
 }
 
@@ -745,14 +691,7 @@ static void stat_isr_work_function(struct work_struct *dat)
 	int irq = gpio_to_irq(gpio);
 	u8 val, buf[11];
 	int i;
-	/*
-	val = i2c_smbus_read_i2c_block_data(client, smb347_INTR_STS_A, 11, buf);	//0x35 ~ 0x3F
-	if (val < 0)
-		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
-								__func__);
-	for(i=smb347_INTR_STS_A; i<=smb347_STS_REG_E; i++)
-		printk("stat_isr_work_function: Reg addr [%02x], value= 0x%02x\n",i ,buf[i]);
-	*/
+
 	if (gpio_get_value(gpio)) {
 
 	}else {
@@ -844,15 +783,54 @@ static void regs_dump_work_func(struct work_struct *dat)
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = charger->client;
-	int i;
+	uint8_t config_reg[14], cmd_reg[1], status_reg[10];
+	int i, ret = 0;
 
-	return sprintf(buf,
-		" Reg[06h]=0x%02x\n Reg[08h]=0x%02x\n Reg[31h]=0x%02x\n Reg[3eh]=0x%02x\n Reg[3fh]=0x%02x\n",
-		smb347_read(client, smb347_PIN_CTRL),
-		smb347_read(client, smb347_SYSOK_USB_CTRL),
-		smb347_read(client, smb347_CMD_REG_B),
-		smb347_read(client, smb347_STS_REG_D),
-		smb347_read(client, smb347_STS_REG_E));
+	ret += i2c_smbus_read_i2c_block_data(client, smb347_CHARGE, 15, config_reg)
+	     + i2c_smbus_read_i2c_block_data(client, smb347_CMD_REG, 2, cmd_reg)
+	     + i2c_smbus_read_i2c_block_data(client, smb347_INTR_STS_A, 11, status_reg);
+
+	if (ret < 0)
+		SMB_ERR("failed to read charger reg !\n");
+
+	printk("smb347 Registers\n");
+	printk("------------------\n");
+	for(i=0;i<=14;i++)
+		printk("Reg[%02xh]=0x%02x\n", i, config_reg[i]);
+	for(i=0;i<=1;i++)
+		printk("Reg[%02xh]=0x%02x\n", 48+i, cmd_reg[i]);
+	for(i=0;i<=10;i++)
+		printk("Reg[%02xh]=0x%02x\n", 53+i, status_reg[i]);
+
+}
+
+static void smb347_default_setback(void)
+{
+	struct i2c_client *client = charger->client;
+	int err;
+
+	if(grouper_query_pcba_revision() > 0x02) {
+		/* Enable volatile writes to registers */
+		err = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
+		if (err < 0) {
+			dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
+		}
+		err = smb347_update_reg(client, smb347_PIN_CTRL, PIN_CTRL);
+		if (err < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, err);
+		}
+		err = smb347_update_reg(client, smb347_CHRG_CTRL, ENABLE_APSD);
+		if (err < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, err);
+		}
+		 /* Disable volatile writes to registers */
+		err = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
+		if (err < 0) {
+			dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
+		}
+		printk("grouper_query_pcba_revision=0x%02x\n",
+			grouper_query_pcba_revision());
+	}
 }
 
 static int __devinit smb347_probe(struct i2c_client *client,
@@ -873,12 +851,10 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	charger->dev = &client->dev;
 	i2c_set_clientdata(client, charger);
 
-	/* Check battery presence */
-	if (!smb347_battery_online()) {
-		dev_err(&client->dev, "%s() No Battery present, exiting..\n",
-					__func__);
-		goto error;
-	}
+	/* Restore default setting:
+	Enable APSD & 5/1/HC mode &
+	use default Pin control */
+	smb347_default_setback();
 
 	ret = sysfs_create_group(&client->dev.kobj, &smb347_group);
 	if (ret) {
