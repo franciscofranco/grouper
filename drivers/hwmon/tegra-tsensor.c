@@ -97,12 +97,19 @@
 #define TSENSOR_SLOWDOWN_BIT			23
 
 /* macros used for temperature calculations */
-#define get_temperature_int(X)			((X) / 100)
-#define get_temperature_fraction(X)		(((int)(abs(X))) % 100)
-#define get_temperature_round(X)		DIV_ROUND_CLOSEST(X, 100)
+/* assumed get_temperature_int and get_temperature_fraction
+ * calculate up to 6 decimal places. print temperature
+ * in code assumes 6 decimal place formatting */
+#define get_temperature_int(X)			((X) / 1000000)
+#define get_temperature_fraction(X)		(((int)(abs(X))) % 1000000)
+
+#define get_temperature_round(X)		DIV_ROUND_CLOSEST(X, 1000000)
 
 #define MILLICELSIUS_TO_CELSIUS(i)		((i) / 1000)
 #define CELSIUS_TO_MILLICELSIUS(i)		((i) * 1000)
+
+#define TSENSOR_MILLI_CELSIUS(x) \
+	DIV_ROUND_CLOSEST((x), 1000)
 
 #define get_ts_state(data) tsensor_get_reg_field(data,\
 			((data->instance << 16) | SENSOR_STATUS0), \
@@ -188,8 +195,8 @@ struct tegra_tsensor_data {
 	unsigned int config2[TSENSOR_COUNT];
 	/* temperature readings from instance tsensor - 0/1 */
 	unsigned int instance;
-	int A_e_minus6;
-	int B_e_minus2;
+	s64 A_e_minus12;
+	int B_e_minus6;
 	unsigned int fuse_T1;
 	unsigned int fuse_F1;
 	unsigned int fuse_T2;
@@ -353,6 +360,8 @@ static void get_chip_tsensor_coeff(struct tegra_tsensor_data *data)
 	data->m_e_minus6 = coeff_table[coeff_index].e_minus6_m;
 	data->n_e_minus6 = coeff_table[coeff_index].e_minus6_n;
 	data->p_e_minus2 = coeff_table[coeff_index].e_minus2_p;
+	pr_info("tsensor coeff: m=%d*10^-6,n=%d*10^-6,p=%d*10^-2\n",
+		data->m_e_minus6, data->n_e_minus6, data->p_e_minus2);
 }
 
 /* tsensor counter read function */
@@ -480,9 +489,10 @@ static ssize_t tsensor_show_counters(struct device *dev,
 
 		snprintf(buf, (((LOCAL_STR_SIZE1 << 1) + 3) +
 			strlen(fixed_str)),
-			"%d.%02dC\n",
+			"%d.%06dC %#x\n",
 			get_temperature_int(temp),
-			get_temperature_fraction(temp));
+			get_temperature_fraction(temp),
+			((curr_avg & 0xFFFF0000) >> 16));
 	}
 	return strlen(buf);
 error:
@@ -567,8 +577,8 @@ static ssize_t show_tsensor_param(struct device *dev,
 		err = tsensor_count_2_temp(data, val, &temp);
 		if (err != 0)
 			goto labelErr;
-		snprintf(buf, PAGE_SIZE, "%s threshold: %d.%d Celsius\n", info,
-			get_temperature_int(temp),
+		snprintf(buf, PAGE_SIZE, "%s threshold: %d.%06d Celsius\n",
+			info, get_temperature_int(temp),
 			get_temperature_fraction(temp));
 	}
 	return strlen(buf);
@@ -660,7 +670,8 @@ int tsensor_thermal_get_temp(struct tegra_tsensor_data *data,
 	if (err)
 		return err;
 
-	temp *= 10;
+	/* temperature is in milli-Celsius */
+	temp = TSENSOR_MILLI_CELSIUS(temp);
 
 	mutex_lock(&data->mutex);
 
@@ -787,8 +798,9 @@ static int read_tsensor_fuse_regs(struct tegra_tsensor_data *data)
 	 */
 	dev_vdbg(data->hwmon_dev, "Tsensor low temp (T2) fuse :\n");
 	T2 = (spare_bits & 0x7F) | ((spare_bits >> 7) & 0x7F);
-	pr_info("Tsensor fuse calibration F1=%d, F2=%d, T1=%d, T2=%d\n"
-		, data->fuse_F1, data->fuse_F2, T1, T2);
+	pr_info("Tsensor fuse calibration F1=%d(%#x), F2=%d(%#x), T1=%d, T2=%d\n",
+		data->fuse_F1, data->fuse_F1,
+		data->fuse_F2, data->fuse_F2, T1, T2);
 	data->fuse_T1 = T1;
 	data->fuse_T2 = T2;
 	return 0;
@@ -798,9 +810,14 @@ errLabel:
 
 /* function to calculate interim temperature */
 static int calc_interim_temp(struct tegra_tsensor_data *data,
-	unsigned int counter, int *p_interim_temp)
+	unsigned int counter, s64 *p_interim_temp)
 {
-	int val1;
+	s64 val1_64;
+	s64 val2;
+	u32 temp_rem;
+	bool is_neg;
+	u32 divisor;
+
 	/*
 	 * T-int = A * Counter + B
 	 * (Counter is the sensor frequency output)
@@ -817,14 +834,27 @@ static int calc_interim_temp(struct tegra_tsensor_data *data,
 		 * s_B is 10^2 times and want end result to be 10^2 times
 		 * actual value
 		 */
-		val1 = DIV_ROUND_CLOSEST((data->A_e_minus6 * counter) , 10000);
-		dev_vdbg(data->hwmon_dev, "A*counter / 100 = %d\n",
-			val1);
-		*p_interim_temp = (val1 + data->B_e_minus2);
+		val1_64 = (data->A_e_minus12 * counter);
+		dev_dbg(data->hwmon_dev, "A_e_-12*counter=%lld\n", val1_64);
+		val2 = (s64)data->B_e_minus6 * 1000000ULL;
+		dev_dbg(data->hwmon_dev, "B_e_-12=%lld\n", val2);
+		val2 += val1_64;
+		dev_dbg(data->hwmon_dev, "A_counter+B=%lld\n", val2);
+		is_neg = false;
+		if (val2 < 0) {
+			is_neg = true;
+			val2 *= -1;
+		}
+		divisor = 1000000;
+		temp_rem = do_div(val2, divisor);
+		if (temp_rem > (divisor >> 1))
+			val2++;
+		if (is_neg)
+			val2 *= -1;
+		*p_interim_temp = val2;
+		dev_dbg(data->hwmon_dev, "counter=%d, interim_temp=%lld\n",
+			counter, *p_interim_temp);
 	}
-	dev_dbg(data->hwmon_dev, "tsensor: counter=0x%x, interim "
-		"temp*100=%d\n",
-		counter, *p_interim_temp);
 	return 0;
 }
 
@@ -833,9 +863,13 @@ static int calc_interim_temp(struct tegra_tsensor_data *data,
  * interim temperature
  */
 static void calc_final_temp(struct tegra_tsensor_data *data,
-	int interim_temp, int *p_final_temp)
+	s64 interim_temp, int *p_final_temp)
 {
-	int temp1, temp2, temp;
+	s64 temp1_64, temp2_64, temp_64, temp1_64_rem;
+	u32 temp_rem_32;
+	u32 divisor;
+	u64 divisor_64;
+	bool is_neg;
 	/*
 	 * T-final = m * T-int ^2 + n * T-int + p
 	 * m = -0.002775
@@ -843,34 +877,51 @@ static void calc_final_temp(struct tegra_tsensor_data *data,
 	 * p = -7.3
 	 */
 
-	dev_vdbg(data->hwmon_dev, "interim_temp=%d\n", interim_temp);
-	temp1 = (DIV_ROUND_CLOSEST((interim_temp * interim_temp) , 100));
-	dev_vdbg(data->hwmon_dev, "temp1=%d\n", temp1);
-	temp1 *= (DIV_ROUND_CLOSEST(data->m_e_minus6 , 10));
-	dev_vdbg(data->hwmon_dev, "m*T-int^2=%d\n", temp1);
-	temp1 = (DIV_ROUND_CLOSEST(temp1, 10000));
-	/* we want to keep 3 decimal point digits */
-	dev_vdbg(data->hwmon_dev, "m*T-int^2 / 10000=%d\n", temp1);
-	dev_dbg(data->hwmon_dev, "temp1*100=%d\n", temp1);
+	temp1_64 = (interim_temp * interim_temp);
+	/* always positive as squaring value */
+	/* losing accuracy here */
+	divisor = 10000;
+	/* temp1_64 contains quotient and returns remainder */
+	temp_rem_32 = do_div(temp1_64, divisor);
+	if (temp_rem_32 > (divisor >> 1))
+		temp1_64++;
+	temp1_64 *= (s64)data->m_e_minus6;
+	dev_dbg(data->hwmon_dev, "m_T-interim^2_e^14=%lld\n", temp1_64);
+	temp1_64_rem = (s64)data->m_e_minus6 * (s64)temp_rem_32;
+	is_neg = false;
+	if (temp1_64_rem < 0) {
+		is_neg = true;
+		temp1_64_rem *= -1;
+	}
+	temp_rem_32 = do_div(temp1_64_rem, divisor);
+	if (temp_rem_32 > (divisor >> 1))
+		temp1_64_rem++;
+	if (is_neg)
+		temp1_64_rem *= -1;
+	/* temp1_64 is m * t-int * t-int * 10^14 */
 
-	temp2 = (DIV_ROUND_CLOSEST(interim_temp * (
-		DIV_ROUND_CLOSEST(data->n_e_minus6, 100)
-		), 1000)); /* 1000 times actual */
-	dev_vdbg(data->hwmon_dev, "n*T-int =%d\n", temp2);
+	temp2_64 = (s64)data->n_e_minus6 * interim_temp * 100;
+	dev_dbg(data->hwmon_dev, "n_T-interim_e^14=%lld\n", temp2_64);
+	/* temp2_64 is n * t-int * 10^14 */
 
-	temp = temp1 + temp2;
-	dev_vdbg(data->hwmon_dev, "m*T-int^2 + n*T-int =%d\n", temp);
-	temp += (data->p_e_minus2 * 10);
-	temp = DIV_ROUND_CLOSEST(temp, 10);
-	/* final temperature(temp) is 100 times actual value
-	 * to preserve 2 decimal digits and enable fixed point
-	 * computation
-	 */
-	dev_vdbg(data->hwmon_dev, "m*T-int^2 + n*T-int + p =%d\n",
-		temp);
-	dev_dbg(data->hwmon_dev, "Final temp=%d.%d\n",
-		get_temperature_int(temp), get_temperature_fraction(temp));
-	*p_final_temp = (int)(temp);
+	temp_64 = ((s64)data->p_e_minus2 * (s64)1000000000000ULL);
+	/* temp_64 is n * 10^14 */
+	temp_64 += temp1_64 + temp2_64 + temp1_64_rem;
+	is_neg = false;
+	if (temp_64 < 0) {
+		is_neg = true;
+		temp_64 *= -1;
+	}
+	divisor_64 = 100000000ULL;
+	temp_rem_32 = do_div(temp_64, divisor_64);
+	if (temp_rem_32 > (divisor_64 >> 1))
+		temp_64++;
+	if (is_neg)
+		temp_64 *= -1;
+	/* temperature * 10^14 / 10^8 */
+	/* get LS decimal digit rounding */
+	*p_final_temp = (s32)temp_64;
+	dev_dbg(data->hwmon_dev, "T-final stage4=%d\n", *p_final_temp);
 }
 
 /*
@@ -882,6 +933,10 @@ static void calc_final_temp(struct tegra_tsensor_data *data,
 static int tsensor_get_const_AB(struct tegra_tsensor_data *data)
 {
 	int err;
+	s64 temp_val1, temp_val2;
+	u32 temp_rem;
+	bool is_neg;
+	u32 divisor;
 
 	/*
 	 * 1. Find fusing registers for 25C (T1, F1) and 90C (T2, F2);
@@ -902,17 +957,31 @@ static int tsensor_get_const_AB(struct tegra_tsensor_data *data)
 				"computation\n", data->fuse_F2, data->fuse_F1);
 			return -EINVAL;
 		} else {
-			data->A_e_minus6 = ((data->fuse_T2 - data->fuse_T1) *
-				1000000);
-			data->A_e_minus6 /= (data->fuse_F2 - data->fuse_F1);
-			data->B_e_minus2 = (data->fuse_T1 * 100) - (
-				DIV_ROUND_CLOSEST((data->A_e_minus6 *
-				data->fuse_F1), 10000));
-			/* B is 100 times now */
+			temp_val1 = (s64)(data->fuse_T2 - data->fuse_T1) *
+				1000000000000ULL;
+			/* temp_val1 always positive as fuse_T2 > fuse_T1 */
+			temp_rem = do_div(temp_val1, (data->fuse_F2 -
+				data->fuse_F1));
+			data->A_e_minus12 = temp_val1;
+			temp_val2 = (s64)(data->fuse_T1 * 1000000000000ULL);
+			temp_val2 -= (data->A_e_minus12 * data->fuse_F1);
+			is_neg = false;
+			if (temp_val2 < 0) {
+				is_neg = true;
+				temp_val2 *= -1;
+			}
+			divisor = 1000000;
+			temp_rem = do_div(temp_val2, divisor);
+			if (temp_rem > (divisor >> 1))
+				temp_val2++;
+			if (is_neg)
+				temp_val2 *= -1;
+			data->B_e_minus6 = (s32)temp_val2;
+			/* B is 10^6 times now */
 		}
 	}
-	dev_dbg(data->hwmon_dev, "A_e_minus6 = %d\n", data->A_e_minus6);
-	dev_dbg(data->hwmon_dev, "B_e_minus2 = %d\n", data->B_e_minus2);
+	dev_info(data->hwmon_dev, "A_e_minus12 = %lld\n", data->A_e_minus12);
+	dev_info(data->hwmon_dev, "B_e_minus6 = %d\n", data->B_e_minus6);
 	return 0;
 }
 
@@ -925,7 +994,7 @@ static int tsensor_get_const_AB(struct tegra_tsensor_data *data)
 static int tsensor_count_2_temp(struct tegra_tsensor_data *data,
 	unsigned int count, int *p_temperature)
 {
-	int interim_temp;
+	s64 interim_temp;
 	int err;
 
 	/*
@@ -944,25 +1013,13 @@ static int tsensor_count_2_temp(struct tegra_tsensor_data *data,
 	 * 3. Calculate final temperature:
 	 */
 	calc_final_temp(data, interim_temp, p_temperature);
+	/* logs counter -> temperature conversion */
+	dev_dbg(data->hwmon_dev, "tsensor: counter=0x%x, interim "
+		"temp*10^6=%lld, Final temp=%d.%06d\n",
+		count, interim_temp,
+		get_temperature_int(*p_temperature),
+		get_temperature_fraction(*p_temperature));
 	return 0;
-}
-
-/*
- * utility function implements ceil to power of 10 -
- * e.g. given 987 it returns 1000
- */
-static int my_ceil_pow10(int num)
-{
-	int tmp;
-	int val = 1;
-	tmp = (num < 0) ? -num : num;
-	if (tmp == 0)
-		return 0;
-	while (tmp > 1) {
-		val *= 10;
-		tmp /= 10;
-	}
-	return val;
 }
 
 /*
@@ -973,104 +1030,143 @@ static void get_quadratic_roots(struct tegra_tsensor_data *data,
 		int temp, unsigned int *p_counter1,
 		unsigned int *p_counter2)
 {
-	/* expr1 = 2 * m * B + n */
-	int expr1_e_minus6;
-	/* expr2 = expr1^2 */
-	int expr2_e_minus6;
-	/* expr3 = m * B^2 + n * B + p */
-	int expr3_e_minus4_1;
-	int expr3_e_minus4_2;
-	int expr3_e_minus4;
-	int expr4_e_minus6;
-	int expr4_e_minus2_1;
-	int expr4_e_minus6_2;
-	int expr4_e_minus6_3;
-	int expr5_e_minus6, expr5_e_minus6_1, expr6, expr7;
-	int expr8_e_minus6, expr9_e_minus6;
-	int multiplier;
-	const int multiplier2 = 1000000;
-	int expr10_e_minus6, expr11_e_minus6;
-	int expr12, expr13;
+	/*
+	 * Equation to solve:
+	 * m * A^2 * Counter^2 +
+	 * A * (2 * m * B + n) * Counter +
+	 * (m * B^2 + n * B + p - Temperature) = 0
 
-	dev_vdbg(data->hwmon_dev, "A_e_minus6=%d, B_e_minus2=%d, "
+	To calculate root - assume
+		b = A * (2 * m * B + n)
+		a = m * A^2
+		c = ((m * B^2) + n * B + p - temp)
+	root1 = (-b + sqrt(b^2 - (4*a*c))) / (2 * a)
+	root2 = (-b - sqrt(b^2 - (4*a*c))) / (2 * a)
+	sqrt(k) = sqrt(k * 10^6) / sqrt(10^6)
+
+	Roots are :
+	(-(2*m*B+n)+sqrt(((2*m*B+n)^2-4*m(m*B^2+n*B+p-temp))))/(2*m*A)
+	and
+	(-(2*m*B+n)-sqrt(((2*m*B+n)^2-4*m(m*B^2+n*B+p-temp))))/(2*m*A)
+
+	*/
+
+	int v_e_minus6_2mB_n;
+	int v_e_minus4_mB2_nB_p_minusTemp;
+	int v_e_minus6_b2, v_e_minus6_4ac;
+	int v_e_minus6_b2_minus4ac;
+	int v_e_minus6_sqrt_b2_minus4ac;
+	int v_e_minus6_2mA;
+	int root1, root2;
+	int temp_rem;
+	bool is_neg;
+	s64 temp_64;
+
+	dev_dbg(data->hwmon_dev, "m_e-6=%d,n_e-6=%d,p_e-2=%d,A_e-6=%lld,"
+		"B_e-2=%d\n", data->m_e_minus6, data->n_e_minus6,
+		data->p_e_minus2, data->A_e_minus12, data->B_e_minus6);
+
+	temp_64 = (2ULL * (s64)data->m_e_minus6 * (s64)data->B_e_minus6);
+	is_neg = false;
+	if (temp_64 < 0) {
+		is_neg = true;
+		temp_64 *= -1;
+	}
+	temp_rem = do_div(temp_64, 1000000);
+	if (is_neg)
+		temp_64 *= -1;
+	v_e_minus6_2mB_n = (s32)temp_64 + data->n_e_minus6;
+	/* computed 2mB + n */
+
+	temp_64 = ((s64)data->m_e_minus6 * (s64)data->A_e_minus12);
+	temp_64 *= 2;
+	is_neg = false;
+	if (temp_64 < 0) {
+		temp_64 *= -1;
+		is_neg = true;
+	}
+	temp_rem = do_div(temp_64, 1000000);
+	temp_rem = do_div(temp_64, 1000000);/* divide by 10^6 again */
+	if (is_neg)
+		temp_64 *= -1;
+	v_e_minus6_2mA = (s32)temp_64;
+	/* computed 2mA */
+
+	/* m * B^2 calculation */
+	temp_64 = ((s64)data->B_e_minus6 * (s64)data->B_e_minus6);
+	/* squaring give positive value */
+	temp_rem = do_div(temp_64, 1000000);
+	/* we see overflow if do not divide above */
+	temp_64 *= data->m_e_minus6;
+	is_neg = false;
+	if (temp_64 < 0) {
+		is_neg = true;
+		temp_64 *= -1;
+	}
+	temp_rem = do_div(temp_64, 1000000);
+	temp_rem = do_div(temp_64, 100);
+	if (is_neg)
+		temp_64 *= -1;
+	v_e_minus4_mB2_nB_p_minusTemp = (s32)temp_64;
+
+	/* n * B calculation */
+	temp_64 = ((s64)data->B_e_minus6 * (s64)data->n_e_minus6);
+	is_neg = false;
+	if (temp_64 < 0) {
+		is_neg = true;
+		temp_64 *= -1;
+	}
+	temp_rem = do_div(temp_64, 1000000);
+	temp_rem = do_div(temp_64, 100);
+	if (is_neg)
+		temp_64 *= -1;
+	temp_rem = (s32)temp_64;
+	v_e_minus4_mB2_nB_p_minusTemp += temp_rem;
+	v_e_minus4_mB2_nB_p_minusTemp += (
+		(data->p_e_minus2 * 100) - (temp * 10000));
+	/* computed ((m * B^2) + n * B + p - temp) * 10^4 */
+
+	v_e_minus6_b2 = ((v_e_minus6_2mB_n / 1000)
+		* (v_e_minus6_2mB_n / 1000));
+	dev_dbg(data->hwmon_dev, "v_e_minus6_b2=%d\n", v_e_minus6_b2);
+
+	v_e_minus6_4ac = ((4 * data->m_e_minus6) / 10)
+		* ((v_e_minus4_mB2_nB_p_minusTemp) / 1000);
+	dev_dbg(data->hwmon_dev, "v_e_minus6_4ac=%d\n", v_e_minus6_4ac);
+
+	v_e_minus6_b2_minus4ac = (v_e_minus6_b2 - v_e_minus6_4ac);
+
+	v_e_minus6_sqrt_b2_minus4ac = DIV_ROUND_CLOSEST(
+		(int_sqrt(v_e_minus6_b2_minus4ac)*1000000),
+		int_sqrt(1000000));
+	dev_dbg(data->hwmon_dev, "A_e_minus12=%lld, B_e_minus6=%d, "
 		"m_e_minus6=%d, n_e_minus6=%d, p_e_minus2=%d, "
-		"temp=%d\n", data->A_e_minus6, data->B_e_minus2,
+		"temp=%d\n", data->A_e_minus12, data->B_e_minus6,
 		data->m_e_minus6,
 		data->n_e_minus6, data->p_e_minus2, (int)temp);
-	expr1_e_minus6 = (DIV_ROUND_CLOSEST((2 * data->m_e_minus6 *
-		data->B_e_minus2), 100) + data->n_e_minus6);
-	dev_vdbg(data->hwmon_dev, "2_m_B_plun_e_minus6=%d\n",
-		expr1_e_minus6);
-	expr2_e_minus6 = (DIV_ROUND_CLOSEST(expr1_e_minus6, 1000)) *
-		(DIV_ROUND_CLOSEST(expr1_e_minus6, 1000));
-	dev_vdbg(data->hwmon_dev, "expr1^2=%d\n", expr2_e_minus6);
-	expr3_e_minus4_1 = (DIV_ROUND_CLOSEST((
-		(DIV_ROUND_CLOSEST((data->m_e_minus6 * data->B_e_minus2),
-		1000)) * (DIV_ROUND_CLOSEST(data->B_e_minus2, 10))), 100));
-	dev_vdbg(data->hwmon_dev, "expr3_e_minus4_1=%d\n",
-		expr3_e_minus4_1);
-	expr3_e_minus4_2 = DIV_ROUND_CLOSEST(
-		(DIV_ROUND_CLOSEST(data->n_e_minus6, 100) * data->B_e_minus2),
-		100);
-	dev_vdbg(data->hwmon_dev, "expr3_e_minus4_2=%d\n",
-		expr3_e_minus4_2);
-	expr3_e_minus4 = expr3_e_minus4_1 + expr3_e_minus4_2;
-	dev_vdbg(data->hwmon_dev, "expr3=%d\n", expr3_e_minus4);
-	expr4_e_minus2_1 = DIV_ROUND_CLOSEST((expr3_e_minus4 +
-		(data->p_e_minus2 * 100)), 100);
-	dev_vdbg(data->hwmon_dev, "expr4_e_minus2_1=%d\n",
-		expr4_e_minus2_1);
-	expr4_e_minus6_2 = (4 * data->m_e_minus6);
-	dev_vdbg(data->hwmon_dev, "expr4_e_minus6_2=%d\n",
-		expr4_e_minus6_2);
-	expr4_e_minus6 = DIV_ROUND_CLOSEST((expr4_e_minus2_1 *
-		expr4_e_minus6_2), 100);
-	dev_vdbg(data->hwmon_dev, "expr4_minus6=%d\n", expr4_e_minus6);
-	expr5_e_minus6_1 = expr2_e_minus6 - expr4_e_minus6;
-	dev_vdbg(data->hwmon_dev, "expr5_e_minus6_1=%d\n",
-		expr5_e_minus6_1);
-	expr4_e_minus6_3 = (expr4_e_minus6_2 * temp);
-	dev_vdbg(data->hwmon_dev, "expr4_e_minus6_3=%d\n",
-		expr4_e_minus6_3);
-	expr5_e_minus6 = (expr5_e_minus6_1 + expr4_e_minus6_3);
-	dev_vdbg(data->hwmon_dev, "expr5_e_minus6=%d\n",
-		expr5_e_minus6);
-	multiplier = my_ceil_pow10(expr5_e_minus6);
-	dev_vdbg(data->hwmon_dev, "multiplier=%d\n", multiplier);
-	expr6 = int_sqrt(expr5_e_minus6);
-	dev_vdbg(data->hwmon_dev, "sqrt top=%d\n", expr6);
-	expr7 = int_sqrt(multiplier);
-	dev_vdbg(data->hwmon_dev, "sqrt bot=%d\n", expr7);
-	if (expr7 == 0) {
-		pr_err("Error: %s line=%d, expr7=%d\n",
-			__func__, __LINE__, expr7);
-		return;
-	} else {
-		expr8_e_minus6 = (expr6 * multiplier2) / expr7;
-	}
-	dev_vdbg(data->hwmon_dev, "sqrt final=%d\n", expr8_e_minus6);
-	dev_vdbg(data->hwmon_dev, "2_m_B_plus_n_e_minus6=%d\n",
-		expr1_e_minus6);
-	expr9_e_minus6 = DIV_ROUND_CLOSEST((2 * data->m_e_minus6 *
-		data->A_e_minus6), 1000000);
-	dev_vdbg(data->hwmon_dev, "denominator=%d\n", expr9_e_minus6);
-	if (expr9_e_minus6 == 0) {
-		pr_err("Error: %s line=%d, expr9_e_minus6=%d\n",
-			__func__, __LINE__, expr9_e_minus6);
-		return;
-	}
-	expr10_e_minus6 = -expr1_e_minus6 - expr8_e_minus6;
-	dev_vdbg(data->hwmon_dev, "expr10_e_minus6=%d\n",
-		expr10_e_minus6);
-	expr11_e_minus6 = -expr1_e_minus6 + expr8_e_minus6;
-	dev_vdbg(data->hwmon_dev, "expr11_e_minus6=%d\n",
-		expr11_e_minus6);
-	expr12 = (expr10_e_minus6 / expr9_e_minus6);
-	dev_vdbg(data->hwmon_dev, "counter1=%d\n", expr12);
-	expr13 = (expr11_e_minus6 / expr9_e_minus6);
-	dev_vdbg(data->hwmon_dev, "counter2=%d\n", expr13);
-	*p_counter1 = expr12;
-	*p_counter2 = expr13;
+	dev_dbg(data->hwmon_dev, "2mB_n=%d, 2mA=%d, mB2_nB_p_minusTemp=%d,"
+		"b2_minus4ac=%d\n", v_e_minus6_2mB_n,
+		v_e_minus6_2mA, v_e_minus4_mB2_nB_p_minusTemp,
+		v_e_minus6_b2_minus4ac);
+
+	root1 = DIV_ROUND_CLOSEST((
+		-v_e_minus6_2mB_n - v_e_minus6_sqrt_b2_minus4ac),
+		v_e_minus6_2mA);
+
+	root2 = DIV_ROUND_CLOSEST((
+		-v_e_minus6_2mB_n + v_e_minus6_sqrt_b2_minus4ac),
+		v_e_minus6_2mA);
+
+	dev_dbg(data->hwmon_dev, "new expr: temp=%d, root1=%d, root2=%d\n",
+		temp, root1, root2);
+
+	*p_counter1 = root1;
+	*p_counter2 = root2;
+	/* we find that root2 is more appropriate root */
+
+	/* logs temperature -> counter conversion */
+	dev_dbg(data->hwmon_dev, "temperature=%d, counter1=%#x, "
+		"counter2=%#x\n", temp, *p_counter1, *p_counter2);
 }
 
 /*
@@ -1083,29 +1179,24 @@ static void tsensor_temp_2_count(struct tegra_tsensor_data *data,
 				unsigned int *p_counter1,
 				unsigned int *p_counter2)
 {
-	if (temp > 0) {
-		dev_dbg(data->hwmon_dev, "Trying to calculate counter"
-			" for requested temperature"
-			" threshold=%d\n", temp);
-		/*
-		 * calculate the constants needed to get roots of
-		 * following quadratic eqn:
-		 * m * A^2 * Counter^2 +
-		 * A * (2 * m * B + n) * Counter +
-		 * (m * B^2 + n * B + p - Temperature) = 0
-		 */
-		get_quadratic_roots(data, temp, p_counter1, p_counter2);
-		/*
-		 * checked at current temperature=35 the counter=11418
-		 * for 50 deg temperature: counter1=22731, counter2=11817
-		 * at 35 deg temperature: counter1=23137, counter2=11411
-		 * hence, for above values we are assuming counter2 has
-		 * the correct value
-		 */
-	} else {
-		*p_counter1 = DEFAULT_THRESHOLD_TH3;
-		*p_counter2 = DEFAULT_THRESHOLD_TH3;
-	}
+	dev_dbg(data->hwmon_dev, "Trying to calculate counter"
+		" for requested temperature"
+		" threshold=%d\n", temp);
+	/*
+	 * calculate the constants needed to get roots of
+	 * following quadratic eqn:
+	 * m * A^2 * Counter^2 +
+	 * A * (2 * m * B + n) * Counter +
+	 * (m * B^2 + n * B + p - Temperature) = 0
+	 */
+	get_quadratic_roots(data, temp, p_counter1, p_counter2);
+	/*
+	 * checked at current temperature=35 the counter=11418
+	 * for 50 deg temperature: counter1=22731, counter2=11817
+	 * at 35 deg temperature: counter1=23137, counter2=11411
+	 * hence, for above values we are assuming counter2 has
+	 * the correct value
+	 */
 }
 
 /*
@@ -1129,46 +1220,80 @@ static bool cmp_counter(
 	return true;
 }
 
+/* function to print chart of counter to temperature values -
+ * It uses F1, F2, T1, T2 and start data gives reading
+ * for temperature in between the range
+ */
+static void print_counter_2_temperature_table(
+	struct tegra_tsensor_data *data)
+{
+	int i;
+	unsigned int start_counter, end_counter;
+	unsigned int diff;
+	int temperature;
+	const unsigned int num_readings = 40;
+	unsigned int index = 0;
+	dev_dbg(data->hwmon_dev, "***Counter and Temperature chart **********\n");
+	start_counter = data->fuse_F1;
+	end_counter = data->fuse_F2;
+	diff = (end_counter - start_counter) / num_readings;
+
+	/* We want to take num_readings counter values in between
+	and try to report corresponding temperature */
+	for (i = start_counter; i <= (end_counter + diff);
+		i += diff) {
+		tsensor_count_2_temp(data, i, &temperature);
+		dev_dbg(data->hwmon_dev, "[%d]: Counter=%#x, temperature=%d.%06dC\n",
+			++index, i, get_temperature_int(temperature),
+			get_temperature_fraction(temperature));
+	}
+	dev_dbg(data->hwmon_dev, "\n\n");
+	tsensor_count_2_temp(data, end_counter, &temperature);
+	dev_dbg(data->hwmon_dev, "[%d]: Counter=%#x, temperature=%d.%06dC\n",
+		++index, end_counter, get_temperature_int(temperature),
+		get_temperature_fraction(temperature));
+}
+
+static bool temp_matched(int given_temp, int calc_temp)
+{
+	const int temp_diff_max = 4;
+	int diff;
+
+	diff = given_temp - calc_temp;
+	if (diff < 0)
+		diff *= -1;
+	if (diff > temp_diff_max)
+		return false;
+	else
+		return true;
+}
+
 /* function to print chart of temperature to counter values */
 static void print_temperature_2_counter_table(
 	struct tegra_tsensor_data *data)
 {
 	int i;
-	/* static list of temperature tested */
-	int temp_list[] = {
-		30,
-		35,
-		40,
-		45,
-		50,
-		55,
-		60,
-		61,
-		62,
-		63,
-		64,
-		65,
-		70,
-		75,
-		80,
-		85,
-		90,
-		95,
-		100,
-		105,
-		110,
-		115,
-		120
-	};
+	int min = -25;
+	int max = 120;
 	unsigned int counter1, counter2;
+	int temperature;
+
 	dev_dbg(data->hwmon_dev, "Temperature and counter1 and "
 		"counter2 chart **********\n");
-	for (i = 0; i < ARRAY_SIZE(temp_list); i++) {
-		tsensor_temp_2_count(data, temp_list[i],
+	for (i = min; i <= max; i++) {
+		tsensor_temp_2_count(data, i,
 			&counter1, &counter2);
-		dev_dbg(data->hwmon_dev, "temperature[%d]=%d, "
+		dev_dbg(data->hwmon_dev, "temperature=%d, "
 			"counter1=0x%x, counter2=0x%x\n",
-			i, temp_list[i], counter1, counter2);
+			i, counter1, counter2);
+		/* verify the counter2 to temperature conversion */
+		tsensor_count_2_temp(data, counter2, &temperature);
+		dev_dbg(data->hwmon_dev, "Given temp=%d: counter2=%d, conv temp=%d.%06d\n",
+			i, counter2, get_temperature_int(temperature),
+			get_temperature_fraction(temperature));
+		if (!temp_matched(i, get_temperature_round(temperature)))
+			dev_dbg(data->hwmon_dev, "tsensor temp to counter to temp conversion failed for temp=%d\n",
+				i);
 	}
 	dev_dbg(data->hwmon_dev, "\n\n");
 }
@@ -1226,7 +1351,7 @@ static int test_temperature_algo(struct tegra_tsensor_data *data)
 	/* calculate temperature */
 	err = tsensor_count_2_temp(data, actual_counter, &T1);
 	dev_dbg(data->hwmon_dev, "%s actual counter=0x%x, calculated "
-		"temperature=%d.%d\n", __func__,
+		"temperature=%d.%06d\n", __func__,
 		actual_counter, get_temperature_int(T1),
 		get_temperature_fraction(T1));
 	if (err < 0) {
@@ -1552,6 +1677,9 @@ static void tsensor_work_func(struct work_struct *work)
 		data->alert_func(data->alert_data);
 
 		if (!tsensor_within_limits(data))
+			dev_dbg(data->hwmon_dev,
+				"repeated work queueing state=%d\n",
+				get_ts_state(data));
 			queue_delayed_work(data->workqueue, &data->work,
 				HZ * DEFAULT_TSENSOR_M /
 				DEFAULT_TSENSOR_CLK_HZ);
@@ -1655,6 +1783,8 @@ static int tegra_tsensor_setup(struct platform_device *pdev)
 	}
 
 	print_temperature_2_counter_table(data);
+
+	print_counter_2_temperature_table(data);
 
 	/* EDP and throttling support using tsensor enabled
 	 * based on fuse revision */
