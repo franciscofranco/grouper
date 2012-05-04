@@ -39,7 +39,88 @@ DEFINE_EVENT(cpu, cpu_idle,
 #define _PWR_EVENT_AVOID_DOUBLE_DEFINING
 
 #define PWR_EVENT_EXIT -1
+
+enum {
+	POWER_CPU_UP_START,
+	POWER_CPU_UP_DONE,
+	POWER_CPU_DOWN_START,
+	POWER_CPU_DOWN_DONE,
+};
+
+enum {
+	POWER_CPU_SCALE_START,
+	POWER_CPU_SCALE_DONE,
+};
+
+enum {
+	POWER_CPU_CLUSTER_START,
+	POWER_CPU_CLUSTER_DONE,
+};
+
 #endif
+
+TRACE_EVENT(cpu_hotplug,
+
+	TP_PROTO(unsigned int cpu_id, int state),
+
+	TP_ARGS(cpu_id, state),
+
+	TP_STRUCT__entry(
+		__field(u32, cpu_id)
+		__field(u32, state)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->state = state;
+	),
+
+	TP_printk("cpu_id=%lu, state=%lu",
+		  (unsigned long)__entry->cpu_id,
+		  (unsigned long)__entry->state)
+);
+
+TRACE_EVENT(cpu_scale,
+
+	TP_PROTO(unsigned int cpu_id, unsigned int freq, int state),
+
+	TP_ARGS(cpu_id, freq, state),
+
+	TP_STRUCT__entry(
+		__field(u64, cpu_id)
+		__field(u32, freq)
+		__field(u32, state)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->freq = freq;
+		__entry->state = state;
+	),
+
+	TP_printk("cpu_id=%lu, freq=%lu, state=%lu",
+		  (unsigned long)__entry->cpu_id,
+		  (unsigned long)__entry->freq,
+		  (unsigned long)__entry->state)
+);
+
+TRACE_EVENT(cpu_cluster,
+
+	TP_PROTO(int state),
+
+	TP_ARGS(state),
+
+	TP_STRUCT__entry(
+		__field(u64, state)
+	),
+
+	TP_fast_assign(
+		__entry->state = state;
+	),
+
+	TP_printk("state=%lu",
+		  (unsigned long)__entry->state)
+);
 
 DEFINE_EVENT(cpu, cpu_frequency,
 

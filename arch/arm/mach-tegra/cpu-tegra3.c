@@ -218,6 +218,8 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 {
 	bool up = false;
 	unsigned int cpu = nr_cpu_ids;
+	unsigned long now = jiffies;
+	static unsigned long last_change_time;
 
 	mutex_lock(tegra3_cpu_lock);
 
@@ -229,19 +231,17 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 		cpu = tegra_get_slowest_cpu_n();
 		if (cpu < nr_cpu_ids) {
 			up = false;
-			queue_delayed_work(
-				hotplug_wq, &hotplug_work, down_delay);
-			hp_stats_update(cpu, false);
 		} else if (!is_lp_cluster() && !no_lp) {
 			if(!clk_set_parent(cpu_clk, cpu_lp_clk)) {
 				hp_stats_update(CONFIG_NR_CPUS, true);
 				hp_stats_update(0, false);
 				/* catch-up with governor target speed */
 				tegra_cpu_set_speed_cap(NULL);
-			} else
-				queue_delayed_work(
-					hotplug_wq, &hotplug_work, down_delay);
+				break;
+			}
 		}
+		queue_delayed_work(
+			hotplug_wq, &hotplug_work, down_delay);
 		break;
 	case TEGRA_HP_UP:
 		if (is_lp_cluster() && !no_lp) {
@@ -256,18 +256,14 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 			/* cpu speed is up and balanced - one more on-line */
 			case TEGRA_CPU_SPEED_BALANCED:
 				cpu = cpumask_next_zero(0, cpu_online_mask);
-				if (cpu < nr_cpu_ids) {
+				if (cpu < nr_cpu_ids)
 					up = true;
-					hp_stats_update(cpu, true);
-				}
 				break;
 			/* cpu speed is up, but skewed - remove one core */
 			case TEGRA_CPU_SPEED_SKEWED:
 				cpu = tegra_get_slowest_cpu_n();
-				if (cpu < nr_cpu_ids) {
+				if (cpu < nr_cpu_ids)
 					up = false;
-					hp_stats_update(cpu, false);
-				}
 				break;
 			/* cpu speed is up, but under-utilized - do nothing */
 			case TEGRA_CPU_SPEED_BIASED:
@@ -281,6 +277,14 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 	default:
 		pr_err("%s: invalid tegra hotplug state %d\n",
 		       __func__, hp_state);
+	}
+
+	if (!up && ((now - last_change_time) < down_delay))
+			cpu = nr_cpu_ids;
+
+	if (cpu < nr_cpu_ids) {
+		last_change_time = now;
+		hp_stats_update(cpu, up);
 	}
 	mutex_unlock(tegra3_cpu_lock);
 
