@@ -54,6 +54,13 @@ enum charger_type {
 	USB,
 };
 
+enum cable_type {
+	non_cable =0,
+	usb_cable,
+	TBD,
+	ac_cable,
+};
+
 typedef void (*charging_callback_t)(enum charging_states state,
 enum charger_type chrg_type, void *args);
 
@@ -63,6 +70,7 @@ struct smb347_charger {
 	struct delayed_work	inok_isr_work;
 	struct delayed_work	stat_isr_work;
 	struct delayed_work	regs_dump_work;
+	struct mutex		cable_lock;
 	void	*charger_cb_data;
 	enum charging_states state;
 	enum charger_type chrg_type;

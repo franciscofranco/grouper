@@ -107,6 +107,7 @@
 static int smb347_configure_charger(struct i2c_client *client, int value);
 static int smb347_configure_interrupts(struct i2c_client *client);
 extern unsigned int grouper_query_pcba_revision();
+extern int battery_callback(unsigned usb_cable_state);
 
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf);
 
@@ -347,54 +348,6 @@ error:
 	return ret;
 }
 
-static irqreturn_t smb347_status_isr(int irq, void *dev_id)
-{
-
-	struct smb347_charger *smb = dev_id;
-	disable_irq_nosync(irq);
-	queue_delayed_work(smb347_wq, &smb->stat_isr_work, 0);
-
-	return IRQ_HANDLED;
-}
-
-static int smb347_stat_irq(struct smb347_charger *smb)
-{
-	int err = 0;
-	unsigned gpio = TEGRA_GPIO_PU5;		//Tegra3: AP_CHARGING# <--> smb347: SMB347_STAT/STAT
-	unsigned irq_num = gpio_to_irq(gpio);
-
-	err = gpio_request(gpio, "smb347_stat");
-	if (err) {
-		printk("gpio %d request failed \n", gpio);
-		goto err1;
-	}
-
-	tegra_gpio_enable(gpio);
-
-	err = gpio_direction_input(gpio);
-	if (err) {
-		printk("gpio %d unavaliable for input \n", gpio);
-		goto err2;
-	}
-
-	err = request_irq(irq_num,
-			smb347_status_isr, IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING,
-				"smb347_stat", smb);
-	if (err < 0) {
-		printk("%s irq %d request failed \n","smb347_stat", irq_num);
-		goto err2 ;
-	}
-
-	printk("GPIO pin irq %d requested ok, smb347_STAT = %s\n", irq_num, gpio_get_value(gpio)? "H":"L");
-
-	return 0;
-
-err2:
-	gpio_free(gpio);
-err1:
-	return err;
-}
-
 static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
@@ -433,6 +386,9 @@ static int smb347_inok_irq(struct smb347_charger *smb)
 		goto err2 ;
 	}
 	printk("GPIO pin irq %d requested ok, smb347_INOK = %s\n", irq_num, gpio_get_value(gpio)? "H":"L");
+
+	disable_irq(irq_num);
+	queue_delayed_work(smb347_wq, &charger->inok_isr_work, 0.5*HZ);
 
 	return 0 ;
 
@@ -684,69 +640,72 @@ static void smb347_otg_status(enum usb_otg_state otg_state, void *data)
 }
 
 /* workqueue function */
-static void stat_isr_work_function(struct work_struct *dat)
+static int cable_type_detect(void)
 {
 	struct i2c_client *client = charger->client;
-	int gpio = TEGRA_GPIO_PU5;
-	int irq = gpio_to_irq(gpio);
-	u8 val, buf[11];
-	int i;
+	u8 retval;
+	int  success = 0;
+	int gpio = TEGRA_GPIO_PV1;
+
+	mutex_lock(&charger->cable_lock);
 
 	if (gpio_get_value(gpio)) {
+			printk("INOK=H\n");
+			success = battery_callback(non_cable);
+	} else {
+			printk("INOK=L\n");
 
-	}else {
-
+			/* cable type dection */
+			retval = smb347_read(client, smb347_STS_REG_E);
+			SMB_NOTICE("Reg3F : 0x%02x\n", retval);
+			if(retval & USBIN) {	//USBIN
+					retval = smb347_read(client, smb347_STS_REG_D);
+					SMB_NOTICE("Reg3E : 0x%02x\n", retval);
+				if(retval & APSD_OK) {	//APSD completed
+						retval &= APSD_RESULT;
+					if(retval == APSD_CDP) {	//APSD resulted
+							printk("Cable: CDP\n");
+							success = battery_callback(ac_cable);
+					} else if(retval == APSD_DCP) {
+							printk("Cable: DCP\n");
+							success = battery_callback(ac_cable);
+					} else if(retval == APSD_OTHER) {
+							printk("Cable: OTHER\n");
+					} else if(retval == APSD_SDP) {
+							printk("Cable: SDP\n");
+							success = battery_callback(usb_cable);
+					} else
+							printk("Unkown Plug In Cable type !\n");
+				}else
+					printk("APSD not completed\n");
+			}
+			else
+			{
+					printk("USBIN=0\n");
+			}
 	}
 
-	smb347_clear_interrupts(client);
-	enable_irq(irq);
+	mutex_unlock(&charger->cable_lock);
+
+	return success;
 }
 
 static void inok_isr_work_function(struct work_struct *dat)
 {
 	struct i2c_client *client = charger->client;
-	u8 retval, val, buf[11];
-	int i;
+
 	int gpio = TEGRA_GPIO_PV1;
 	int irq = gpio_to_irq(gpio);
 
-	if (gpio_get_value(gpio)) {
-		printk("INOK=H\n");
-
-	} else {
-		printk("INOK=L\n");
-
-		/* cable type dection */
-		retval = smb347_read(client, smb347_STS_REG_E);
-		SMB_NOTICE("Reg3F : 0x%02x\n", retval);
-		if(retval & USBIN) {	//USBIN
-			retval = smb347_read(client, smb347_STS_REG_D);
-				SMB_NOTICE("Reg3E : 0x%02x\n", retval);
-			if(retval & APSD_OK) {	//APSD completed
-				retval &= APSD_RESULT;
-				if(retval == APSD_CDP) {	//APSD resulted
-					printk("Cable: CDP\n");
-				} else if(retval == APSD_DCP) {
-					printk("Cable: DCP\n");
-				} else if(retval == APSD_OTHER) {
-					printk("Cable: OTHER\n");
-				} else if(retval == APSD_SDP) {
-					printk("Cable: SDP\n");
-				} else
-					printk("Unkown Plug In Cable type !\n");
-			}else
-				printk("APSD not completed\n");
-		} else {
-			printk("USBIN=0\n");
-		}
-	}
+	cancel_delayed_work(&charger->inok_isr_work);
+	cable_type_detect();
 
 	printk("inok_isr_work_function -\n");
 	smb347_clear_interrupts(client);
 	enable_irq(irq);
 }
 
-static void regs_dump_work_func(struct work_struct *dat)
+/*static void regs_dump_work_func(struct work_struct *dat)
 {
 	struct i2c_client *client = charger->client;
 	uint8_t config_reg[2], cmd_reg[2], status_reg[2];
@@ -775,9 +734,9 @@ static void regs_dump_work_func(struct work_struct *dat)
 		status_reg[1],
 		status_reg[2]);
 
-	/* Schedule next polling */
+	// Schedule next polling
 	queue_delayed_work(smb347_wq, &charger->regs_dump_work, REG_POLLING_RATE*HZ);
-}
+}*/
 
 /* Sysfs function */
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -851,9 +810,7 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	charger->dev = &client->dev;
 	i2c_set_clientdata(client, charger);
 
-	/* Restore default setting:
-	Enable APSD & 5/1/HC mode &
-	use default Pin control */
+	/* Restore default setting: APSD Enable & 5/1/HC mode Pin control */
 	smb347_default_setback();
 
 	ret = sysfs_create_group(&client->dev.kobj, &smb347_group);
@@ -861,10 +818,11 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		dev_err(&client->dev, "smb347_probe: unable to create the sysfs\n");
 	}
 
+	mutex_init(&charger->cable_lock);
+
 	smb347_wq = create_singlethread_workqueue("smb347_wq");
 	INIT_DELAYED_WORK_DEFERRABLE(&charger->inok_isr_work, inok_isr_work_function);
-	INIT_DELAYED_WORK_DEFERRABLE(&charger->stat_isr_work, stat_isr_work_function);
-	INIT_DELAYED_WORK(&charger->regs_dump_work, regs_dump_work_func);
+	//INIT_DELAYED_WORK(&charger->regs_dump_work, regs_dump_work_func);
 
 	ret = smb347_inok_irq(charger);
 	if (ret) {
@@ -873,14 +831,9 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		goto error;
 	}
 
-	ret = smb347_stat_irq(charger);
-	if (ret) {
-		dev_err(&client->dev, "%s(): Failed in requesting STAT pin isr\n",
-				__func__);
-		goto error;
-	}
+	//queue_delayed_work(smb347_wq, &charger->regs_dump_work, 30*HZ);
 
-	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 30*HZ);
+	cable_type_detect();
 
 	ret = register_otg_callback(smb347_otg_status, charger);
 	if (ret < 0)
@@ -903,15 +856,20 @@ static int __devexit smb347_remove(struct i2c_client *client)
 static int smb347_suspend(struct i2c_client *client)
 {
 	charger->suspend_ongoing = 1;
-	cancel_delayed_work_sync(&charger->regs_dump_work);
+	//cancel_delayed_work_sync(&charger->regs_dump_work);
+	cancel_delayed_work_sync(&charger->inok_isr_work);
 	return 0;
 }
 
 static int smb347_resume(struct i2c_client *client)
 {
 	charger->suspend_ongoing = 0;
-	cancel_delayed_work(&charger->regs_dump_work);
-	queue_delayed_work(smb347_wq, &charger->regs_dump_work, 15*HZ);
+	//cancel_delayed_work(&charger->regs_dump_work);
+	//queue_delayed_work(smb347_wq, &charger->regs_dump_work, 15*HZ);
+
+	printk("smb347_resume+");
+	cable_type_detect();
+	printk("smb347_resume-");
 	return 0;
 }
 

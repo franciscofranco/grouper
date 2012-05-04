@@ -403,19 +403,21 @@ fail:
 	return ret;
 }
 
-void battery_callback(unsigned usb_cable_state)
+int battery_callback(unsigned usb_cable_state)
 {
-	int old_cable_status = battery_cable_status;
+	int old_cable_status;
+
+	if(!battery_driver_ready) {
+		BAT_NOTICE("battery driver not ready\n");
+		return 0;
+	}
+
+	old_cable_status = battery_cable_status;
 	battery_cable_status = usb_cable_state;
 
        printk("========================================================\n");
 	printk("battery_callback  usb_cable_state = %x\n", usb_cable_state) ;
        printk("========================================================\n");
-
-	if(!battery_driver_ready) {
-		BAT_NOTICE("battery driver not ready\n");
-		return;
-	}
 
 	check_cabe_type();
        wake_lock_timeout(&bq27541_device->cable_event_wake_lock, DELAY_FOR_CORRECT_CHARGER_STATUS*HZ);
@@ -440,7 +442,10 @@ void battery_callback(unsigned usb_cable_state)
 	cancel_delayed_work(&bq27541_device->status_poll_work);
 	queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work,
 		battery_cable_status ? DELAY_FOR_CORRECT_CHARGER_STATUS *HZ : 2*HZ);
+
+	return 1;
 }
+EXPORT_SYMBOL(battery_callback);
 
 static int bq27541_get_health(enum power_supply_property psp,
 	union power_supply_propval *val)
@@ -483,7 +488,7 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 		ret = bq27541_device->bat_status = rt_value;
 		static char *status_text[] = {"Unknown", "Charging", "Discharging", "Not charging", "Full"};
 
-		if (!(ret & BATT_STS_DSG) && (ac_on)) {            /* Charging detected */
+		if (!(ret & BATT_STS_DSG) && (ac_on || usb_on)) {            /* Charging detected */
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			if (bq27541_device->old_capacity == 100)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
