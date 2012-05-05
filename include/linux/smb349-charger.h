@@ -24,6 +24,17 @@
 #define __LINUX_SMB349_CHARGER_H
 
 #include <linux/regulator/machine.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/driver.h>
+
+struct smb349_charger_platform_data {
+	int regulator_id;
+	int max_charge_volt_mV;
+	int max_charge_current_mA;
+	int charging_term_current_mA;
+	int num_consumer_supplies;
+	struct regulator_consumer_supply *consumer_supplies;
+};
 
 enum charging_states {
 	idle,
@@ -47,6 +58,10 @@ struct smb349_charger {
 	enum charging_states state;
 	enum charger_type chrg_type;
 	charging_callback_t	charger_cb;
+
+	struct regulator_dev    *rdev;
+	struct regulator_desc   reg_desc;
+	struct regulator_init_data      reg_init_data;
 };
 
 int smb349_battery_online(void);
