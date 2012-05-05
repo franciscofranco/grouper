@@ -1450,9 +1450,11 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
        sema_init(&pSem, 1);
 	err = elan_ktf3k_ts_setup(client);
 	if (err < 0) {
-		touch_debug(DEBUG_ERROR, "No Elan chip inside\n");
-		err = -ENODEV;
-		goto err_detect_failed;
+		touch_debug(DEBUG_ERROR, "Main code fail\n");
+		ts->status = 0;
+		RECOVERY = 1;
+		err = 0;
+		//goto err_detect_failed;
 	}
 	
 	ts->status = 1; // set I2C status is OK;
