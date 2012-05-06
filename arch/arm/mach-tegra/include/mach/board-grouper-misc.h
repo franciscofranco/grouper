@@ -26,9 +26,9 @@
  *	PCB_ID[5] PCB_ID[4] PCB_ID[3]	revision
  *	0	  0	    0		SR3
  *	0	  0	    1		ER1
- *	0	  1	    0		Reserved
- *	0	  1	    1		Reserved
- *	1	  0	    0		Reserved
+ *	0	  1	    0		ER2
+ *	0	  1	    1		ER3/PR1
+ *	1	  0	    0		PR2
  *	1	  0	    1		Reserved
  *	1	  1	    1		Reserved
  *	========================================
@@ -89,6 +89,10 @@ enum grouper_pcba_revision {
 	GROUPER_PCBA_INVALID = -1,
 	GROUPER_PCBA_SR3 = 0,
 	GROUPER_PCBA_ER1,
+	GROUPER_PCBA_ER2,
+	GROUPER_PCBA_ER3,
+	GROUPER_PCBA_PR1 = GROUPER_PCBA_ER3,
+	GROUPER_PCBA_PR2,
 	GROUPER_PCBA_MAX,
 };
 
