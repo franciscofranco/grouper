@@ -129,8 +129,6 @@ extern void battery_callback(unsigned cable_status);
 extern void touch_callback(unsigned cable_status);
 #endif
 
-void charging_ic_usb51(int value);
-
 static int fsl_charging_mode = 0;
 static int fsl_charging_current = 0;
 static struct delayed_work smb347_hc_mode_work;
@@ -257,12 +255,6 @@ static const u8 fsl_udc_test_packet[53] = {
 	0xfc, 0x7e, 0xbf, 0xdf, 0xef, 0xf7, 0xfb, 0xfd, 0x7e
 };
 
-void charging_ic_usb51(int value)
-{
-	gpio_set_value(TEGRA_GPIO_PS1, value);
-}
-EXPORT_SYMBOL(charging_ic_usb51);
-
 static void fsl_smb347_hc_mode_handler(struct work_struct *w)
 {
 	smb347_hc_mode_callback(fsl_charging_mode, fsl_charging_current);
@@ -292,10 +284,7 @@ static void cable_detection_work_handler(struct work_struct *w)
 
 		s_cable_info.ac_connected = 0;
 
-		if(pcb_id_version > 0x2)
-			charging_ic_usb51(0);
-		else {
-			fsl_smb347_hc_mode_callback_work(0,0); //100 ma
+		if (pcb_id_version <= 0x2) {
 #if BATTERY_CALLBACK_ENABLED
 			battery_callback(s_cable_info.cable_status);
 #endif
@@ -323,12 +312,10 @@ static void cable_detection_work_handler(struct work_struct *w)
 		} else {
 			printk(KERN_INFO "AC adapter connect\n");
 			s_cable_info.cable_status = 0x03; //0011
-
-			if(pcb_id_version <= 0x2)
-				fsl_smb347_hc_mode_callback_work(1,1);
 		}
 
-		if(pcb_id_version <= 0x2) {
+		if (pcb_id_version <= 0x2) {
+			fsl_smb347_hc_mode_callback_work(1,1);
 #if BATTERY_CALLBACK_ENABLED
 			battery_callback(s_cable_info.cable_status);
 #endif
@@ -3309,15 +3296,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	if (!udc_controller->transceiver)
 		fsl_udc_clk_enable();
 
-	if(pcb_id_version > 0x2) {
-		ret = gpio_request(TEGRA_GPIO_PS1, "SMB347_USB51HC");
-		if (ret < 0) {
-			printk(KERN_ERR "SMB347_USB51HC GPIO%d request fault!%d\n",TEGRA_GPIO_PS1, ret);
-			return 0;
-		}
-		gpio_direction_output(TEGRA_GPIO_PS1, 0);
-	}
-	else
+	if (pcb_id_version <= 0x2)
 		INIT_DELAYED_WORK(&smb347_hc_mode_work, fsl_smb347_hc_mode_handler);
 
 	return 0;
@@ -3513,9 +3492,6 @@ module_init(udc_init);
 
 static void __exit udc_exit(void)
 {
-	if(pcb_id_version > 0x2) {
-		gpio_free(TEGRA_GPIO_PS1);
-	}
 	platform_driver_unregister(&udc_driver);
 	printk(KERN_WARNING "%s unregistered\n", driver_desc);
 }
