@@ -581,6 +581,11 @@ static void device_qual(struct usb_composite_dev *cdev)
 }
 
 /*-------------------------------------------------------------------------*/
+void fsl_wake_lock_timeout(void)
+{
+	wake_lock_timeout(&usb_config_wake_lock, 1*HZ);
+}
+EXPORT_SYMBOL(fsl_wake_lock_timeout);
 
 static void reset_config(struct usb_composite_dev *cdev)
 {
@@ -596,7 +601,7 @@ static void reset_config(struct usb_composite_dev *cdev)
 	}
 	cdev->config = NULL;
 
-	wake_unlock(&usb_config_wake_lock);
+	wake_lock_timeout(&usb_config_wake_lock, 1*HZ);
 	printk(KERN_INFO "%s : usb reset config wake unlock --\n", __func__);
 }
 
