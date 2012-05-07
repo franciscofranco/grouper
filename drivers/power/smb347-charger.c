@@ -437,6 +437,8 @@ int smb347_hc_mode_callback(bool enable, int cur)
 	struct i2c_client *client = charger->client;
 	u8 ret = 0;
 
+	printk("smb347_hc_mode_callback+\n");
+
 	if (charger->suspend_ongoing)
 		return 0;
 
@@ -517,15 +519,6 @@ int smb347_hc_mode_callback(bool enable, int cur)
 				"register 0x%02x\n", __func__, smb347_PIN_CTRL);
 			return ret;
 		}
-
-		/* Change back to pin control */
-		//ret = smb347_update_reg(client, smb347_PIN_CTRL,
-		//				PIN_CTRL);
-		//if (ret < 0) {
-		//	dev_err(&client->dev, "%s(): Failed in writing"
-		//		"register 0x%02x\n", __func__, smb347_PIN_CTRL);
-		//	return ret;
-		//}
 	}
 
 	 /* Disable volatile writes to registers */
@@ -536,6 +529,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 		goto error;
 	}
 
+	printk("smb347_hc_mode_callback-\n");
 	return ret;
 
 error:
@@ -665,6 +659,9 @@ static int cable_type_detect(void)
 	u8 retval;
 	int  success = 0;
 	int gpio = TEGRA_GPIO_PV1;
+
+	if(grouper_query_pcba_revision() <= 0x02)
+		return 0;
 
 	mutex_lock(&charger->cable_lock);
 
@@ -886,9 +883,9 @@ static int smb347_resume(struct i2c_client *client)
 	//cancel_delayed_work(&charger->regs_dump_work);
 	//queue_delayed_work(smb347_wq, &charger->regs_dump_work, 15*HZ);
 
-	printk("smb347_resume+");
+	printk("smb347_resume+\n");
 	cable_type_detect();
-	printk("smb347_resume-");
+	printk("smb347_resume-\n");
 	return 0;
 }
 
