@@ -1214,7 +1214,10 @@ static int ektf_proc_write(struct file *file, const char *buffer, unsigned long 
 
 #ifdef FIRMWARE_UPDATE_WITH_HEADER
 #define FIRMWARE_PAGE_SIZE 132
-
+static unsigned char touch_firmware[] = {
+ #include "fw_data.b"
+ }; 
+ 
 static int sendI2CPacket(struct i2c_client *client, const unsigned char *buf, unsigned int length){
      int ret, i, retry_times = 3;
      for(i = 0; i < retry_times; i++){
@@ -1308,9 +1311,9 @@ page_write_retry:
 	
     elan_ktf3k_ts_hw_reset(client);
     if(boot_code)
-        mdelay(2000);
+        msleep(2000);
     else		
-        mdelay(300);
+        msleep(300);
     if(recvI2CPacket(client, packet_data, 4) < 0) 
 	      goto fw_update_failed;	
     __fw_packet_handler(ts->client, 1);
@@ -1501,6 +1504,11 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
 		touch_debug(DEBUG_INFO, "[elan]%s: handle missed interrupt\n", __func__);
 		elan_ktf3k_ts_irq_handler(client->irq, ts);
 	}
+	
+#ifdef FIRMWARE_UPDATE_WITH_HEADER	
+      if(RECOVERY || check_fw_version(touch_firmware, sizeof(touch_firmware), ts->fw_ver) > 0)
+          firmware_update_header(client, touch_firmware, sizeof(touch_firmware)/FIRMWARE_PAGE_SIZE);
+#endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 21;
