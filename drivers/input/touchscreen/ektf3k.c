@@ -172,6 +172,7 @@ static int mTouchStatus[FINGER_NUM] = {0};
 
 #define FIRMWARE_PAGE_SIZE 132
 #define MAX_FIRMWARE_SIZE 32868
+#define FIRMWARE_ACK_SIZE 2
 
 /* Debug levels */
 #define NO_DEBUG       0
@@ -275,22 +276,22 @@ static long elan_iap_ioctl(/*struct inode *inode,*/ struct file *filp,    unsign
 			break;
 		case IOCTL_FW_VER:
 			__fw_packet_handler(private_ts->client, work_lock);
-			mdelay(100);
+			msleep(100);
 			return FW_VERSION;
 			break;
 		case IOCTL_X_RESOLUTION:
 			__fw_packet_handler(private_ts->client, work_lock);
-			mdelay(100);
+			msleep(100);
 			return X_RESOLUTION;
 			break;
 		case IOCTL_Y_RESOLUTION:
 			__fw_packet_handler(private_ts->client, work_lock);
-			mdelay(100);
+			msleep(100);
 			return Y_RESOLUTION;
 			break;
 		case IOCTL_FW_ID:
 			__fw_packet_handler(private_ts->client, work_lock);
-			mdelay(100);
+			msleep(100);
 			return FW_ID;
 			break;
 		case IOCTL_ROUGH_CALIBRATE:
@@ -488,7 +489,7 @@ static int __elan_ktf3k_ts_poll(struct i2c_client *client)
 		status = gpio_get_value(ts->intr_gpio);
 		dev_dbg(&client->dev, "%s: status = %d\n", __func__, status);
 		retry--;
-		mdelay(20);
+		msleep(20);
 	} while (status == 1 && retry > 0);
 
 	dev_dbg(&client->dev, "[elan]%s: poll interrupt status %s\n",
@@ -710,7 +711,7 @@ retry:
 	}
 
 	dev_dbg(&client->dev, "[elan] %s: hello packet got.\n", __func__);
-	mdelay(200);
+        msleep(200);
 	rc = __fw_packet_handler(client, 1);
 	if (rc < 0)
 		goto hand_shake_failed;
@@ -790,9 +791,9 @@ static int elan_ktf3k_ts_hw_reset(struct i2c_client *client)
       struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
       touch_debug(DEBUG_INFO, "[ELAN] Start HW reset!\n");
       gpio_direction_output(ts->rst_gpio, 0);
-	mdelay(1);
+	usleep_range(1000,1500);
 	gpio_direction_output(ts->rst_gpio, 1);
-	mdelay(250);
+	msleep(250);
 	return 0;
 }
 
@@ -1223,7 +1224,7 @@ static unsigned char touch_firmware[] = {
 static int sendI2CPacket(struct i2c_client *client, const unsigned char *buf, unsigned int length){
      int ret, i, retry_times = 10;
      for(i = 0; i < length; i += ret){
-            ret  = i2c_master_send(client, buf + i,  length < SIZE_PER_PACKET ? length : SIZE_PER_PACKET); // read the Hello packet
+            ret  = i2c_master_send(client, buf + i,  length < SIZE_PER_PACKET ? length : SIZE_PER_PACKET);
             if(ret <= 0){
 	          retry_times--;
 		    ret = 0;
@@ -1238,13 +1239,13 @@ static int sendI2CPacket(struct i2c_client *client, const unsigned char *buf, un
 	     }
      }
 
-     return i != length ? -1 : 0;
+     return i;
 }
 
 static int recvI2CPacket(struct i2c_client *client, unsigned char *buf, unsigned int length){
      int ret, i, retry_times = 10;
      for(i = 0; i < length; i += ret){
-            ret  = i2c_master_recv(client, buf + i,  length - i); // read the Hello packet
+            ret  = i2c_master_recv(client, buf + i,  length - i);
             if(ret <= 0){
 	          retry_times--;
 		    ret = 0;
@@ -1256,7 +1257,7 @@ static int recvI2CPacket(struct i2c_client *client, unsigned char *buf, unsigned
 	     }
      }
 
-     return i != length ? -1 : 0;
+     return i;
 }
 
 
@@ -1274,8 +1275,7 @@ static int firmware_update_header(struct i2c_client *client, const unsigned char
         return -1;
 
     touch_debug(DEBUG_INFO, "Start firmware update!\n");
-    disable_irq(client->irq);
-    msleep(50); // wait for IRQ handler finish;
+    disable_irq(client->irq);  // Blocking call no need to do extra wait
     wake_lock(&ts->wakelock);
     work_lock = 1;
     elan_ktf3k_ts_hw_reset(client);
@@ -1299,7 +1299,7 @@ static int firmware_update_header(struct i2c_client *client, const unsigned char
 	      goto fw_update_failed;
     }
 	
-    mdelay(100);
+    msleep(100);
     packet_data[0] = 0x10; 
     if(sendI2CPacket(client, packet_data, 1) < 0) // send dummy byte
 	      goto fw_update_failed;
@@ -1310,14 +1310,21 @@ static int firmware_update_header(struct i2c_client *client, const unsigned char
         write_times = 0; 
 page_write_retry:
 	  touch_debug(DEBUG_MESSAGES, "Update page number %d\n", i);
-	  if(sendI2CPacket(client, cursor, FIRMWARE_PAGE_SIZE) < 0){
+
+          int sendCount;
+          if((sendCount = sendI2CPacket(client, cursor, FIRMWARE_PAGE_SIZE)) != FIRMWARE_PAGE_SIZE){
 	      dev_err(&client->dev, "Fail to Update page number %d\n", i);
 		goto fw_update_failed;
 	  }
-	  if(recvI2CPacket(client, packet_data, 2) < 0){
+          touch_debug(DEBUG_INFO, "sendI2CPacket send %d bytes\n", sendCount);
+
+          int recvCount;
+          if((recvCount = recvI2CPacket(client, packet_data, FIRMWARE_ACK_SIZE)) != FIRMWARE_ACK_SIZE){
 	      dev_err(&client->dev, "Fail to Update page number %d\n", i);
 	      goto fw_update_failed;
 	  }
+
+          touch_debug(DEBUG_INFO, "recvI2CPacket recv %d bytes: %x %x\n", recvCount, packet_data[0], packet_data[1]);
 
 	  if(packet_data[0] != 0xaa || packet_data[1] != 0xaa){
 	      touch_debug(DEBUG_INFO, "message received: %02X %02X Page %d rewrite\n", packet_data[0], packet_data[1], i);
