@@ -48,14 +48,14 @@
 #define smb347_STAT_TIME_CTRL	0x05
 #define smb347_PIN_CTRL		0x06
 #define smb347_THERM_CTRL	0x07
-#define smb347_SYSOK_USB_CTRL		0x08
+#define smb347_SYSOK_USB3	0x08
 #define smb347_CTRL_REG		0x09
 
 #define smb347_OTG_TLIM_REG	0x0A
 #define smb347_HRD_SFT_TEMP	0x0B
 #define smb347_FAULT_INTR	0x0C
 #define smb347_STS_INTR_1	0x0D
-#define smb347_SYSOK_USB3	0x0E
+#define smb347_I2C_ADDR	0x0E
 #define smb347_IN_CLTG_DET	0x10
 #define smb347_STS_INTR_2	0x11
 
@@ -241,17 +241,25 @@ static int smb347_configure_otg(struct i2c_client *client, int enable)
 	}
 
 	if (enable) {
-		/* Disable Charger Pin Control */
-		/*ret = smb347_read(client, smb347_PIN_CTRL);
+
+		/* Configure INOK to be active high */
+		ret = smb347_update_reg(client, smb347_SYSOK_USB3, 0x01);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
 		}
-		ret = smb347_write(client, smb347_PIN_CTRL, (ret & (~(1<<5))));
-		if (ret < 0) {
+
+		/* Change "OTG output current limit" to 250mA */
+		ret = smb347_read(client, smb347_OTG_TLIM_REG);
+	       if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
-		}*/
+	       }
+	       ret = smb347_write(client, smb347_OTG_TLIM_REG, (ret & (~(1<<3))));
+	       if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+	       }
 
 		/* Enable OTG */
 	       ret = smb347_update_reg(client, smb347_CMD_REG, 0x10);
@@ -261,13 +269,14 @@ static int smb347_configure_otg(struct i2c_client *client, int enable)
 			goto error;
 	       }
 
-		/* Enable Charger Pin Control */
-		/*ret = smb347_update_reg(client, smb347_PIN_CTRL, 0x20);
+		/* Change "OTG output current limit" from 250mA to 750mA */
+		ret = smb347_update_reg(client, smb347_OTG_TLIM_REG, 0x08);
 	       if (ret < 0) {
 		       dev_err(&client->dev, "%s: Failed in writing register"
-				"0x%02x\n", __func__, smb347_CMD_REG);
+				"0x%02x\n", __func__, smb347_OTG_TLIM_REG);
 			goto error;
-	       }*/
+	       }
+
 	} else {
 	       /* Disable OTG */
 	       ret = smb347_read(client, smb347_CMD_REG);
@@ -281,6 +290,19 @@ static int smb347_configure_otg(struct i2c_client *client, int enable)
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
 	       }
+
+		/* Configure INOK to be active low */
+		ret = smb347_read(client, smb347_SYSOK_USB3);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
+
+		ret = smb347_write(client, smb347_SYSOK_USB3, (ret & (~(1))));
+		if (ret < 0) {
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+			goto error;
+		}
 	}
 
 	/* Disable volatile writes to registers */
@@ -447,10 +469,10 @@ int smb347_hc_mode_callback(bool enable, int cur)
 	else
 	{
 		/* USB 2.0 input current limit (ICL) */
-		ret = smb347_clear_reg(client, smb347_SYSOK_USB_CTRL, USB_30);
+		ret = smb347_clear_reg(client, smb347_SYSOK_USB3, USB_30);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
-				"register 0x%02x\n", __func__, smb347_SYSOK_USB_CTRL);
+				"register 0x%02x\n", __func__, smb347_SYSOK_USB3);
 			return ret;
 		}
 
@@ -594,20 +616,18 @@ error:
 	return ret;
 }
 
-static void smb347_otg_status(enum usb_otg_state otg_state, void *data)
+static void smb347_otg_status(enum usb_otg_state to, enum usb_otg_state from, void *data)
 {
 	struct i2c_client *client = charger->client;
 	int ret;
 
-	if (otg_state == OTG_STATE_A_HOST) {
+	if ((from == OTG_STATE_A_SUSPEND) && (to == OTG_STATE_A_HOST)) {
 
-		/*
-		// configure charger
+		/* configure charger */
 		ret = smb347_configure_charger(client, 0);
 		if (ret < 0)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
-		*/
 
 		/* ENABLE OTG */
 		ret = smb347_configure_otg(client, 1);
@@ -615,7 +635,7 @@ static void smb347_otg_status(enum usb_otg_state otg_state, void *data)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
 
-	} else if (otg_state == OTG_STATE_A_SUSPEND) {
+	} else if ((from == OTG_STATE_A_HOST) && (to == OTG_STATE_A_SUSPEND)) {
 
 		/* Disable OTG */
 		ret = smb347_configure_otg(client, 0);
@@ -623,13 +643,12 @@ static void smb347_otg_status(enum usb_otg_state otg_state, void *data)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
 
-		/*
-		// configure charger
+		/* configure charger */
 		ret = smb347_configure_charger(client, 1);
 		if (ret < 0)
 			dev_err(&client->dev, "%s() error in configuring"
 				"otg..\n", __func__);
-		*/
+
 		/*
 		ret = smb347_configure_interrupts(client);
 		if (ret < 0)
