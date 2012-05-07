@@ -294,7 +294,7 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	/* GPIO */
 	/* POWER RAIL GPIO */
 	DEFAULT_PINMUX(DAP3_FS,         I2S2,            NORMAL,    NORMAL,     OUTPUT),
-	DEFAULT_PINMUX(GMI_AD14,        RSVD1,           PULL_DOWN, NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(GMI_AD14,        RSVD1,           NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(SDMMC3_DAT5,     SDMMC3,          NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(KB_ROW6,         KBC,             NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(KB_ROW7,         KBC,             NORMAL,    NORMAL,     OUTPUT),
