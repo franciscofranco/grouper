@@ -1217,25 +1217,46 @@ static int ektf_proc_write(struct file *file, const char *buffer, unsigned long 
 static unsigned char touch_firmware[] = {
  #include "fw_data.b"
  }; 
- 
+
+#define SIZE_PER_PACKET 4
+
 static int sendI2CPacket(struct i2c_client *client, const unsigned char *buf, unsigned int length){
-     int ret, i, retry_times = 3;
-     for(i = 0; i < retry_times; i++){
-            ret  = i2c_master_send(client, buf,  length); // read the Hello packet
-            if(ret == length) break; 
+     int ret, i, retry_times = 10;
+     for(i = 0; i < length; i += ret){
+            ret  = i2c_master_send(client, buf + i,  length < SIZE_PER_PACKET ? length : SIZE_PER_PACKET); // read the Hello packet
+            if(ret <= 0){
+	          retry_times--;
+		    ret = 0;
+	      }  
+	     if(ret < (length < SIZE_PER_PACKET ? length : SIZE_PER_PACKET)){
+	          touch_debug("Sending packet broken\n");
+	     } 
+		 	
+	     if(retry_times < 0){
+	          touch_debug("Failed sending I2C touch firmware packet.\n");
+	          break;
+	     }
      }
 
-     return ret != length ? -1 : ret;
+     return i != length ? -1 : 0;
 }
 
 static int recvI2CPacket(struct i2c_client *client, unsigned char *buf, unsigned int length){
-     int ret, i, retry_times = 3;
-     for(i = 0; i < retry_times; i++){
-            ret  = i2c_master_recv(client, buf,  length); // read the Hello packet
-            if(ret == length) break; 
+     int ret, i, retry_times = 10;
+     for(i = 0; i < length; i += ret){
+            ret  = i2c_master_recv(client, buf + i,  length - i); // read the Hello packet
+            if(ret <= 0){
+	          retry_times--;
+		    ret = 0;
+	      }  
+				
+	     if(retry_times < 0){
+	          touch_debug("Failed sending I2C touch firmware packet.\n");
+	          break;
+	     }
      }
 
-     return ret != length ? -1 : ret;
+     return i != length ? -1 : 0;
 }
 
 
