@@ -472,8 +472,8 @@ static int __init headset_init(void)
 
 	printk("HEADSET: Headset detection mode\n");
 	btn_config_gpio();/*Config hook detection GPIO*/
-	jack_config_gpio();/*Config jack detection GPIO*/
 	switch_config_gpio(); /*Config uart and headphone switch*/
+	jack_config_gpio();/*Config jack detection GPIO*/
 	INIT_WORK(&lineout_work, lineout_work_queue);
 	lineout_config_gpio();
 
