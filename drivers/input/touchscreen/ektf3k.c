@@ -606,6 +606,19 @@ static int __hello_packet_handler(struct i2c_client *client)
 	return 0;
 }
 
+static int wait_for_IRQ_Low(struct i2c_client *client, int utime){
+    struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
+    int retry_times = 10;
+    do{
+        usleep_range(utime,utime + 500);
+	  if(gpio_get_value(ts->intr_gpio) == 0)
+	      return 0; 
+    }while(retry_times-- > 0);
+	
+    touch_debug("Wait IRQ time out\n");
+    return -1;
+}
+
 static int __fw_packet_handler(struct i2c_client *client, int immediate)
 {
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
@@ -622,6 +635,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 		return rc;
 	
 	if(immediate){
+	    wait_for_IRQ_Low(client, 1000);
 	    elan_ktf3k_i2c_read_packet(client, buf_recv, 4);
 	    major = ((buf_recv[1] & 0x0f) << 4) | ((buf_recv[2] & 0xf0) >> 4);
 	    minor = ((buf_recv[2] & 0x0f) << 4) | ((buf_recv[3] & 0xf0) >> 4);
@@ -635,6 +649,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 		return rc;
 	
 	if(immediate){
+	    wait_for_IRQ_Low(client, 1000);
 	    elan_ktf3k_i2c_read_packet(client, buf_recv, 4);
 	    minor = ((buf_recv[2])) | ((buf_recv[3] & 0xf0) << 4);
 	    ts->x_resolution =minor;
@@ -647,6 +662,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 		return rc;
 	
 	if(immediate){
+	    wait_for_IRQ_Low(client, 1000);
 	    elan_ktf3k_i2c_read_packet(client, buf_recv, 4);
 	    minor = ((buf_recv[2])) | ((buf_recv[3] & 0xf0) << 4);
 	    ts->y_resolution =minor;
@@ -659,6 +675,7 @@ static int __fw_packet_handler(struct i2c_client *client, int immediate)
 		return rc;
 	
 	if(immediate){
+	    wait_for_IRQ_Low(client, 1000);
 	    elan_ktf3k_i2c_read_packet(client, buf_recv, 4);
 	    major = ((buf_recv[1] & 0x0f) << 4) | ((buf_recv[2] & 0xf0) >> 4);
 	    minor = ((buf_recv[2] & 0x0f) << 4) | ((buf_recv[3] & 0xf0) >> 4);
