@@ -32,6 +32,8 @@
 #include <mach/io_dpd.h>
 
 #include "sdhci-pltfm.h"
+#include <../gpio-names.h>
+#include "../debug_mmc.h"
 
 #define SDHCI_VENDOR_CLOCK_CNTRL	0x100
 #define SDHCI_VENDOR_CLOCK_CNTRL_SDMMC_CLK	0x1
@@ -834,6 +836,37 @@ static int tegra_sdhci_suspend(struct sdhci_host *sdhci, pm_message_t state)
 		}
 	}
 
+	if (!strcmp(mmc_hostname(sdhci->mmc), "mmc0")) {
+                MMC_printk("%s: pull up data pin", mmc_hostname(sdhci->mmc));
+
+                tegra_gpio_enable(TEGRA_GPIO_PAA0);
+                tegra_gpio_enable(TEGRA_GPIO_PAA1);
+                tegra_gpio_enable(TEGRA_GPIO_PAA2);
+                tegra_gpio_enable(TEGRA_GPIO_PAA3);
+                tegra_gpio_enable(TEGRA_GPIO_PAA4);
+                tegra_gpio_enable(TEGRA_GPIO_PAA5);
+                tegra_gpio_enable(TEGRA_GPIO_PAA6);
+                tegra_gpio_enable(TEGRA_GPIO_PAA7);
+
+                gpio_request(TEGRA_GPIO_PAA0, "PAA0");
+                gpio_request(TEGRA_GPIO_PAA1, "PAA1");
+                gpio_request(TEGRA_GPIO_PAA2, "PAA2");
+                gpio_request(TEGRA_GPIO_PAA3, "PAA3");
+                gpio_request(TEGRA_GPIO_PAA4, "PAA4");
+                gpio_request(TEGRA_GPIO_PAA5, "PAA5");
+                gpio_request(TEGRA_GPIO_PAA6, "PAA6");
+                gpio_request(TEGRA_GPIO_PAA7, "PAA7");
+
+                gpio_direction_output(TEGRA_GPIO_PAA0, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA1, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA2, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA3, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA4, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA5, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA6, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA7, 1);
+        }
+
 	return 0;
 }
 
@@ -863,6 +896,19 @@ static int tegra_sdhci_resume(struct sdhci_host *sdhci)
 		sdhci_writeb(sdhci, SDHCI_POWER_ON, SDHCI_POWER_CONTROL);
 		sdhci->pwr = 0;
 	}
+
+	if (!strcmp(mmc_hostname(sdhci->mmc), "mmc0")) {
+                MMC_printk("%s: disable data pin", mmc_hostname(sdhci->mmc));
+
+                tegra_gpio_disable(TEGRA_GPIO_PAA0);
+                tegra_gpio_disable(TEGRA_GPIO_PAA1);
+                tegra_gpio_disable(TEGRA_GPIO_PAA2);
+                tegra_gpio_disable(TEGRA_GPIO_PAA3);
+                tegra_gpio_disable(TEGRA_GPIO_PAA4);
+                tegra_gpio_disable(TEGRA_GPIO_PAA5);
+                tegra_gpio_disable(TEGRA_GPIO_PAA6);
+                tegra_gpio_disable(TEGRA_GPIO_PAA7);
+        }
 
 	return 0;
 }
