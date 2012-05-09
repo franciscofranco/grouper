@@ -108,6 +108,7 @@ struct nvavp_info {
 	u8				*pushbuf_data;
 	u32				pushbuf_index;
 	u32				pushbuf_fence;
+	bool				pending;
 
 	struct nv_e276_control		*os_control;
 
@@ -143,26 +144,29 @@ static struct clk *nvavp_clk_get(struct nvavp_info *nvavp, int id)
 	return NULL;
 }
 
-static void nvavp_clk_ctrl(struct nvavp_info *nvavp, u32 clk_en)
+static void nvavp_clks_enable(struct nvavp_info *nvavp)
 {
-	if (clk_en && !nvavp->clk_enabled) {
+	if (nvavp->clk_enabled++ == 0) {
 		nvhost_module_busy(nvhost_get_host(nvavp->nvhost_dev)->dev);
 		clk_enable(nvavp->bsev_clk);
 		clk_enable(nvavp->vde_clk);
 		clk_set_rate(nvavp->emc_clk, nvavp->emc_clk_rate);
 		clk_set_rate(nvavp->sclk, nvavp->sclk_rate);
-		nvavp->clk_enabled = 1;
 		dev_dbg(&nvavp->nvhost_dev->dev, "%s: setting sclk to %lu\n",
 				__func__, nvavp->sclk_rate);
 		dev_dbg(&nvavp->nvhost_dev->dev, "%s: setting emc_clk to %lu\n",
 				__func__, nvavp->emc_clk_rate);
-	} else if (!clk_en && nvavp->clk_enabled) {
+	}
+}
+
+static void nvavp_clks_disable(struct nvavp_info *nvavp)
+{
+	if (--nvavp->clk_enabled == 0) {
 		clk_disable(nvavp->bsev_clk);
 		clk_disable(nvavp->vde_clk);
 		clk_set_rate(nvavp->emc_clk, 0);
 		clk_set_rate(nvavp->sclk, 0);
 		nvhost_module_idle(nvhost_get_host(nvavp->nvhost_dev)->dev);
-		nvavp->clk_enabled = 0;
 		dev_dbg(&nvavp->nvhost_dev->dev, "%s: resetting emc_clk "
 				"and sclk\n", __func__);
 	}
@@ -182,7 +186,12 @@ static void clock_disable_handler(struct work_struct *work)
 			    clock_disable_work);
 
 	mutex_lock(&nvavp->pushbuffer_lock);
-	nvavp_clk_ctrl(nvavp, !nvavp_check_idle(nvavp));
+	mutex_lock(&nvavp->open_lock);
+	if (nvavp_check_idle(nvavp) && nvavp->pending) {
+		nvavp->pending = false;
+		nvavp_clks_disable(nvavp);
+	}
+	mutex_unlock(&nvavp->open_lock);
 	mutex_unlock(&nvavp->pushbuffer_lock);
 }
 
@@ -287,27 +296,29 @@ static int nvavp_reset_avp(struct nvavp_info *nvavp, unsigned long reset_addr)
 
 static void nvavp_halt_vde(struct nvavp_info *nvavp)
 {
-	if (nvavp->clk_enabled) {
-		tegra_periph_reset_assert(nvavp->bsev_clk);
-		clk_disable(nvavp->bsev_clk);
-		tegra_periph_reset_assert(nvavp->vde_clk);
-		clk_disable(nvavp->vde_clk);
-		nvhost_module_idle(nvhost_get_host(nvavp->nvhost_dev)->dev);
-		nvavp->clk_enabled = 0;
+	if (nvavp->clk_enabled && !nvavp->pending)
+		BUG();
+
+	if (nvavp->pending) {
+		nvavp_clks_disable(nvavp);
+		nvavp->pending = false;
 	}
+
+	tegra_periph_reset_assert(nvavp->bsev_clk);
+	tegra_periph_reset_assert(nvavp->vde_clk);
 }
 
 static int nvavp_reset_vde(struct nvavp_info *nvavp)
 {
-	if (!nvavp->clk_enabled)
-		nvhost_module_busy(nvhost_get_host(nvavp->nvhost_dev)->dev);
+	if (nvavp->clk_enabled)
+		BUG();
 
-	clk_enable(nvavp->bsev_clk);
+	nvavp_clks_enable(nvavp);
+
 	tegra_periph_reset_assert(nvavp->bsev_clk);
 	udelay(2);
 	tegra_periph_reset_deassert(nvavp->bsev_clk);
 
-	clk_enable(nvavp->vde_clk);
 	tegra_periph_reset_assert(nvavp->vde_clk);
 	udelay(2);
 	tegra_periph_reset_deassert(nvavp->vde_clk);
@@ -319,7 +330,8 @@ static int nvavp_reset_vde(struct nvavp_info *nvavp)
 	 */
 	clk_set_rate(nvavp->vde_clk, ULONG_MAX);
 
-	nvavp->clk_enabled = 1;
+	nvavp_clks_disable(nvavp);
+
 	return 0;
 }
 
@@ -486,7 +498,12 @@ static int nvavp_pushbuffer_update(struct nvavp_info *nvavp, u32 phys_addr,
 	}
 
 	/* enable clocks to VDE/BSEV */
-	nvavp_clk_ctrl(nvavp, 1);
+	mutex_lock(&nvavp->open_lock);
+	if (!nvavp->pending) {
+		nvavp_clks_enable(nvavp);
+		nvavp->pending = true;
+	}
+	mutex_unlock(&nvavp->open_lock);
 
 	/* update put pointer */
 	nvavp->pushbuf_index = (nvavp->pushbuf_index + wordcount) &
@@ -1396,7 +1413,7 @@ static int tegra_nvavp_suspend(struct nvhost_device *ndev, pm_message_t state)
 	mutex_lock(&nvavp->open_lock);
 
 	if (nvavp->refcount) {
-		if (nvavp_check_idle(nvavp))
+		if (!nvavp->clk_enabled)
 			nvavp_uninit(nvavp);
 		else
 			ret = -EBUSY;
