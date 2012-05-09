@@ -2490,6 +2490,12 @@ static irqreturn_t usb_phy_vbus_irq_thr(int irq, void *pdata)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t usb_cable_remove_irq_thr(int irq, void *pdate)
+{
+	// Do nothing
+	return IRQ_HANDLED;
+}
+
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 			void *config, enum tegra_usb_phy_mode phy_mode,
 			enum tegra_usb_phy_type usb_phy_type)
@@ -2641,6 +2647,19 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 			"usb_phy_vbus", phy);
 		if (err) {
 			pr_err("Failed to register IRQ\n");
+			goto err1;
+		}
+
+		if (g_cid4 == 0x23) {
+			err = request_threaded_irq(MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_FALLING , NULL,
+				usb_cable_remove_irq_thr, IRQF_SHARED, "usb_cable_remove", phy);
+		} else if (g_cid4 == 0x20) {
+			err = request_threaded_irq(MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_RISING , NULL,
+				usb_cable_remove_irq_thr, IRQF_SHARED, "usb_cable_remove", phy);
+		}
+
+		if (err) {
+			pr_err("Failed to register IRQ for removing the USB cable.\n");
 			goto err1;
 		}
 	}
