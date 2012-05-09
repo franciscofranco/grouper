@@ -377,18 +377,18 @@ static struct resource grouper_disp2_resources[] = {
 
 static struct tegra_dc_mode grouper_panel_modes[] = {
 	{
-		/* 1024x600@60Hz */
+		/* 1280x800@60Hz */
 		.pclk = 68000000,
-		.h_ref_to_sync = 4,
-		.v_ref_to_sync = 2,
-		.h_sync_width = 30,
-		.v_sync_width = 5,
-		.h_back_porch = 18,
-		.v_back_porch = 12,
+		.h_ref_to_sync = 1,
+		.v_ref_to_sync = 1,
+		.h_sync_width = 24,
+		.v_sync_width = 1,
+		.h_back_porch = 32,
+		.v_back_porch = 2,
 		.h_active = 800,
 		.v_active = 1280,
-		.h_front_porch = 48,
-		.v_front_porch = 3,
+		.h_front_porch = 24,
+		.v_front_porch = 5,
 	},
 };
 
