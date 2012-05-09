@@ -127,6 +127,7 @@ struct nvavp_clientctx {
 	struct nvmap_handle_ref *gather_mem;
 	int num_relocs;
 	struct nvavp_info *nvavp;
+	u32 clk_reqs;
 };
 
 static struct clk *nvavp_clk_get(struct nvavp_info *nvavp, int id)
@@ -1039,6 +1040,38 @@ static int nvavp_wake_avp_ioctl(struct file *filp, unsigned int cmd,
 	return 0;
 }
 
+static int nvavp_force_clock_stay_on_ioctl(struct file *filp, unsigned int cmd,
+							unsigned long arg)
+{
+	struct nvavp_clientctx *clientctx = filp->private_data;
+	struct nvavp_info *nvavp = clientctx->nvavp;
+	struct nvavp_clock_stay_on_state_args clock;
+
+	if (copy_from_user(&clock, (void __user *)arg,
+			   sizeof(struct nvavp_clock_stay_on_state_args)))
+		return -EFAULT;
+
+	dev_dbg(&nvavp->nvhost_dev->dev, "%s: state=%d\n",
+		__func__, clock.state);
+
+	if (clock.state != NVAVP_CLOCK_STAY_ON_DISABLED &&
+	    clock.state !=  NVAVP_CLOCK_STAY_ON_ENABLED) {
+		dev_err(&nvavp->nvhost_dev->dev, "%s: invalid argument=%d\n",
+			__func__, clock.state);
+		return -EINVAL;
+	}
+
+	mutex_lock(&nvavp->open_lock);
+	if (clock.state) {
+		if (clientctx->clk_reqs++ == 0)
+			nvavp_clks_enable(nvavp);
+	} else {
+		if (--clientctx->clk_reqs == 0)
+			nvavp_clks_disable(nvavp);
+	}
+	mutex_unlock(&nvavp->open_lock);
+	return 0;
+}
 
 static int tegra_nvavp_open(struct inode *inode, struct file *filp)
 {
@@ -1092,6 +1125,10 @@ static int tegra_nvavp_release(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
+	/* if this client had any requests, drop our clk ref */
+	if (clientctx->clk_reqs)
+		nvavp_clks_disable(nvavp);
+
 	if (nvavp->refcount > 0)
 		nvavp->refcount--;
 	if (!nvavp->refcount)
@@ -1132,6 +1169,9 @@ static long tegra_nvavp_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case NVAVP_IOCTL_WAKE_AVP:
 		ret = nvavp_wake_avp_ioctl(filp, cmd, arg);
+		break;
+	case NVAVP_IOCTL_FORCE_CLOCK_STAY_ON:
+		ret = nvavp_force_clock_stay_on_ioctl(filp, cmd, arg);
 		break;
 	default:
 		ret = -EINVAL;
