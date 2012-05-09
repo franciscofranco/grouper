@@ -58,6 +58,8 @@
 #define INPUT_SOURCE_NO_AGC 300
 #define INPUT_SOURCE_AGC 301
 #define END_RECORDING 400
+#define STOP_COMMUNICATION 401
+#define START_COMMUNICATION 402
 
 #define DEPOP_DELAY (1)
 
@@ -136,6 +138,7 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_STO_DAC_MIXER	, 0x0404},
 	{RT5640_LOUT_MIXER	, 0x3000},
 	{RT5640_I2S1_SDP	, 0xe000},
+	{RT5640_DSP_PATH2	, 0x0000},
 };
 #define RT5640_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -3131,6 +3134,16 @@ static int rt56xx_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigned 
 				}
 				break;
 			case END_RECORDING:
+				do_rt5640_dsp_set_mode(rt5640_audio_codec,RT5640_DSP_DIS);
+				break;
+			case START_COMMUNICATION:
+                            printk("AUDIO_CODEC: Capture mode [%s]\n",
+				arg == START_COMMUNICATION ? "COMMUNICATION" : "NORMAL");
+				if(arg == START_COMMUNICATION){
+					do_rt5640_dsp_set_mode(rt5640_audio_codec,RT5640_DSP_AEC_NS_FENS);
+				}
+				break;
+			case STOP_COMMUNICATION:
 				do_rt5640_dsp_set_mode(rt5640_audio_codec,RT5640_DSP_DIS);
 				break;
 			default:
