@@ -67,7 +67,7 @@ static int get_output_edid(struct tegra_dc_ext_control_output_edid *edid)
 	struct tegra_dc *dc;
 	size_t user_size = edid->size;
 	struct tegra_dc_edid *dc_edid = NULL;
-	int ret;
+	int ret = 0;
 
 	/* TODO: this should be more dynamic */
 	if (edid->handle > 2)
