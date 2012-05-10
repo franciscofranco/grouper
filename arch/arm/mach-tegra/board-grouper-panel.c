@@ -103,7 +103,7 @@ static p_tegra_dc_bl_output bl_output;
 
 static int grouper_backlight_init(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
 	bl_output = grouper_bl_output_measured;
 
