@@ -873,7 +873,9 @@ static int smb347_suspend(struct i2c_client *client)
 {
 	charger->suspend_ongoing = 1;
 	//cancel_delayed_work_sync(&charger->regs_dump_work);
-	cancel_delayed_work_sync(&charger->inok_isr_work);
+	printk("smb347_suspend+\n");
+	flush_workqueue(smb347_wq);
+	printk("smb347_suspend-\n");
 	return 0;
 }
 
