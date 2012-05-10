@@ -698,7 +698,6 @@ static void __iomem *watchdog_source = IO_ADDRESS(TEGRA_WDT0_BASE);
 #define WDT_UNLOCK			(0xC)
 #define WDT_UNLOCK_PATTERN		(0xC45A << 0)
 
-#define ENABLE_HW_WATCHDOG
 void tegra_watchdog_enable(unsigned int timeout)
 {
 #ifdef ENABLE_HW_WATCHDOG//#ifndef CONFIG_DEBUG_SLAB
