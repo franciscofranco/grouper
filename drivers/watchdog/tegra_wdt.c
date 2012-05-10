@@ -42,7 +42,7 @@
 enum tegra_wdt_status {
 	WDT_DISABLED = 1 << 0,
 	WDT_ENABLED = 1 << 1,
-	WDT_IOCTL_ENABBLED_AT_PROBE = 1 << 2,
+	WDT_ENABLED_AT_PROBE = 1 << 2,
 };
 
 struct tegra_wdt {
@@ -161,6 +161,8 @@ static void tegra_wdt_enable(struct tegra_wdt *wdt)
 
 	val = WDT_CFG_TMR_SRC | WDT_CFG_PERIOD | /*WDT_CFG_INT_EN |*/
 		/*WDT_CFG_SYS_RST_EN |*/ WDT_CFG_PMC2CAR_RST_EN;
+	if (wdt->status & WDT_ENABLED_AT_PROBE)
+		val |= WDT_CFG_INT_EN;
 	writel(val, wdt->wdt_source + WDT_CFG);
 	writel(WDT_CMD_START_COUNTER, wdt->wdt_source + WDT_CMD);
 }
