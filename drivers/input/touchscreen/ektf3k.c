@@ -1184,7 +1184,7 @@ static int ektf_proc_read(char *buffer, char **buffer_location, off_t offset, in
 static int ektf_proc_write(struct file *file, const char *buffer, unsigned long count, void *data)
 {
 	char procfs_buffer_size = 0; 
-	int i, ret;
+	int i, ret = 0;
 	unsigned char procfs_buf[PROC_FS_MAX_LEN+1] = {0};
 	unsigned int command;
 
