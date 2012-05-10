@@ -497,6 +497,8 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	const u32 status_err = I2C_INT_NO_ACK | I2C_INT_ARBITRATION_LOST | I2C_INT_TX_FIFO_OVERFLOW;
 	struct tegra_i2c_dev *i2c_dev = dev_id;
 
+	tegra_i2c_clock_enable(i2c_dev);
+
 	status = i2c_readl(i2c_dev, I2C_INT_STATUS);
 
 	if (status == 0) {
@@ -579,6 +581,7 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 		complete(&i2c_dev->msg_complete);
 	}
 
+	tegra_i2c_clock_disable(i2c_dev);
 	return IRQ_HANDLED;
 
 err:
@@ -616,6 +619,7 @@ err:
 	if (i2c_dev->is_dvc)
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
 
+	tegra_i2c_clock_disable(i2c_dev);
 	complete(&i2c_dev->msg_complete);
 	return IRQ_HANDLED;
 }
