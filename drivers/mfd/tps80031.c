@@ -575,7 +575,7 @@ static void tps80031_init_ext_control(struct tps80031 *tps80031,
 
 	/* Clear all external control for this rail */
 	for (i = 0; i < 9; ++i) {
-		tps80031_write(tps80031->dev, SLAVE_ID1,
+		ret = tps80031_write(tps80031->dev, SLAVE_ID1,
 				TPS80031_PREQ1_RES_ASS_A + i, 0);
 		if (ret < 0)
 			dev_err(tps80031->dev, "%s() Error in clearing "
