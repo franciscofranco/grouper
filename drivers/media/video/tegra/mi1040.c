@@ -1480,19 +1480,18 @@ static long sensor_ioctl(struct file *file,
 
 static int sensor_open(struct inode *inode, struct file *file)
 {
-	int ret;
+	int ret = -EIO;
 
 	pr_info("yuv %s\n",__func__);
+
 	file->private_data = info;
+
 	if (info->pdata && info->pdata->power_on)
 		ret = info->pdata->power_on();
-	if (ret == 0)
-		sensor_opened = true;
-	else{
-		sensor_opened = false;
-		return -EBUSY;
-	}
-	return 0;
+
+	sensor_opened = !ret;
+
+	return ret;
 }
 
 int mi1040_sensor_release(struct inode *inode, struct file *file)
