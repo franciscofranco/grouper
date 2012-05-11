@@ -940,7 +940,7 @@ static u32 tegra_dsi_sol_delay_burst(struct tegra_dc *dc,
 	u32 dsi_to_pixel_clk_ratio;
 	u32 temp;
 	u32 temp1;
-	u32 mipi_clk_adj_kHz;
+	u32 mipi_clk_adj_kHz = 0;
 	u32 sol_delay;
 	struct tegra_dc_mode *dc_modes = &dc->mode;
 
@@ -2619,8 +2619,8 @@ static int tegra_dc_dsi_cp_info(struct tegra_dc_dsi_data *dsi,
 					struct tegra_dsi_out *p_dsi)
 {
 	struct tegra_dsi_cmd *p_init_cmd;
-	struct tegra_dsi_cmd *p_early_suspend_cmd;
-	struct tegra_dsi_cmd *p_late_resume_cmd;
+	struct tegra_dsi_cmd *p_early_suspend_cmd = NULL;
+	struct tegra_dsi_cmd *p_late_resume_cmd = NULL;
 	struct tegra_dsi_cmd *p_suspend_cmd;
 	int err;
 
