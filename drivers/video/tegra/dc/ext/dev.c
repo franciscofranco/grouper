@@ -408,7 +408,7 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 {
 	struct tegra_dc_ext *ext = user->ext;
 	struct tegra_dc_ext_flip_data *data;
-	int work_index;
+	int work_index = -1;
 	int i, ret = 0;
 
 #ifdef CONFIG_ANDROID
@@ -520,7 +520,13 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 
 		atomic_inc(&ext->win[work_index].nr_pending_flips);
 	}
-	queue_work(ext->win[work_index].flip_wq, &data->work);
+
+	if (work_index >= 0)
+		queue_work(ext->win[work_index].flip_wq, &data->work);
+	else {
+		pr_err("%s: work_index was not calculated\n", __func__);
+		goto fail_pin;
+	}
 
 	unlock_windows_for_flip(user, args);
 
