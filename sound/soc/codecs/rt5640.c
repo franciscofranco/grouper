@@ -483,7 +483,6 @@ static void rt5640_update_eqmode(struct snd_soc_codec *codec, int mode)
 			rt5640_index_write(codec, HwEqIndex+0xA0,HwEq_Preset[mode].EqValue[HwEqIndex]);
 		}
 		//update EQ parameter
-		printk("\n\n************call snd_soc_update_bits(codec, 0xb0,0x6000,0x6000);****************\n\n");
 		//snd_soc_update_bits(codec, 0xb0,0xE000,0xE000);
 		//snd_soc_update_bits(codec, 0xb0,0x6000,0x0000); //clean the bits
 		snd_soc_write(codec, 0xb0,0xE000);
