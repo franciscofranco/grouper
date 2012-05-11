@@ -576,6 +576,13 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	if (i2c_dev->is_dvc)
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
 
+	/*
+	 * ensure that the writes above post prior to leaving the interrupt
+	 * handler. Otherwise, the interrupt can still be pending in the gic
+	 * when the gic unmasks the irq
+	 */
+	i2c_readl(i2c_dev, I2C_INT_STATUS);
+
 	if (status & I2C_INT_PACKET_XFER_COMPLETE) {
 		BUG_ON(i2c_dev->msg_buf_remaining);
 		complete(&i2c_dev->msg_complete);
@@ -618,6 +625,13 @@ err:
 
 	if (i2c_dev->is_dvc)
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
+
+	/*
+	 * ensure that the writes above post prior to leaving the interrupt
+	 * handler. Otherwise, the interrupt can still be pending in the gic
+	 * when the gic unmasks the irq
+	 */
+	i2c_readl(i2c_dev, I2C_INT_STATUS);
 
 	tegra_i2c_clock_disable(i2c_dev);
 	complete(&i2c_dev->msg_complete);
