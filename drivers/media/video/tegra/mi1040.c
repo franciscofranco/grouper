@@ -1055,7 +1055,7 @@ static ssize_t dbg_set_mi1040_reg_write(struct file *file, char __user *buf, siz
 	char debug_buf[256];
 	int cnt, byte_num;
 	char ofst_str[7], reg_val_str[11];
-	unsigned int ofst, reg_val= 0;
+	unsigned int ofst = 0, reg_val= 0;
 
 	printk("%s: buf=%p, count=%d, ppos=%p\n", __FUNCTION__, buf, count, ppos);
 	if (count > sizeof(debug_buf))
