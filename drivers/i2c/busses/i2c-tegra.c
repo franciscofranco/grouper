@@ -572,9 +572,12 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 	}
 
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
+	i2c_readl(i2c_dev, I2C_INT_STATUS);
 
-	if (i2c_dev->is_dvc)
+	if (i2c_dev->is_dvc) {
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
+		dvc_readl(i2c_dev, DVC_STATUS);
+	}
 
 	/*
 	 * ensure that the writes above post prior to leaving the interrupt
@@ -618,13 +621,16 @@ err:
 		I2C_INT_RX_FIFO_DATA_REQ | I2C_INT_TX_FIFO_OVERFLOW);
 
 	i2c_writel(i2c_dev, status, I2C_INT_STATUS);
+	i2c_readl(i2c_dev, I2C_INT_STATUS);
 
 	/* An error occured, mask dvc interrupt */
 	if (i2c_dev->is_dvc)
 		dvc_i2c_mask_irq(i2c_dev, DVC_CTRL_REG3_I2C_DONE_INTR_EN);
 
-	if (i2c_dev->is_dvc)
+	if (i2c_dev->is_dvc) {
 		dvc_writel(i2c_dev, DVC_STATUS_I2C_DONE_INTR, DVC_STATUS);
+		dvc_readl(i2c_dev, DVC_STATUS);
+	}
 
 	/*
 	 * ensure that the writes above post prior to leaving the interrupt
