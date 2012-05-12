@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <asm/cputime.h>
+#include <linux/pm_qos_params.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
@@ -66,6 +67,23 @@ static spinlock_t up_cpumask_lock;
 static cpumask_t down_cpumask;
 static spinlock_t down_cpumask_lock;
 static struct mutex set_speed_lock;
+
+struct cpufreq_interactive_core_lock {
+	struct pm_qos_request_list qos_min_req;
+	struct pm_qos_request_list qos_max_req;
+	struct task_struct *lock_task;
+	struct work_struct unlock_work;
+	struct timer_list unlock_timer;
+	int request_active;
+	unsigned long lock_period;
+	struct mutex mutex;
+};
+
+/* default timeout for core lock down */
+#define DEFAULT_CORE_LOCK_PERIOD 200000 /* 200 ms */
+
+static struct cpufreq_interactive_core_lock core_lock;
+
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static u64 hispeed_freq;
@@ -634,6 +652,71 @@ static void cpufreq_interactive_boost(void)
 		wake_up_process(up_task);
 }
 
+static void cpufreq_interactive_core_lock_timer(unsigned long data)
+{
+	queue_work(down_wq, &core_lock.unlock_work);
+}
+
+static void cpufreq_interactive_unlock_cores(struct work_struct *wq)
+{
+	struct cpufreq_interactive_core_lock *cl =
+		container_of(wq, struct cpufreq_interactive_core_lock,
+				unlock_work);
+
+	mutex_lock(&cl->mutex);
+
+	if (--cl->request_active) {
+		goto done;
+	}
+
+	pm_qos_update_request(&cl->qos_min_req,
+			PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
+
+	pm_qos_update_request(&cl->qos_max_req,
+			PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
+
+done:
+	mutex_unlock(&cl->mutex);
+}
+
+/* Lock down to whatever # of cores online
+ * right now.
+ *
+ * A pm_qos request for 1 online CPU results in
+ * an instant cluster switch.
+ */
+static void cpufreq_interactive_lock_cores(void)
+{
+	unsigned int ncpus;
+
+	mutex_lock(&core_lock.mutex);
+
+	if (core_lock.request_active) {
+		goto arm_timer;
+	}
+
+	ncpus = num_online_cpus();
+	pm_qos_update_request(&core_lock.qos_min_req, ncpus);
+	pm_qos_update_request(&core_lock.qos_max_req, ncpus);
+	core_lock.request_active++;
+
+arm_timer:
+	mod_timer(&core_lock.unlock_timer,
+			jiffies + usecs_to_jiffies(core_lock.lock_period));
+
+	mutex_unlock(&core_lock.mutex);
+}
+
+static int cpufreq_interactive_lock_cores_task(void *data)
+{
+	while(1) {
+		cpufreq_interactive_lock_cores();
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
+	return 0;
+}
+
 /*
  * Pulsed boost on input event raises CPUs to hispeed_freq and lets
  * usual algorithm of min_sample_time  decide when to allow speed
@@ -644,8 +727,10 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 					    unsigned int type,
 					    unsigned int code, int value)
 {
-	if (input_boost_val && type == EV_SYN && code == SYN_REPORT)
+	if (input_boost_val && type == EV_SYN && code == SYN_REPORT) {
+		wake_up_process(core_lock.lock_task);
 		cpufreq_interactive_boost();
+	}
 }
 
 static void cpufreq_interactive_input_open(struct work_struct *w)
@@ -1170,8 +1255,32 @@ static int __init cpufreq_interactive_init(void)
 	spin_lock_init(&down_cpumask_lock);
 	mutex_init(&set_speed_lock);
 
+	pm_qos_add_request(&core_lock.qos_min_req, PM_QOS_MIN_ONLINE_CPUS,
+			PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
+
+	pm_qos_add_request(&core_lock.qos_max_req, PM_QOS_MAX_ONLINE_CPUS,
+			PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
+
+	init_timer(&core_lock.unlock_timer);
+	core_lock.unlock_timer.function = cpufreq_interactive_core_lock_timer;
+	core_lock.unlock_timer.data = 0;
+
+	core_lock.request_active = 0;
+	core_lock.lock_period = DEFAULT_CORE_LOCK_PERIOD;
+	mutex_init(&core_lock.mutex);
+
+	core_lock.lock_task = kthread_create(cpufreq_interactive_lock_cores_task, NULL,
+						"kinteractive_lockcores");
+
+	if (IS_ERR(core_lock.lock_task))
+		return PTR_ERR(core_lock.lock_task);
+
+	sched_setscheduler_nocheck(core_lock.lock_task, SCHED_FIFO, &param);
+	get_task_struct(core_lock.lock_task);
+
 	idle_notifier_register(&cpufreq_interactive_idle_nb);
 	INIT_WORK(&inputopen.inputopen_work, cpufreq_interactive_input_open);
+	INIT_WORK(&core_lock.unlock_work, cpufreq_interactive_unlock_cores);
 	return cpufreq_register_governor(&cpufreq_gov_interactive);
 
 err_freeuptask:
@@ -1191,6 +1300,11 @@ static void __exit cpufreq_interactive_exit(void)
 	kthread_stop(up_task);
 	put_task_struct(up_task);
 	destroy_workqueue(down_wq);
+
+	pm_qos_remove_request(&core_lock.qos_min_req);
+	pm_qos_remove_request(&core_lock.qos_max_req);
+	kthread_stop(core_lock.lock_task);
+	put_task_struct(core_lock.lock_task);
 }
 
 module_exit(cpufreq_interactive_exit);
