@@ -333,7 +333,10 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	if (!is_g_cluster_present())
 		return;
 
-	if (suspend && (hp_state != TEGRA_HP_DISABLED)) {
+	if (hp_state == TEGRA_HP_DISABLED)
+		return;
+
+	if (suspend) {
 		hp_state = TEGRA_HP_IDLE;
 
 		/* Switch to G-mode if suspend rate is high enough */
@@ -366,8 +369,6 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	}
 
 	switch (hp_state) {
-	case TEGRA_HP_DISABLED:
-		break;
 	case TEGRA_HP_IDLE:
 		if (cpu_freq > top_freq) {
 			hp_state = TEGRA_HP_UP;
