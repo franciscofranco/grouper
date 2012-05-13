@@ -23,7 +23,6 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
@@ -64,8 +63,6 @@
 /* ignore underflows when on simulation and fpga platform */
 #define ALL_UF_INT (0)
 #endif
-
-static int calc_refresh(const struct tegra_dc_mode *m);
 
 static int no_vsync;
 static struct timeval t_suspend;
@@ -1631,6 +1628,7 @@ static bool check_ref_to_sync(struct tegra_dc_mode *mode)
 	return true;
 }
 
+#ifdef DEBUG
 /* return in 1000ths of a Hertz */
 static int calc_refresh(const struct tegra_dc_mode *m)
 {
@@ -1645,7 +1643,6 @@ static int calc_refresh(const struct tegra_dc_mode *m)
 	return refresh;
 }
 
-#ifdef DEBUG
 static void print_mode(struct tegra_dc *dc,
 			const struct tegra_dc_mode *mode, const char *note)
 {
@@ -1756,58 +1753,13 @@ static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode
 
 int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dc->mode_lock, flags);
 	memcpy(&dc->mode, mode, sizeof(dc->mode));
-	dc->mode_dirty = true;
-	spin_unlock_irqrestore(&dc->mode_lock, flags);
 
 	print_mode(dc, mode, __func__);
 
 	return 0;
 }
 EXPORT_SYMBOL(tegra_dc_set_mode);
-
-/* convert tegra_dc_mode to fb_videomode
- * return non-zero on error. */
-int tegra_dc_to_fb_videomode(struct fb_videomode *fbmode,
-	const struct tegra_dc_mode *mode)
-{
-	if (!fbmode || !mode || !mode->pclk)
-		return -EINVAL;
-
-	memset(fbmode, 0, sizeof(*fbmode));
-
-	if (mode->rated_pclk >= 1000)
-		fbmode->pixclock = KHZ2PICOS(mode->rated_pclk / 1000);
-	else if (mode->pclk >= 1000)
-		fbmode->pixclock = KHZ2PICOS(mode->pclk / 1000);
-	fbmode->hsync_len = mode->h_sync_width;
-	fbmode->vsync_len = mode->v_sync_width;
-	fbmode->left_margin = mode->h_back_porch;
-	fbmode->upper_margin = mode->v_back_porch;
-	fbmode->xres = mode->h_active;
-	fbmode->yres = mode->v_active;
-	fbmode->right_margin = mode->h_front_porch;
-	fbmode->lower_margin = mode->v_front_porch;
-	fbmode->vmode = FB_VMODE_NONINTERLACED;
-	fbmode->vmode |= mode->stereo_mode ?
-#ifndef CONFIG_TEGRA_HDMI_74MHZ_LIMIT
-		FB_VMODE_STEREO_FRAME_PACK
-#else
-		FB_VMODE_STEREO_LEFT_RIGHT
-#endif
-		: 0;
-	fbmode->sync |= (mode->flags & TEGRA_DC_MODE_FLAG_NEG_H_SYNC) ?
-		0 : FB_SYNC_HOR_HIGH_ACT;
-	fbmode->sync |= (mode->flags & TEGRA_DC_MODE_FLAG_NEG_V_SYNC) ?
-		0 : FB_SYNC_VERT_HIGH_ACT;
-	fbmode->refresh = (calc_refresh(mode) + 500) / 1000;
-
-	return 0;
-}
-EXPORT_SYMBOL(tegra_dc_to_fb_videomode);
 
 int tegra_dc_set_fb_mode(struct tegra_dc *dc,
 		const struct fb_videomode *fbmode, bool stereo_mode)
@@ -2197,18 +2149,6 @@ static bool tegra_dc_windows_are_dirty(struct tegra_dc *dc)
 	return false;
 }
 
-static void tegra_dc_update_mode(struct tegra_dc *dc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dc->mode_lock, flags);
-	if (dc->mode_dirty) {
-		tegra_dc_program_mode(dc, &dc->mode);
-		dc->mode_dirty = false;
-	}
-	spin_unlock_irqrestore(&dc->mode_lock, flags);
-}
-
 static void tegra_dc_trigger_windows(struct tegra_dc *dc)
 {
 	u32 val, i;
@@ -2268,9 +2208,6 @@ static void tegra_dc_one_shot_irq(struct tegra_dc *dc, unsigned long status)
 		/* Mark the frame_end as complete. */
 		if (!completion_done(&dc->frame_end_complete))
 			complete(&dc->frame_end_complete);
-
-		/* handle a mode change, if it was scheduled */
-		tegra_dc_update_mode(dc);
 	}
 }
 
@@ -2295,8 +2232,6 @@ static void tegra_dc_continuous_irq(struct tegra_dc *dc, unsigned long status)
 		if (!completion_done(&dc->frame_end_complete))
 			complete(&dc->frame_end_complete);
 
-		/* handle a mode change, if it was scheduled */
-		tegra_dc_update_mode(dc);
 		tegra_dc_trigger_windows(dc);
 	}
 }
@@ -2966,7 +2901,6 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	mutex_init(&dc->lock);
 	mutex_init(&dc->one_shot_lock);
-	spin_lock_init(&dc->mode_lock);
 	init_completion(&dc->frame_end_complete);
 	init_waitqueue_head(&dc->wq);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -3051,22 +2985,6 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		dc->fb = tegra_fb_register(ndev, dc, dc->pdata->fb, fb_mem);
 		if (IS_ERR_OR_NULL(dc->fb))
 			dc->fb = NULL;
-	}
-
-	if (dc->out && dc->out->n_modes) {
-		struct fb_monspecs specs;
-		int i;
-
-		memset(&specs, 0, sizeof(specs));
-		specs.max_x = dc->mode.h_active * 1000;
-		specs.max_y = dc->mode.v_active * 1000;
-		specs.modedb_len = dc->out->n_modes;
-		specs.modedb = kzalloc(specs.modedb_len *
-			sizeof(struct fb_videomode), GFP_KERNEL);
-		for (i = 0; i < dc->out->n_modes; i++)
-			tegra_dc_to_fb_videomode(&specs.modedb[i],
-				&dc->out->modes[i]);
-		tegra_fb_update_monspecs(dc->fb, &specs, NULL);
 	}
 
 	if (dc->out && dc->out->hotplug_init)
