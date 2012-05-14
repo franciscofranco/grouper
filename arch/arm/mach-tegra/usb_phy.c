@@ -30,6 +30,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
+#include <mach/board-grouper-misc.h>
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
@@ -2509,6 +2510,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	struct tegra_ulpi_config *uhsic_config;
 	int reset_gpio, enable_gpio;
 #endif
+	unsigned int pcb_id_version;
 
 	phy = kzalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
 	if (!phy)
@@ -2570,8 +2572,16 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	if (phy->usb_phy_type == TEGRA_USB_PHY_TYPE_UTMIP) {
 		err = utmip_pad_open(phy);
 		phy->xcvr_setup_value = tegra_phy_xcvr_setup_value(phy->config);
-		if(phy->instance == 0) {
-			phy->xcvr_setup_value = phy->xcvr_setup_value + 2;
+		if (phy->instance == 0) {
+			pcb_id_version = grouper_query_pcba_revision();
+			if (pcb_id_version > 0x2)
+				phy->xcvr_setup_value = phy->xcvr_setup_value + 4;
+			else
+				phy->xcvr_setup_value = phy->xcvr_setup_value + 2;
+
+			if (phy->xcvr_setup_value > 63)
+				phy->xcvr_setup_value = 63;
+
 			pr_info("phy->instance = %d, phy->xcvr_setup_value = %d\n", phy->instance, phy->xcvr_setup_value);
 		}
 		if (err < 0)
