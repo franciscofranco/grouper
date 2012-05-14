@@ -139,6 +139,45 @@ static ssize_t headset_state_show(struct switch_dev *sdev, char *buf)
 	return -EINVAL;
 }
 
+static void tristate_uart(void)
+{
+        enum tegra_pingroup pingroup = TEGRA_PINGROUP_ULPI_DATA0;
+        enum tegra_pullupdown pupd = TEGRA_PUPD_PULL_DOWN;
+        enum tegra_pin_io io = TEGRA_PIN_INPUT;
+	enum tegra_tristate tristate = TEGRA_TRI_TRISTATE;
+
+        tegra_pinmux_set_pullupdown(pingroup, pupd);
+        tegra_pinmux_set_tristate(pingroup, tristate);
+}
+
+
+static void pulldown_uart(void)
+{
+	enum tegra_pingroup pingroupTx = TEGRA_PINGROUP_ULPI_DATA0;
+	enum tegra_pingroup pingroupRx = TEGRA_PINGROUP_ULPI_DATA1;
+        enum tegra_pullupdown pupd = TEGRA_PUPD_PULL_DOWN;
+        enum tegra_pin_io io = TEGRA_PIN_INPUT;
+
+	tegra_pinmux_set_pullupdown(pingroupTx, pupd);
+	tegra_pinmux_set_io(pingroupTx, io);
+//        tegra_pinmux_set_pullupdown(pingroupRx, pupd);
+  //      tegra_pinmux_set_io(pingroupRx, io);
+}
+
+
+static void normal_uart(void)
+{
+	struct tegra_pingroup_config debug_uart [] = {
+        DEFAULT_PINMUX(ULPI_DATA0,      UARTA,          NORMAL,     NORMAL,     OUTPUT),
+        };
+        tegra_pinmux_config_table(debug_uart, ARRAY_SIZE(debug_uart));
+
+   //     tegra_pinmux_set_pullupdown(pingroupRx, pupd);
+    //    tegra_pinmux_set_io(pingroupRx, ioIn);
+
+}
+
+
 static void enable_uart(void)
 {
 	struct tegra_pingroup_config debug_uart [] = {
@@ -164,6 +203,7 @@ static void insert_headset(void)
                 hs_micbias_power(OFF);
                 headset_alive = false;
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 0);
+		normal_uart();
 	}else if(gpio_get_value(HOOK_GPIO)){ 
 		printk("%s: headphone\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
@@ -172,6 +212,7 @@ static void insert_headset(void)
 			disable_uart();
 			printk("%s: SR3 or ER1\n", __func__);
 		}
+		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = false;
 	}else{
@@ -182,6 +223,7 @@ static void insert_headset(void)
 			disable_uart();
 			printk("%s: SR3 or ER1\n", __func__);
 		}
+		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = true;
 	}
@@ -197,6 +239,8 @@ static void remove_headset(void)
 		printk("%s: SR3 or ER1\n");
 		enable_uart();
 	}
+	tristate_uart();
+	gpio_direction_output(UART_HEADPHONE_SWITCH, 0);
 }
 
 static void detection_work(struct work_struct *work)
@@ -220,7 +264,9 @@ static void detection_work(struct work_struct *work)
 
 	if (gpio_get_value(JACK_GPIO) != 0) {
 		/* Headset not plugged in */
-		if (switch_get_state(&hs_data->sdev) == HEADSET_WITH_MIC || switch_get_state(&hs_data->sdev) == HEADSET_WITHOUT_MIC)
+
+//		if (switch_get_state(&hs_data->sdev) == HEADSET_WITH_MIC || 
+//			switch_get_state(&hs_data->sdev) == HEADSET_WITHOUT_MIC)
 			remove_headset();
 		goto closed_micbias;
 	}
@@ -278,7 +324,7 @@ static int jack_config_gpio()
 		hs_micbias_power(OFF);
 		headset_alive = false;
 		switch_set_state(&hs_data->sdev, NO_DEVICE);
-		//remove_headset();
+		remove_headset();
 	}
 
 	return 0;
