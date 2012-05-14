@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 #include <mach/iomap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -423,11 +424,21 @@ static void tegra30_i2s_start_playback(struct tegra30_i2s *i2s)
 
 static void tegra30_i2s_stop_playback(struct tegra30_i2s *i2s)
 {
+	int cnt = 10;
+
 	tegra30_ahub_disable_tx_fifo(i2s->txcif);
 	/* if this is the only user of i2s tx then disable it*/
 	if (i2s->playback_ref_count == 1) {
 		i2s->reg_ctrl &= ~TEGRA30_I2S_CTRL_XFER_EN_TX;
 		tegra30_i2s_write(i2s, TEGRA30_I2S_CTRL, i2s->reg_ctrl);
+	}
+	/*
+	 * wait for i2s fifo to get disabled, which will ensure that all
+	 * data in audio pipeline is consumed
+	 */
+	while (tegra30_ahub_is_i2s_tx_fifo_enabled(i2s->id) && cnt--) {
+		/* safe delay time of data out from i2s fifo for all sample rate*/
+		udelay(100);
 	}
 }
 
