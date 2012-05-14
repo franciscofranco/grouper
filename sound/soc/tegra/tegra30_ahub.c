@@ -226,6 +226,28 @@ static inline void tegra30_ahub_debug_remove(struct tegra30_ahub *ahub)
 }
 #endif
 
+int tegra30_ahub_is_i2s_tx_fifo_enabled(int i2s_id)
+{
+	int mask, val;
+
+	val = tegra30_apbif_read(TEGRA30_AHUB_I2S_LIVE_STATUS);
+	mask = (TEGRA30_AHUB_I2S_LIVE_STATUS_I2S0_TX_FIFO_ENABLED << (i2s_id * 2));
+	val &= mask;
+
+	return val;
+}
+
+int tegra30_ahub_is_i2s_rx_fifo_enabled(int i2s_id)
+{
+	int mask, val;
+
+	val = tegra30_apbif_read(TEGRA30_AHUB_I2S_LIVE_STATUS);
+	mask = (TEGRA30_AHUB_I2S_LIVE_STATUS_I2S0_RX_FIFO_ENABLED << (i2s_id * 2));
+	val &= mask;
+
+	return val;
+}
+
 int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
 				  unsigned long *fiforeg,
 				  unsigned long *reqsel)
