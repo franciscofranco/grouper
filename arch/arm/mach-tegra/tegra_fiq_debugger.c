@@ -126,12 +126,13 @@ static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 static int tegra_fiq_debugger_id;
 
 void tegra_serial_debug_init(unsigned int base, int irq,
-			   struct clk *clk, int signal_irq, int wakeup_irq)
+			   struct clk *clk, int signal_irq, int wakeup_irq,
+			   bool use_fiq)
 {
 	struct tegra_fiq_debugger *t;
 	struct platform_device *pdev;
 	struct resource *res;
-	int res_count;
+	int res_count = 0;
 
 	t = kzalloc(sizeof(struct tegra_fiq_debugger), GFP_KERNEL);
 	if (!t) {
@@ -143,7 +144,8 @@ void tegra_serial_debug_init(unsigned int base, int irq,
 	t->pdata.uart_getc = debug_getc;
 	t->pdata.uart_putc = debug_putc;
 	t->pdata.uart_flush = debug_flush;
-	t->pdata.fiq_enable = fiq_enable;
+	if (use_fiq)
+		t->pdata.fiq_enable = fiq_enable;
 
 	t->debug_port_base = ioremap(base, PAGE_SIZE);
 	if (!t->debug_port_base) {
@@ -163,22 +165,23 @@ void tegra_serial_debug_init(unsigned int base, int irq,
 		goto out3;
 	};
 
-	res[0].flags = IORESOURCE_IRQ;
-	res[0].start = irq;
-	res[0].end = irq;
-	res[0].name = "fiq";
+	res[res_count].flags = IORESOURCE_IRQ;
+	res[res_count].start = irq;
+	res[res_count].end = irq;
+	res[res_count].name = use_fiq ? "fiq" : "uart_irq";
+	res_count++;
 
-	res[1].flags = IORESOURCE_IRQ;
-	res[1].start = signal_irq;
-	res[1].end = signal_irq;
-	res[1].name = "signal";
-	res_count = 2;
+	res[res_count].flags = IORESOURCE_IRQ;
+	res[res_count].start = signal_irq;
+	res[res_count].end = signal_irq;
+	res[res_count].name = "signal";
+	res_count++;
 
 	if (wakeup_irq >= 0) {
-		res[2].flags = IORESOURCE_IRQ;
-		res[2].start = wakeup_irq;
-		res[2].end = wakeup_irq;
-		res[2].name = "wakeup";
+		res[res_count].flags = IORESOURCE_IRQ;
+		res[res_count].start = wakeup_irq;
+		res[res_count].end = wakeup_irq;
+		res[res_count].name = "wakeup";
 		res_count++;
 	}
 

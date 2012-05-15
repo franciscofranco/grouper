@@ -19,10 +19,10 @@
 
 #ifdef CONFIG_TEGRA_FIQ_DEBUGGER
 void tegra_serial_debug_init(unsigned int base, int irq,
-	struct clk *clk, int signal_irq, int wakeup_irq);
+	struct clk *clk, int signal_irq, int wakeup_irq, bool use_fiq);
 #else
 static inline void tegra_serial_debug_init(unsigned int base, int irq,
-	struct clk *clk, int signal_irq, int wakeup_irq)
+	struct clk *clk, int signal_irq, int wakeup_irq, bool use_fiq)
 {
 }
 #endif
