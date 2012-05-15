@@ -42,8 +42,8 @@
 
 bool flagLoadAl3010Config = false;
 static int calibration_base_lux = 1000;
-static int calibration_regs = 674; // default K value = 65536*(1000/4863)*5% = 1347
-static int default_calibration_regs = 674;
+static int calibration_regs = 880; // default K value 880 is average K value of PR devices
+static int default_calibration_regs = 880;
 
 static struct timeval t_first_poll_time;
 static bool light_sensor_ready = true;
