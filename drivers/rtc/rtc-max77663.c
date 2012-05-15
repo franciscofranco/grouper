@@ -79,6 +79,14 @@
 
 #define ONOFF_WK_ALARM1_MASK		(1 << 2)
 
+#define MAX77663_RTC_ALARM_SEC1_RESET_VALUE		0x0
+#define MAX77663_RTC_ALARM_MIN1_RESET_VALUE			0x0
+#define MAX77663_RTC_ALARM_HOUR1_RESET_VALUE		0x0
+#define MAX77663_RTC_ALARM_WEEKDAY1_RESET_VALUE		0x1
+#define MAX77663_RTC_ALARM_MONTH1_RESET_VALUE		0x1
+#define MAX77663_RTC_ALARM_YEAR1_RESET_VALUE		0x0
+#define MAX77663_RTC_ALARM_MONTHDAY1_RESET_VALUE		0x1
+
 enum {
 	RTC_SEC,
 	RTC_MIN,
@@ -97,6 +105,7 @@ struct max77663_rtc {
 	struct mutex io_lock;
 	int irq;
 	u8 irq_mask;
+	bool shutdown_ongoing;
 };
 
 static inline struct device *_to_parent(struct max77663_rtc *rtc)
@@ -443,6 +452,10 @@ static int max77663_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u8 buf[RTC_NR];
 	int ret;
 
+	if(rtc->shutdown_ongoing){
+		printk("[Warning] Device shutdown on-going, skip alarm setting.\n");
+		return -EBUSY;
+	}
 	dev_dbg(rtc->dev, "rtc_set_alarm: "
 		"tm: %d-%02d-%02d %02d:%02d:%02d, wday=%d [%s]\n",
 		alrm->time.tm_year, alrm->time.tm_mon, alrm->time.tm_mday,
@@ -521,7 +534,6 @@ static int max77663_rtc_preinit(struct max77663_rtc *rtc)
 
 	return 0;
 }
-
 static int max77663_rtc_probe(struct platform_device *pdev)
 {
 	struct max77663_platform_data *parent_pdata =
@@ -534,7 +546,7 @@ static int max77663_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "probe: kzalloc() failed\n");
 		return -ENOMEM;
 	}
-
+	rtc->shutdown_ongoing=false;
 	dev_set_drvdata(&pdev->dev, rtc);
 	rtc->dev = &pdev->dev;
 	mutex_init(&rtc->io_lock);
@@ -591,6 +603,33 @@ static int __devexit max77663_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __devexit max77663_rtc_shutdown(struct platform_device *pdev)
+{
+	struct max77663_rtc *rtc = dev_get_drvdata(&pdev->dev);
+	unsigned char value;
+
+	rtc->shutdown_ongoing=true;
+	printk( "%s: max77663clean alarm\n", __func__);
+	value=MAX77663_RTC_ALARM_SEC1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_SEC1, &value , 1, 1);
+	value=MAX77663_RTC_ALARM_MIN1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_MIN1, &value  , 1, 1);
+	value=MAX77663_RTC_ALARM_HOUR1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_HOUR1, &value , 1, 1);
+	value=MAX77663_RTC_ALARM_WEEKDAY1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_WEEKDAY1, &value  , 1, 1);
+	value=MAX77663_RTC_ALARM_MONTH1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_MONTH1, &value , 1, 1);
+	value=MAX77663_RTC_ALARM_YEAR1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_YEAR1, &value , 1, 1);
+	value=MAX77663_RTC_ALARM_MONTHDAY1_RESET_VALUE;
+	max77663_rtc_write(rtc, MAX77663_RTC_ALARM_MONTHDAY1, &value , 1, 1);
+
+	max77663_rtc_alarm_irq_enable( _to_parent(rtc), 0);
+
+	return 0;
+}
+
 static struct platform_driver max77663_rtc_driver = {
 	.probe = max77663_rtc_probe,
 	.remove = __devexit_p(max77663_rtc_remove),
@@ -598,6 +637,7 @@ static struct platform_driver max77663_rtc_driver = {
 		   .name = "max77663-rtc",
 		   .owner = THIS_MODULE,
 	},
+	.shutdown=max77663_rtc_shutdown,
 };
 
 static int __init max77663_rtc_init(void)
