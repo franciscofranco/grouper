@@ -56,6 +56,7 @@
 #include <mach/usb_phy.h>
 #include <mach/thermal.h>
 #include <mach/board-grouper-misc.h>
+#include <mach/tegra_fiq_debugger.h>
 
 #include "board.h"
 #include "clock.h"
@@ -351,7 +352,6 @@ static void grouper_i2c_init(void)
 }
 
 static struct platform_device *grouper_uart_devices[] __initdata = {
-	&tegra_uarta_device,
 	&tegra_uartb_device,
 	&tegra_uartc_device,
 	&tegra_uartd_device,
@@ -433,7 +433,6 @@ static void __init grouper_uart_init(void)
 	grouper_loopback_uart_pdata.parent_clk_count =
 						ARRAY_SIZE(uart_parent_clk);
 	grouper_loopback_uart_pdata.is_loopback = true;
-	tegra_uarta_device.dev.platform_data = &grouper_uart_pdata;
 	tegra_uartb_device.dev.platform_data = &grouper_uart_pdata;
 	tegra_uartc_device.dev.platform_data = &grouper_uart_pdata;
 	tegra_uartd_device.dev.platform_data = &grouper_uart_pdata;
@@ -460,6 +459,9 @@ static void __init grouper_uart_init(void)
 					debug_uart_clk->name);
 		}
 	}
+
+	tegra_serial_debug_init(debug_uart_port_base, debug_uart_port_irq,
+				debug_uart_clk, -1, -1, false);
 
 	platform_add_devices(grouper_uart_devices,
 				ARRAY_SIZE(grouper_uart_devices));
