@@ -73,9 +73,8 @@
 #define AMI_GAIN_COR_DEFAULT		(1000)
 
 #define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
-static int gain_x = 100, gain_y = 100, gain_z = 100;
-bool flagLoadConfig = false;
-EXPORT_SYMBOL(flagLoadConfig);
+static int gain[3] = {100, 100, 100};
+bool Load_compass_cali = false;
 
 struct ami306_private_data {
 	int isstandby;
@@ -90,13 +89,15 @@ static inline unsigned short little_u8_to_u16(unsigned char *p_u8)
 	return p_u8[0] | (p_u8[1] << 8);
 }
 
+// function for loading compass calibration file.
 static int access_calibration_file(void)
 {
 	char buf[256];
-       int ret = 0;
+	int ret;
 	struct file *fp = NULL;
 	mm_segment_t oldfs;
 	int data[23];
+	int ii;
 
 	oldfs=get_fs();
 	set_fs(get_ds());
@@ -104,10 +105,10 @@ static int access_calibration_file(void)
 
 	fp=filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
 	if (!IS_ERR(fp)) {
-		printk("ami306 open config file success\n");
+		printk("ami306 open calibration file success\n");
 		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
-		printk("ami306 config content is :%s\n", buf);
-		sscanf(buf,"%6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d",
+		printk("ami306 calibration content is :\n%s\n", buf);
+		sscanf(buf,"%6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d\n",
 			&data[0],
 			&data[1], &data[2], &data[3],
 			&data[4], &data[5], &data[6],
@@ -118,28 +119,31 @@ static int access_calibration_file(void)
 			&data[19], &data[20], &data[21],
 			&data[22]);
 
-		printk("%d %d %d\n", data[19], data[20], data[21]);
+		// if the gain value in calibration is out of the range we set, we set it to default.
 		if((data[19] > 150) || (data[19] < 50) ||
 		   (data[20] > 150) || (data[20] < 50) ||
 		   (data[21] > 150) || (data[21] < 50)){
-			gain_x = 100;
-			gain_y = 100;
-			gain_z = 100;
+			for(ii=0; ii<3; ii++)
+				gain[ii] = 100;
 		}else{
-			gain_x = data[19];
-			gain_y = data[20];
-			gain_z = data[21];
+			// load the gain from the calibration file.
+			for(ii=0; ii<3; ii++)
+				gain[ii] = data[ii+19];
 		}
-		printk("gain: %d %d %d\n", gain_x, gain_y, gain_z);
 
+		// the content of calibration files about e-compass
+		printk("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
+
+		return 0;	// load file success.
 	}
 	else
 	{
 		printk("No ami306 calibration file\n");
 		set_fs(oldfs);
-		return -1;
+		return -1;	// load file fail
 	}
 
+	return -1;	// load file fail
 }
 static int ami306_set_bits8(void *mlsl_handle,
 			    struct ext_slave_platform_data *pdata,
@@ -712,39 +716,31 @@ static int ami306_read(void *mlsl_handle,
 			   1, &stat);
 	if (result) {
 		LOG_RESULT_LOCATION(result);
+		return result;
 	}
 
-	if (stat & 0x40) {
-		if(!flagLoadConfig)
-		{
-			access_calibration_file();
-			flagLoadConfig = true;
-		}
-		result = inv_serial_read(mlsl_handle, pdata->address, AMI306_REG_DATAX, 6, (unsigned char *) data);
-		if (result) {
-			LOG_RESULT_LOCATION(result);
-		}
-		/* start another measurement */
-		result = inv_serial_single_write(mlsl_handle, pdata->address, AMI306_REG_CNTL3, AMI306_BIT_CNTL3_F0RCE);
-		if (result) {
-			LOG_RESULT_LOCATION(result);
-		}
-
-		val[0] =  ((short)(data[1] << 8 | data[0]))*gain_x/100;
-		val[1] =  ((short)(data[3] << 8 | data[2]))*gain_y/100;
-		val[2] =  ((short)(data[5] << 8 | data[4]))*gain_z/100;
-
-	}
 	result = ami306_mea(mlsl_handle, pdata, val);
 	if (result) {
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
+	// load the calibration file if we read the raw data from e-compass first time.
+	if(!Load_compass_cali) {
+		result = access_calibration_file();
+		Load_compass_cali = true;
+	}
+
 	for (ii = 0; ii < COMPASS_NUM_AXES; ii++) {
 		val[ii] -= AMI_STANDARD_OFFSET;
+
+		// multiple the proportion from calibration file in each axis.
+		val[ii] = (short)(val[ii]*gain[ii]/100);
+
+		// to output the compass raw data
 		data[2 * ii] = val[ii] & 0xFF;
 		data[(2 * ii) + 1] = (val[ii] >> 8) & 0xFF;
 	}
+
 	return result;
 }
 
