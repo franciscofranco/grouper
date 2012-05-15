@@ -115,6 +115,19 @@ static void debug_flush(struct platform_device *pdev)
 		cpu_relax();
 }
 
+static int debug_dev_resume(struct platform_device *pdev)
+{
+	struct tegra_fiq_debugger *t;
+	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
+
+	/* enable FIFO, but trigger RX on every character */
+	tegra_write(t, UART_FCR_ENABLE_FIFO | UART_FCR_T_TRIG_01 |
+		    UART_FCR_R_TRIG_00,
+		    UART_FCR);
+
+	return 0;
+}
+
 static void fiq_enable(struct platform_device *pdev, unsigned int irq, bool on)
 {
 	if (on)
@@ -144,6 +157,7 @@ void tegra_serial_debug_init(unsigned int base, int irq,
 	t->pdata.uart_getc = debug_getc;
 	t->pdata.uart_putc = debug_putc;
 	t->pdata.uart_flush = debug_flush;
+	t->pdata.uart_dev_resume = debug_dev_resume;
 	if (use_fiq)
 		t->pdata.fiq_enable = fiq_enable;
 
