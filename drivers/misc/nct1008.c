@@ -82,7 +82,6 @@
 #define CELSIUS_TO_MILLICELSIUS(x) ((x)*1000)
 #define MILLICELSIUS_TO_CELSIUS(x) ((x)/1000)
 
-
 static int conv_period_ms_table[] =
 	{16000, 8000, 4000, 2000, 1000, 500, 250, 125, 63, 32, 16};
 
@@ -369,10 +368,16 @@ static DEVICE_ATTR(temperature_alert, (S_IRUGO | (S_IWUSR | S_IWGRP)),
 		nct1008_show_temp_alert, nct1008_set_temp_alert);
 static DEVICE_ATTR(ext_temperature, S_IRUGO, nct1008_show_ext_temp, NULL);
 //===============stress test start ================
-#ifdef CONFIG_PM
-int nct1008_pm_notify(struct notifier_block *notify_block,unsigned long mode, void *unused);
-#endif
- struct nct1008_data *pnct1008_data=NULL;
+struct nct1008_data *pnct1008_data=NULL;
+#define NCT1008_IOC_MAGIC	0xFA
+#define NCT1008_IOC_MAXNR	5
+#define NCT1008_POLLING_DATA _IOR(NCT1008_IOC_MAGIC, 1,int)
+
+#define TEST_END (0)
+#define START_NORMAL (1)
+#define START_HEAVY (2)
+#define IOCTL_ERROR (-1)
+ struct workqueue_struct *nct1008_stress_work_queue=NULL;
 static ssize_t show_nct1008_i2c_status(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	if(pnct1008_data)
@@ -380,6 +385,7 @@ static ssize_t show_nct1008_i2c_status(struct device *dev, struct device_attribu
 	else
 		return sprintf(buf, "%d\n", 0);
 }
+
 static DEVICE_ATTR(nct1008_i2c_status, S_IWUSR | S_IRUGO,show_nct1008_i2c_status,NULL);
 static struct attribute *nct1008_attributes[] = {
 	&dev_attr_nct1008_i2c_status.attr,
@@ -393,15 +399,6 @@ static struct attribute *nct1008_attributes[] = {
 static const struct attribute_group nct1008_attr_group = {
 	.attrs = nct1008_attributes,
 };
-#define NCT1008_IOC_MAGIC	0xFA
-#define NCT1008_IOC_MAXNR	5
-#define NCT1008_POLLING_DATA _IOR(NCT1008_IOC_MAGIC, 1,int)
-
-#define TEST_END (0)
-#define START_NORMAL (1)
-#define START_HEAVY (2)
-#define IOCTL_ERROR (-1)
- struct workqueue_struct *nct1008_stress_work_queue=NULL;
 static void dump_reg(const char *reg_name, int offset)
 {
 
@@ -952,11 +949,6 @@ static int __devinit nct1008_probe(struct i2c_client *client,
 	if (data->plat_data.probe_callback)
 		data->plat_data.probe_callback(data);
 
-	queue_delayed_work(nct1008_stress_work_queue, &pnct1008_data->stress_test, 5*HZ);
-	#ifdef CONFIG_PM
-	pnct1008_data->pm_notify.notifier_call =  nct1008_pm_notify;
-	#endif
-	register_pm_notifier(&pnct1008_data->pm_notify);
 	printk("nct1008_probe-\n");
 	return 0;
 
@@ -989,28 +981,6 @@ static int __devexit nct1008_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-int nct1008_pm_notify(struct notifier_block *notify_block,
-					unsigned long mode, void *unused)
-{
-	printk("nct1008_pm_notify mode=%x+\n",mode);
-	switch (mode) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-			cancel_delayed_work_sync(&pnct1008_data->stress_test);
-			flush_workqueue(nct1008_stress_work_queue);
-		break;
-
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-			cancel_delayed_work_sync(&pnct1008_data->stress_test);
-			queue_delayed_work(nct1008_stress_work_queue, &pnct1008_data->stress_test, 5*HZ);
-		break;
-	}
-
-	printk("nct1008_pm_notify-\n");
-	return 0;
-}
 static int nct1008_suspend(struct i2c_client *client, pm_message_t state)
 {
 	int err;
@@ -1032,7 +1002,6 @@ static int nct1008_resume(struct i2c_client *client)
 		return err;
 	}
 	enable_irq(client->irq);
-
 	return 0;
 }
 #endif

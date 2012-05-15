@@ -73,7 +73,6 @@ struct nct1008_data {
 	int i2c_status;
 	struct delayed_work stress_test;
 	struct miscdevice nct1008_misc;
-	struct notifier_block	pm_notify;
 	//===================stress test end=====================
 };
 
