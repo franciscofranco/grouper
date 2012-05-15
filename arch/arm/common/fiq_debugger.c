@@ -1030,6 +1030,33 @@ static int fiq_debugger_dev_resume(struct device *dev)
 	return 0;
 }
 
+static ssize_t fiq_debugger_console_enable_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct fiq_debugger_state *state = platform_get_drvdata(pdev);
+	unsigned long enable;
+
+	if (strict_strtoul(buf, 0, &enable))
+		return -EINVAL;
+
+	state->console_enable = state->debug_enable = !!enable;
+	return count;
+}
+
+static ssize_t fiq_debugger_console_enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct fiq_debugger_state *state = platform_get_drvdata(pdev);
+
+	return sprintf(buf, "%d\n", state->console_enable);
+}
+
+static DEVICE_ATTR(console_enable, S_IRUGO|S_IWUSR,
+		   fiq_debugger_console_enable_show,
+		   fiq_debugger_console_enable_store);
+
 static int fiq_debugger_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1157,6 +1184,10 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	state->console = fiq_debugger_console;
 	register_console(&state->console);
 	fiq_debugger_tty_init(state);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_console_enable);
+	if (ret)
+		pr_err("serial_debugger: couldn't register sysfs file\n");
 #endif
 	return 0;
 
