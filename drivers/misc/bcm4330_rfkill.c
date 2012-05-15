@@ -44,6 +44,13 @@ static struct bcm4330_rfkill_data *bcm4330_rfkill;
 
 static int bcm4330_bt_rfkill_set_power(void *data, bool blocked)
 {
+	/*
+	 * check if BT gpio_shutdown line status and current request are same.
+	 * If same, then return, else perform requested operation.
+	 */
+	if (gpio_get_value(bcm4330_rfkill->gpio_shutdown) && !blocked)
+		return 0;
+	
 	if (blocked) {
 		if (bcm4330_rfkill->gpio_shutdown)
 			gpio_direction_output(bcm4330_rfkill->gpio_shutdown, 0);
