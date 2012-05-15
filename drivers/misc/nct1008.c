@@ -34,10 +34,6 @@
 
 #include <../gpio-names.h>
 
-extern void tegra_watchdog_enable(unsigned int timeout);
-extern void tegra_watchdog_disable(void);
-extern void tegra_watchdog_touch( unsigned int timeout  );
-
 #define DRIVER_NAME "nct1008"
 
 /* Register Addresses */
@@ -422,19 +418,8 @@ static void dump_reg(const char *reg_name, int offset)
 }
 void nct1008_read_stress_test(struct work_struct *work)
 {
-	#if 0
-	u8 data = 0;
-	data = i2c_smbus_read_byte_data(pnct1008_data->client, LOCAL_TEMP_RD);
-	if (data < 0) {
-		dev_err(&pnct1008_data->client->dev, "%s: failed to read temperature\n", __func__);
-	}
-	#else
-	u8 temperature=0;
-	tegra_watchdog_touch(45);
+	long temperature=0;
 	nct1008_get_temp(&pnct1008_data->client->dev, &temperature);
-	//dump_reg("Status              ",  0x02);
-	//dump_reg("Configuration       ", 0x03);
-	#endif
        queue_delayed_work(nct1008_stress_work_queue, &pnct1008_data->stress_test, 5*HZ);
 	return ;
 }
@@ -968,7 +953,6 @@ static int __devinit nct1008_probe(struct i2c_client *client,
 		data->plat_data.probe_callback(data);
 
 	queue_delayed_work(nct1008_stress_work_queue, &pnct1008_data->stress_test, 5*HZ);
-	tegra_watchdog_enable(45);
 	#ifdef CONFIG_PM
 	pnct1008_data->pm_notify.notifier_call =  nct1008_pm_notify;
 	#endif
@@ -1014,7 +998,6 @@ int nct1008_pm_notify(struct notifier_block *notify_block,
 	case PM_SUSPEND_PREPARE:
 			cancel_delayed_work_sync(&pnct1008_data->stress_test);
 			flush_workqueue(nct1008_stress_work_queue);
-			tegra_watchdog_disable();
 		break;
 
 	case PM_POST_SUSPEND:
@@ -1022,7 +1005,6 @@ int nct1008_pm_notify(struct notifier_block *notify_block,
 	case PM_POST_RESTORE:
 			cancel_delayed_work_sync(&pnct1008_data->stress_test);
 			queue_delayed_work(nct1008_stress_work_queue, &pnct1008_data->stress_test, 5*HZ);
-			tegra_watchdog_enable(45);
 		break;
 	}
 
