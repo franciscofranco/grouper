@@ -277,6 +277,7 @@ struct tegra_dc_sd_settings {
 	short bin_width;
 	u8 phase_in_settings;
 	u8 phase_in_adjustments;
+	u8 panel_min_brightness;
 	u8 cmd;
 	u8 final_agg;
 	u16 cur_agg_step;
