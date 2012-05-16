@@ -891,6 +891,28 @@ static int smb347_resume(struct i2c_client *client)
 	return 0;
 }
 
+
+static int smb347_shutdown(struct i2c_client *client)
+{
+	int ret;
+	printk("smb347_shutdown+\n");
+
+	/* Disable OTG */
+	ret = smb347_configure_otg(client, 0);
+	if (ret < 0)
+		dev_err(&client->dev, "%s() error in configuring"
+			"otg..\n", __func__);
+
+	/* configure charger */
+	ret = smb347_configure_charger(client, 1);
+	if (ret < 0)
+		dev_err(&client->dev, "%s() error in configuring"
+			"otg..\n", __func__);
+
+	printk("smb347_shutdown-\n");
+	return 0;
+}
+
 static const struct i2c_device_id smb347_id[] = {
 	{ "smb347", 0 },
 	{ }
@@ -905,6 +927,7 @@ static struct i2c_driver smb347_i2c_driver = {
 	.remove		= __devexit_p(smb347_remove),
 	.suspend 		= smb347_suspend,
 	.resume 		= smb347_resume,
+	.shutdown	= smb347_shutdown,
 	.id_table	= smb347_id,
 };
 
