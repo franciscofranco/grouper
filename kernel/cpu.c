@@ -447,6 +447,7 @@ void __weak arch_enable_nonboot_cpus_end(void)
 {
 }
 
+extern u64 global_wake_status;
 void __ref enable_nonboot_cpus(void)
 {
 	int cpu, error;
@@ -454,6 +455,9 @@ void __ref enable_nonboot_cpus(void)
 	/* Allow everyone to use the CPU hotplug again */
 	cpu_maps_update_begin();
 	cpu_hotplug_disabled = 0;
+	if(!global_wake_status)
+		cpumask_clear(frozen_cpus);
+
 	if (cpumask_empty(frozen_cpus))
 		goto out;
 

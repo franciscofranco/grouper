@@ -108,7 +108,7 @@ static inline void write_pmc_wake_level(u64 value)
 #endif
 }
 
-static inline u64 read_pmc_wake_status(void)
+inline u64 read_pmc_wake_status(void)
 {
 	u64 reg;
 

@@ -49,6 +49,7 @@ enum {
 };
 static int state;
 
+extern  void unlock_cpu_lp_mode(void);
 void register_early_suspend(struct early_suspend *handler)
 {
 	struct list_head *pos;
@@ -139,6 +140,7 @@ static void late_resume(struct work_struct *work)
 	}
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: call handlers\n");
+	unlock_cpu_lp_mode();
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link) {
 		if (pos->resume != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
