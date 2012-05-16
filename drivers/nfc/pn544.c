@@ -94,16 +94,23 @@ static ssize_t pn544_dev_read(struct file *filp, char __user *buf,
 			goto fail;
 		}
 
-		pn544_dev->irq_enabled = true;
-		enable_irq(pn544_dev->client->irq);
-		ret = wait_event_interruptible(pn544_dev->read_wq,
-				gpio_get_value(pn544_dev->irq_gpio));
+		while (1) {
+			pn544_dev->irq_enabled = true;
+			enable_irq(pn544_dev->client->irq);
+			ret = wait_event_interruptible(
+					pn544_dev->read_wq,
+					!pn544_dev->irq_enabled);
 
-		pn544_disable_irq(pn544_dev);
+			pn544_disable_irq(pn544_dev);
 
-		if (ret)
-			goto fail;
+			if (ret)
+				goto fail;
 
+			if (gpio_get_value(pn544_dev->irq_gpio))
+				break;
+
+			pr_warning("%s: spurious interrupt detected\n", __func__);
+		}
 	}
 
 	/* Read data */
@@ -398,3 +405,4 @@ module_exit(pn544_dev_exit);
 MODULE_AUTHOR("Sylvain Fonteneau");
 MODULE_DESCRIPTION("NFC PN544 driver");
 MODULE_LICENSE("GPL");
+
