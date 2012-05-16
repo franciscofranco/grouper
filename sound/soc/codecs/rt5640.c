@@ -110,7 +110,7 @@ static struct rt5640_init_reg init_list[] = {
 //	{RT5640_HPO_MIXER	, 0xa000},//DAC1 -> HPOLMIX
 	{RT5640_SPK_L_MIXER	, 0x0036},//DACL1 -> SPKMIXL
 	{RT5640_SPK_R_MIXER	, 0x0036},//DACR1 -> SPKMIXR
-	{RT5640_SPK_VOL		, 0x8888},//SPKMIX -> SPKVOL
+	{RT5640_SPK_VOL		, 0x8a8a},//SPKMIX -> SPKVOL
 	{RT5640_SPO_L_MIXER	, 0xe800},//SPKVOLL -> SPOLMIX
 	{RT5640_SPO_R_MIXER	, 0x2800},//SPKVOLR -> SPORMIX
 //	{RT5640_SPO_L_MIXER	, 0xb800},//DAC -> SPOLMIX
@@ -118,7 +118,7 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_I2S1_SDP	, 0x8000},//change IIS1 and IIS2
 	/*record*/
 	{RT5640_IN1_IN2		, 0x5080},//IN1 boost 40db and differential mode
-	{RT5640_IN3_IN4		, 0x0540},//IN2 boost 40db and differential mode
+	{RT5640_IN3_IN4		, 0x0840},//IN2 boost 52db and differential mode
 //	{RT5640_REC_L2_MIXER	, 0x007d},//Mic1 -> RECMIXL
 //	{RT5640_REC_R2_MIXER	, 0x007d},//Mic1 -> RECMIXR
 	{RT5640_REC_L2_MIXER	, 0x006f},//Mic2 -> RECMIXL
@@ -139,6 +139,8 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_LOUT_MIXER	, 0x3000},
 	{RT5640_I2S1_SDP	, 0xe000},
 	{RT5640_DSP_PATH2	, 0x0000},
+	{RT5640_PRIV_INDEX      , 0x006e},
+	{RT5640_PRIV_DATA       , 0x3159},
 };
 #define RT5640_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -1448,10 +1450,13 @@ static int rt5640_adc_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		msleep(1);
 		rt5640_index_update_bits(codec,
 			RT5640_CHOP_DAC_ADC, 0x1000, 0x1000);
 		break;
-	case SND_SOC_DAPM_PRE_PMD:
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_update_bits(codec, RT5640_STO_ADC_MIXER,
+			0x5040, 0x5040);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		rt5640_index_update_bits(codec,
@@ -1703,10 +1708,10 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 	/* ADCs */
 	SND_SOC_DAPM_ADC_E("ADC L", NULL, RT5640_PWR_DIG1,
 		RT5640_PWR_ADC_L_BIT, 0, rt5640_adc_event,
-		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_ADC_E("ADC R", NULL, RT5640_PWR_DIG1,
 		RT5640_PWR_ADC_R_BIT, 0, rt5640_adc_event,
-		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
+		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 	/* ADC Mux */
 	SND_SOC_DAPM_MUX("Stereo ADC L2 Mux", SND_SOC_NOPM, 0, 0,
 				&rt5640_sto_adc_l2_mux),
