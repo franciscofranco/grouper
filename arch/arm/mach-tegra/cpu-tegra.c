@@ -637,6 +637,29 @@ int tegra_cpu_late_resume_set_speed_cap(int speed)
 extern u64 global_wake_status;
 extern void tegra_exit_lp_mode(void);
 extern void tegra_enter_lp_mode(void);
+unsigned int emc_max_rate=0;
+#define EMC_MAX_RATE_FOR_PUSH_MAIL (102000000)
+
+void  set_emc_max_rate(unsigned long max_rate)
+{
+	struct clk *emc_clk=tegra_get_clock_by_name("emc");
+	unsigned long  emc_cur_rate;
+
+	if(!emc_clk){
+		printk("set_emc_max_rate get emc clock array fail!\n");
+		return;
+	}
+
+	emc_cur_rate=clk_get_rate_all_locked(emc_clk);
+	printk("set_emc_max_rate emc_cur_rate=%u\n",emc_cur_rate);
+	emc_clk->max_rate= max_rate;
+	if(emc_cur_rate > emc_clk->max_rate){
+		printk(" %s : set emc_clk->max_rate to %u and set rate to %x\n", __func__,max_rate);
+		clk_set_rate(emc_clk, max_rate);
+	}
+
+	clk_put(emc_clk);
+  }
 
 void check_cpu_state(void)
 {
@@ -657,6 +680,8 @@ void check_cpu_state(void)
 
 void unlock_cpu_lp_mode(void)
 {
+	set_emc_max_rate(emc_max_rate);
+
 	if (global_wake_status){
 		printk("unlock_cpu_lp_mode+\n");
 		global_wake_status=0;
@@ -740,6 +765,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 
 			clk_put(cpu_clk);
 			clk_put(cpu_lp_clk);
+			set_emc_max_rate(EMC_MAX_RATE_FOR_PUSH_MAIL);
 
 			pr_info("Tegra cpufreq resume: cpu in LP mode! is_lp_cluster()=%u cpu_clk->parent->name=%s\n",is_lp_cluster(),cpu_clk->parent->name);
 		}
@@ -783,6 +809,14 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->related_cpus, cpu_possible_mask);
 
 	if (policy->cpu == 0) {
+		struct clk *emc_clk=tegra_get_clock_by_name("emc");
+
+		if(emc_clk){
+			emc_max_rate=clk_get_max_rate(emc_clk);
+			clk_put(emc_clk);
+		}else
+			emc_max_rate=UINT_MAX;
+
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 	}
 
