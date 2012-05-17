@@ -293,21 +293,21 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	switch (ext_csd[EXT_CSD_CARD_TYPE] & EXT_CSD_CARD_TYPE_MASK) {
 	case EXT_CSD_CARD_TYPE_DDR_52 | EXT_CSD_CARD_TYPE_52 |
 	     EXT_CSD_CARD_TYPE_26:
-		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.hs_max_dtr = 41000000;
 		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_52;
 		break;
 	case EXT_CSD_CARD_TYPE_DDR_1_2V | EXT_CSD_CARD_TYPE_52 |
 	     EXT_CSD_CARD_TYPE_26:
-		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.hs_max_dtr = 41000000;
 		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_1_2V;
 		break;
 	case EXT_CSD_CARD_TYPE_DDR_1_8V | EXT_CSD_CARD_TYPE_52 |
 	     EXT_CSD_CARD_TYPE_26:
-		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.hs_max_dtr = 41000000;
 		card->ext_csd.card_type = EXT_CSD_CARD_TYPE_DDR_1_8V;
 		break;
 	case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
-		card->ext_csd.hs_max_dtr = 52000000;
+		card->ext_csd.hs_max_dtr = 41000000;
 		break;
 	case EXT_CSD_CARD_TYPE_26:
 		card->ext_csd.hs_max_dtr = 26000000;
