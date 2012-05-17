@@ -441,7 +441,8 @@ static void spi_tegra_copy_client_txbuf_to_spi_txbuf(
 
 	/* Make the dma buffer to read by cpu */
 	dma_sync_single_for_cpu(&tspi->pdev->dev, tspi->tx_buf_phys,
-				tspi->dma_buf_size, DMA_FROM_DEVICE);
+				tspi->dma_buf_size, DMA_TO_DEVICE);
+
 	if (tspi->is_packed) {
 		len = tspi->curr_dma_words * tspi->bytes_per_word;
 		memcpy(tspi->tx_buf, t->tx_buf + tspi->cur_pos, len);
@@ -461,6 +462,7 @@ static void spi_tegra_copy_client_txbuf_to_spi_txbuf(
 		}
 	}
 	tspi->cur_tx_pos += tspi->curr_dma_words * tspi->bytes_per_word;
+
 	/* Make the dma buffer to read by dma */
 	dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
 				tspi->dma_buf_size, DMA_TO_DEVICE);
@@ -499,7 +501,7 @@ static void spi_tegra_copy_spi_rxbuf_to_client_rxbuf(
 
 	/* Make the dma buffer to read by dma */
 	dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
-		tspi->dma_buf_size, DMA_TO_DEVICE);
+		tspi->dma_buf_size, DMA_FROM_DEVICE);
 }
 
 static int spi_tegra_start_dma_based_transfer(
@@ -547,9 +549,6 @@ static int spi_tegra_start_dma_based_transfer(
 	if (tspi->cur_direction & DATA_DIR_TX) {
 		spi_tegra_copy_client_txbuf_to_spi_txbuf(tspi, t);
 		wmb();
-		/* Make the dma buffer to read by dma */
-		dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
-				tspi->dma_buf_size, DMA_TO_DEVICE);
 		tspi->tx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->tx_dma, &tspi->tx_dma_req);
 		if (ret < 0) {
@@ -567,7 +566,8 @@ static int spi_tegra_start_dma_based_transfer(
 	if (tspi->cur_direction & DATA_DIR_RX) {
 		/* Make the dma buffer to read by dma */
 		dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
-				tspi->dma_buf_size, DMA_TO_DEVICE);
+				tspi->dma_buf_size, DMA_FROM_DEVICE);
+
 		tspi->rx_dma_req.size = len;
 		ret = tegra_dma_enqueue_req(tspi->rx_dma, &tspi->rx_dma_req);
 		if (ret < 0) {
@@ -1344,10 +1344,6 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		goto fail_rx_buf_alloc;
 	}
 
-	/* Make the dma buffer to read by dma */
-	dma_sync_single_for_device(&tspi->pdev->dev, tspi->rx_buf_phys,
-				tspi->dma_buf_size, DMA_TO_DEVICE);
-
 	memset(&tspi->rx_dma_req, 0, sizeof(struct tegra_dma_req));
 	tspi->rx_dma_req.complete = tegra_spi_rx_dma_complete;
 	tspi->rx_dma_req.to_memory = 1;
@@ -1376,10 +1372,6 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_tx_buf_alloc;
 	}
-
-	/* Make the dma buffer to read by dma */
-	dma_sync_single_for_device(&tspi->pdev->dev, tspi->tx_buf_phys,
-				tspi->dma_buf_size, DMA_TO_DEVICE);
 
 	memset(&tspi->tx_dma_req, 0, sizeof(struct tegra_dma_req));
 	tspi->tx_dma_req.complete = tegra_spi_tx_dma_complete;
