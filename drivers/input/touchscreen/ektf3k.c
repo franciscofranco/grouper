@@ -1686,13 +1686,26 @@ static int elan_ktf3k_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
+void force_release_pos(struct i2c_client *client)
+{
+        struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
+        int i;
+        for (i=0; i < FINGER_NUM; i++) {
+		if (mTouchStatus[i] == 0) continue;
+		input_mt_slot(ts->input_dev, i);
+		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, 0);
+		mTouchStatus[i] = 0;
+	}
+
+	input_sync(ts->input_dev);
+}
+
 static int elan_ktf3k_ts_resume(struct i2c_client *client)
 {
 
 	int rc = 0, retry = 5;
       struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
       int delay_time;
-	  
 	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
 	if(work_lock == 0){
 	    do {
@@ -1705,7 +1718,7 @@ static int elan_ktf3k_ts_resume(struct i2c_client *client)
 			break;
 	    } while (--retry);
 	}
-	
+	force_release_pos(client);
       enable_irq(client->irq);	
 	return 0;
 }
