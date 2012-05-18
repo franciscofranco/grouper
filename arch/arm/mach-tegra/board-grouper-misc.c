@@ -37,7 +37,7 @@ static unsigned int grouper_pcbid;
 
 unsigned int grouper_query_pcba_revision(void)
 {
-	return HW_DRF_VAL(TEGRA3_DEVKIT, MISC_HW, PCBA, grouper_pcbid);
+	return grouper_pcbid & 0x7;
 }
 EXPORT_SYMBOL(grouper_query_pcba_revision);
 
@@ -56,9 +56,8 @@ static ssize_t grouper_pcbid_show(struct kobject *kobj,
 	char *s = buf;
 	int i;
 
-	for (i = TEGRA3_DEVKIT_MISC_PCBID_NUM; i > 0; i--) {
+	for (i = 3; i > 0; i--)
 		s += sprintf(s, "%c", grouper_pcbid & (1 << (i - 1)) ? '1' : '0');
-	}
 	s += sprintf(s, "b\n");
 	return (s - buf);
 }
