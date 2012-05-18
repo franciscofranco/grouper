@@ -293,7 +293,7 @@ static struct dvfs core_dvfs_table[] = {
 	 */
 	CORE_DVFS("pll_m",  -1, 1, KHZ,  533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1066000),
 #ifdef CONFIG_TEGRA_PLLM_RESTRICTED
-	CORE_DVFS("pll_m",   2, 1, KHZ,  533000, 800000, 800000, 800000, 800000, 1066000, 1066000, 1066000, 1066000),
+	CORE_DVFS("pll_m",   2, 1, KHZ,  533000, 900000, 900000, 900000, 900000, 1066000, 1066000, 1066000, 1066000),
 #endif
 	/* Core voltages (mV):		    950,   1000,   1050,   1100,   1150,   1200,    1250,     1300,    1350 */
 	/* Clock limits for I/O peripherals */
