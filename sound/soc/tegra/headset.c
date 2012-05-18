@@ -208,7 +208,7 @@ static void insert_headset(void)
 		printk("%s: headphone\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(OFF);
-		if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
+		if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
 			disable_uart();
 			printk("%s: SR3 or ER1\n", __func__);
 		}
@@ -219,7 +219,7 @@ static void insert_headset(void)
 		printk("%s: headset\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(ON);
-		if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
+		if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
 			disable_uart();
 			printk("%s: SR3 or ER1\n", __func__);
 		}
@@ -235,8 +235,8 @@ static void remove_headset(void)
 	switch_set_state(&hs_data->sdev, NO_DEVICE);
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
 	headset_alive = false;
-	if( revision & (GROUPER_PCBA_SR3 | GROUPER_PCBA_ER1)){
-		printk("%s: SR3 or ER1\n");
+	if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
+		printk("%s: SR3 or ER1\n", __func__);
 		enable_uart();
 	}
 	tristate_uart();
