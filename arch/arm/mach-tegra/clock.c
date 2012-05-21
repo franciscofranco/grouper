@@ -771,18 +771,23 @@ static int __init tegra_init_disable_boot_clocks(void)
 
 	list_for_each_entry(c, &clocks, node) {
 		clk_lock_save(c, &flags);
-		if (c->refcnt == 0 && c->state == ON &&
+		if(strcmp(c->name, "pwm")==0) {
+			printk("Do not disable PWM clock when kernel inits \n");
+		}
+		else {
+			if (c->refcnt == 0 && c->state == ON &&
 				c->ops && c->ops->disable) {
-			pr_warn_once("%s clocks left on by bootloader:\n",
+				pr_warn_once("%s clocks left on by bootloader:\n",
 				tegra_keep_boot_clocks ?
 					"Prevented disabling" :
 					"Disabling");
 
-			pr_warn("   %s\n", c->name);
+				pr_warn("   %s\n", c->name);
 
-			if (!tegra_keep_boot_clocks) {
-				c->ops->disable(c);
-				c->state = OFF;
+				if (!tegra_keep_boot_clocks) {
+					c->ops->disable(c);
+					c->state = OFF;
+				}
 			}
 		}
 		clk_unlock_restore(c, &flags);
