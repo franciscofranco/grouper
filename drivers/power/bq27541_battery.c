@@ -440,8 +440,7 @@ int battery_callback(unsigned usb_cable_state)
 		power_supply_changed(&bq27541_supply[Charger_Type_AC]);
 	}
 	cancel_delayed_work(&bq27541_device->status_poll_work);
-	queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work,
-		battery_cable_status ? DELAY_FOR_CORRECT_CHARGER_STATUS *HZ : 2*HZ);
+	queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work, 2*HZ);
 
 	return 1;
 }

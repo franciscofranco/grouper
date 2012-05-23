@@ -777,6 +777,21 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 	for(i=0;i<=10;i++)
 		printk("Reg[%02xh]=0x%02x\n", 53+i, status_reg[i]);
 
+	return sprintf(buf, "Reg[06h]=0x%02x\n"
+		"Reg[08h]=0x%02x\n"
+		"Reg[30h]=0x%02x\n"
+		"Reg[31h]=0x%02x\n"
+		"Reg[3dh]=0x%02x\n"
+		"Reg[3eh]=0x%02x\n"
+		"Reg[3fh]=0x%02x\n",
+		config_reg[6],
+		config_reg[8],
+		cmd_reg[0],
+		cmd_reg[1],
+		status_reg[8],
+		status_reg[9],
+		status_reg[10]);
+
 }
 
 static void smb347_default_setback(void)
