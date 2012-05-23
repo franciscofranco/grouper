@@ -45,6 +45,7 @@
 MODULE_DESCRIPTION("Headset detection driver");
 MODULE_LICENSE("GPL");
 
+#define UART_DETECTION (false)
 
 #define DEFAULT_PINMUX(_pingroup, _mux, _pupd, _tri, _io)       \
         {                                                       \
@@ -196,8 +197,7 @@ static void disable_uart(void)
 }
 static void insert_headset(void)
 {
-
-	if(gpio_get_value(LINEOUT_GPIO) == 0 && revision != GROUPER_PCBA_SR3){
+	if(gpio_get_value(LINEOUT_GPIO) == 0 && revision != GROUPER_PCBA_SR3 && UART_DETECTION){
                 printk("%s: debug board\n", __func__);
                 switch_set_state(&hs_data->sdev, NO_DEVICE);
                 hs_micbias_power(OFF);
