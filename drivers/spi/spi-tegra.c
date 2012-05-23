@@ -264,6 +264,9 @@ static inline void spi_tegra_writel(struct spi_tegra_data *tspi,
 	if (!tspi->clk_state)
 		BUG();
 	writel(val, tspi->base + reg);
+
+	/* Synchronize write by reading back the register */
+	readl(tspi->base + SLINK_MAS_DATA);
 }
 
 static void cancel_dma(struct tegra_dma_channel *dma_chan,
@@ -1583,6 +1586,9 @@ static int tegra_spi_runtime_idle(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct spi_tegra_data *tspi = spi_master_get_devdata(master);
+
+	/* Flush all write which are in PPSB queue by reading back */
+	spi_tegra_readl(tspi, SLINK_MAS_DATA);
 
 	tspi->clk_state = 0;
 	clk_disable(tspi->clk);
