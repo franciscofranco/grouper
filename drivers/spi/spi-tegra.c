@@ -1220,55 +1220,50 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	spin_lock_init(&tspi->lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
+	if (!r) {
+		dev_err(&pdev->dev, "No IO memory resource\n");
 		ret = -ENODEV;
-		goto fail_no_mem;
+		goto exit_free_master;
 	}
-
-	if (!request_mem_region(r->start, resource_size(r),
-				dev_name(&pdev->dev))) {
-		ret = -EBUSY;
-		goto fail_no_mem;
-	}
-
 	tspi->phys = r->start;
-	tspi->base = ioremap(r->start, resource_size(r));
+	tspi->base = devm_request_and_ioremap(&pdev->dev, r);
 	if (!tspi->base) {
-		dev_err(&pdev->dev, "can't ioremap iomem\n");
-		ret = -ENOMEM;
-		goto fail_io_map;
+		dev_err(&pdev->dev,
+			"Cannot request memregion/iomap dma address\n");
+		ret = -EADDRNOTAVAIL;
+		goto exit_free_master;
 	}
 
 	spi_irq = platform_get_irq(pdev, 0);
 	if (unlikely(spi_irq < 0)) {
 		dev_err(&pdev->dev, "can't find irq resource\n");
 		ret = -ENXIO;
-		goto fail_irq_req;
+		goto exit_free_master;
 	}
 	tspi->irq = spi_irq;
 
 	sprintf(tspi->port_name, "tegra_spi_%d", pdev->id);
-	ret = request_threaded_irq(tspi->irq, spi_tegra_isr,
-			spi_tegra_isr_thread, IRQF_ONESHOT,
+	ret = devm_request_threaded_irq(&pdev->dev, tspi->irq,
+			spi_tegra_isr, spi_tegra_isr_thread, IRQF_ONESHOT,
 			tspi->port_name, tspi);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register ISR for IRQ %d\n",
 					tspi->irq);
-		goto fail_irq_req;
+		goto exit_free_master;
 	}
 
-	tspi->clk = clk_get(&pdev->dev, "spi");
+	tspi->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(tspi->clk)) {
 		dev_err(&pdev->dev, "can not get clock\n");
 		ret = PTR_ERR(tspi->clk);
-		goto fail_clk_get;
+		goto exit_free_master;
 	}
 
-	tspi->sclk = clk_get(&pdev->dev, "sclk");
+	tspi->sclk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(tspi->sclk)) {
 		dev_err(&pdev->dev, "can not get sclock\n");
 		ret = PTR_ERR(tspi->sclk);
-		goto fail_sclk_get;
+		goto exit_free_master;
 	}
 
 	INIT_LIST_HEAD(&tspi->queue);
@@ -1317,7 +1312,7 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	if (!tspi->rx_dma) {
 		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
 		ret = -ENODEV;
-		goto fail_rx_dma_alloc;
+		goto exit_free_master;
 	}
 
 	tspi->rx_buf = dma_alloc_coherent(&pdev->dev, tspi->dma_buf_size,
@@ -1433,17 +1428,8 @@ fail_tx_dma_alloc:
 fail_rx_buf_alloc:
 	if (tspi->rx_dma)
 		tegra_dma_free_channel(tspi->rx_dma);
-fail_rx_dma_alloc:
-	clk_put(tspi->sclk);
-fail_sclk_get:
-	clk_put(tspi->clk);
-fail_clk_get:
-	free_irq(tspi->irq, tspi);
-fail_irq_req:
-	iounmap(tspi->base);
-fail_io_map:
-	release_mem_region(r->start, resource_size(r));
-fail_no_mem:
+
+exit_free_master:
 	spi_master_put(master);
 	return ret;
 }
@@ -1452,7 +1438,6 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct spi_tegra_data	*tspi;
-	struct resource		*r;
 
 	master = dev_get_drvdata(&pdev->dev);
 	tspi = spi_master_get_devdata(master);
@@ -1477,14 +1462,7 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra_spi_runtime_idle(&pdev->dev);
 
-	clk_put(tspi->sclk);
-	clk_put(tspi->clk);
-	iounmap(tspi->base);
-
 	destroy_workqueue(tspi->spi_workqueue);
-
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, resource_size(r));
 
 	return 0;
 }
