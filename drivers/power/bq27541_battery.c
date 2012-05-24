@@ -487,10 +487,11 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 		ret = bq27541_device->bat_status = rt_value;
 		static char *status_text[] = {"Unknown", "Charging", "Discharging", "Not charging", "Full"};
 
-		if (!(ret & BATT_STS_DSG) && (ac_on || usb_on)) {            /* Charging detected */
-			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		if (ac_on || usb_on) {            /* Charging detected */
 			if (bq27541_device->old_capacity == 100)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else
+				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		} else if (ret & BATT_STS_FC) {                          /* Full-charged condition reached */
 			if (!ac_on)
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
