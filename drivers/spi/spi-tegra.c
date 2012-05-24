@@ -144,7 +144,6 @@
 #define DATA_DIR_TX		(1 << 0)
 #define DATA_DIR_RX		(1 << 1)
 
-#define SPI_FIFO_DEPTH		32
 #define SLINK_DMA_TIMEOUT (msecs_to_jiffies(1000))
 
 
@@ -169,7 +168,7 @@ static const unsigned long spi_tegra_req_sels[] = {
 	RX_FIFO_FULL_COUNT_ZERO << 16)
 
 #define MAX_CHIP_SELECT		4
-#define SLINK_FIFO_DEPTH	4
+#define SLINK_FIFO_DEPTH	32
 
 struct spi_tegra_data {
 	struct spi_master	*master;
@@ -807,7 +806,7 @@ static void spi_tegra_start_transfer(struct spi_device *spi,
 	spi_tegra_writel(tspi, command2, SLINK_COMMAND2);
 	tspi->command2_reg = command2;
 
-	if (total_fifo_words > SPI_FIFO_DEPTH)
+	if (total_fifo_words > SLINK_FIFO_DEPTH)
 		ret = spi_tegra_start_dma_based_transfer(tspi, t);
 	else
 		ret = spi_tegra_start_cpu_based_transfer(tspi, t);
@@ -1158,7 +1157,7 @@ static irqreturn_t spi_tegra_isr_thread(int irq, void *context_data)
 	/* Continue transfer in current message */
 	total_fifo_words = spi_tegra_calculate_curr_xfer_param(tspi->cur_spi,
 							tspi, t);
-	if (total_fifo_words > SPI_FIFO_DEPTH)
+	if (total_fifo_words > SLINK_FIFO_DEPTH)
 		err = spi_tegra_start_dma_based_transfer(tspi, t);
 	else
 		err = spi_tegra_start_cpu_based_transfer(tspi, t);
