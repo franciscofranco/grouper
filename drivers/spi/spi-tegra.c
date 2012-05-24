@@ -1185,6 +1185,87 @@ static irqreturn_t spi_tegra_isr(int irq, void *context_data)
 	return IRQ_WAKE_THREAD;
 }
 
+static void spi_tegra_deinit_dma_param(struct spi_tegra_data *tspi,
+	bool dma_to_memory)
+{
+	struct tegra_dma_channel *tdc;
+	u32 *dma_buf;
+	dma_addr_t dma_phys;
+
+	if (dma_to_memory) {
+		dma_buf = tspi->rx_buf;
+		tdc = tspi->rx_dma;
+		dma_phys = tspi->rx_buf_phys;
+		tspi->rx_dma = NULL;
+		tspi->rx_buf = NULL;
+	} else {
+		dma_buf = tspi->tx_buf;
+		tdc = tspi->tx_dma;
+		dma_phys = tspi->tx_buf_phys;
+		tspi->tx_buf = NULL;
+		tspi->tx_dma = NULL;
+	}
+
+	dma_free_coherent(&tspi->pdev->dev, tspi->dma_buf_size,
+			dma_buf, dma_phys);
+	tegra_dma_free_channel(tdc);
+}
+
+static int __init spi_tegra_init_dma_param(struct spi_tegra_data *tspi,
+			bool dma_to_memory)
+{
+	struct tegra_dma_req *dma_req;
+	struct tegra_dma_channel *tdc;
+	u32 *dma_buf;
+	dma_addr_t dma_phys;
+
+	tdc = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT, "spi_%s_%d",
+			(dma_to_memory) ? "rx" : "tx", tspi->pdev->id);
+	if (!tdc) {
+		dev_err(&tspi->pdev->dev, "can not allocate rx dma channel\n");
+		return -ENODEV;
+	}
+
+	dma_buf = dma_alloc_coherent(&tspi->pdev->dev, tspi->dma_buf_size,
+				&dma_phys, GFP_KERNEL);
+	if (!dma_buf) {
+		dev_err(&tspi->pdev->dev, "can not allocate rx bounce buffer");
+		tegra_dma_free_channel(tdc);
+		return -ENOMEM;
+	}
+
+	dma_req = (dma_to_memory) ? &tspi->rx_dma_req : &tspi->tx_dma_req;
+	memset(dma_req, 0, sizeof(*dma_req));
+
+	dma_req->req_sel = spi_tegra_req_sels[tspi->pdev->id];
+	dma_req->dev = tspi;
+	dma_req->dest_bus_width = 32;
+	dma_req->source_bus_width = 32;
+	dma_req->to_memory = (dma_to_memory) ? 1 : 0;
+	dma_req->virt_addr = dma_buf;
+	dma_req->dest_wrap = 0;
+	dma_req->source_wrap = 0;
+
+	if (dma_to_memory) {
+		dma_req->complete = tegra_spi_rx_dma_complete;
+		dma_req->dest_addr = dma_phys;
+		dma_req->source_addr = tspi->phys + SLINK_RX_FIFO;
+		dma_req->source_wrap = 4;
+		tspi->rx_buf_phys = dma_phys;
+		tspi->rx_buf = dma_buf;
+		tspi->rx_dma = tdc;
+	} else {
+		dma_req->complete = tegra_spi_tx_dma_complete;
+		dma_req->dest_addr = tspi->phys + SLINK_TX_FIFO;
+		dma_req->source_addr = dma_phys;
+		dma_req->dest_wrap = 4;
+		tspi->tx_buf = dma_buf;
+		tspi->tx_buf_phys = dma_phys;
+		tspi->tx_dma = tdc;
+	}
+	return 0;
+}
+
 static int __init spi_tegra_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
@@ -1306,64 +1387,18 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	init_completion(&tspi->tx_dma_complete);
 	init_completion(&tspi->rx_dma_complete);
 
-
-	tspi->rx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT,
-				"spi_rx_%d", pdev->id);
-	if (!tspi->rx_dma) {
-		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
-		ret = -ENODEV;
+	ret = spi_tegra_init_dma_param(tspi, true);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Error in rx dma init\n");
 		goto exit_free_master;
 	}
 
-	tspi->rx_buf = dma_alloc_coherent(&pdev->dev, tspi->dma_buf_size,
-					 &tspi->rx_buf_phys, GFP_KERNEL);
-	if (!tspi->rx_buf) {
-		dev_err(&pdev->dev, "can not allocate rx bounce buffer\n");
-		ret = -ENOMEM;
-		goto fail_rx_buf_alloc;
+	ret = spi_tegra_init_dma_param(tspi, false);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Error in tx dma init\n");
+		goto exit_rx_dma_free;
 	}
 
-	memset(&tspi->rx_dma_req, 0, sizeof(struct tegra_dma_req));
-	tspi->rx_dma_req.complete = tegra_spi_rx_dma_complete;
-	tspi->rx_dma_req.to_memory = 1;
-	tspi->rx_dma_req.dest_addr = tspi->rx_buf_phys;
-	tspi->rx_dma_req.virt_addr = tspi->rx_buf;
-	tspi->rx_dma_req.dest_bus_width = 32;
-	tspi->rx_dma_req.source_addr = tspi->phys + SLINK_RX_FIFO;
-	tspi->rx_dma_req.source_bus_width = 32;
-	tspi->rx_dma_req.source_wrap = 4;
-	tspi->rx_dma_req.dest_wrap = 0;
-	tspi->rx_dma_req.req_sel = spi_tegra_req_sels[pdev->id];
-	tspi->rx_dma_req.dev = tspi;
-
-	tspi->tx_dma = tegra_dma_allocate_channel(TEGRA_DMA_MODE_ONESHOT,
-				"spi_tx_%d", pdev->id);
-	if (!tspi->tx_dma) {
-		dev_err(&pdev->dev, "can not allocate tx dma channel\n");
-		ret = -ENODEV;
-		goto fail_tx_dma_alloc;
-	}
-
-	tspi->tx_buf = dma_alloc_coherent(&pdev->dev, tspi->dma_buf_size,
-					 &tspi->tx_buf_phys, GFP_KERNEL);
-	if (!tspi->tx_buf) {
-		dev_err(&pdev->dev, "can not allocate tx bounce buffer\n");
-		ret = -ENOMEM;
-		goto fail_tx_buf_alloc;
-	}
-
-	memset(&tspi->tx_dma_req, 0, sizeof(struct tegra_dma_req));
-	tspi->tx_dma_req.complete = tegra_spi_tx_dma_complete;
-	tspi->tx_dma_req.to_memory = 0;
-	tspi->tx_dma_req.dest_addr = tspi->phys + SLINK_TX_FIFO;
-	tspi->tx_dma_req.virt_addr = tspi->tx_buf;
-	tspi->tx_dma_req.dest_bus_width = 32;
-	tspi->tx_dma_req.dest_wrap = 4;
-	tspi->tx_dma_req.source_wrap = 0;
-	tspi->tx_dma_req.source_addr = tspi->tx_buf_phys;
-	tspi->tx_dma_req.source_bus_width = 32;
-	tspi->tx_dma_req.req_sel = spi_tegra_req_sels[pdev->id];
-	tspi->tx_dma_req.dev = tspi;
 	tspi->max_buf_size = tspi->dma_buf_size;
 	tspi->def_command_reg  = SLINK_CS_SW | SLINK_M_S;
 	tspi->def_command2_reg = SLINK_CS_ACTIVE_BETWEEN;
@@ -1374,7 +1409,7 @@ skip_dma_alloc:
 		ret = tegra_spi_runtime_resume(&pdev->dev);
 		if (ret) {
 			dev_err(&pdev->dev, "runtime resume failed %d", ret);
-			goto err_pm_disable;
+			goto exit_pm_disable;
 		}
 	}
 
@@ -1386,7 +1421,7 @@ skip_dma_alloc:
 	ret = spi_register_master(master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
-		goto fail_master_register;
+		goto exit_pm_suspend;
 	}
 
 	/* create the workqueue for the kbc path */
@@ -1395,39 +1430,30 @@ skip_dma_alloc:
 	if (!tspi->spi_workqueue) {
 		dev_err(&pdev->dev, "Failed to create work queue\n");
 		ret = -ENODEV;
-		goto fail_workqueue;
+		goto exit_master_unregister;
 	}
 
 	INIT_WORK(&tspi->spi_transfer_work, tegra_spi_transfer_work);
 
 	return ret;
 
-fail_workqueue:
+exit_master_unregister:
 	spi_unregister_master(master);
 
-fail_master_register:
 	if (tspi->is_clkon_always)
 		pm_runtime_put_sync(&pdev->dev);
 
+exit_pm_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra_spi_runtime_idle(&pdev->dev);
 
-err_pm_disable:
+exit_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 
-	if (tspi->tx_buf)
-		dma_free_coherent(&pdev->dev, tspi->dma_buf_size,
-				tspi->tx_buf, tspi->tx_buf_phys);
-fail_tx_buf_alloc:
-	if (tspi->tx_dma)
-		tegra_dma_free_channel(tspi->tx_dma);
-fail_tx_dma_alloc:
-	if (tspi->rx_buf)
-		dma_free_coherent(&pdev->dev, tspi->dma_buf_size,
-			  tspi->rx_buf, tspi->rx_buf_phys);
-fail_rx_buf_alloc:
-	if (tspi->rx_dma)
-		tegra_dma_free_channel(tspi->rx_dma);
+	spi_tegra_deinit_dma_param(tspi, false);
+
+exit_rx_dma_free:
+	spi_tegra_deinit_dma_param(tspi, true);
 
 exit_free_master:
 	spi_master_put(master);
@@ -1443,16 +1469,12 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	tspi = spi_master_get_devdata(master);
 
 	spi_unregister_master(master);
-	if (tspi->tx_buf)
-		dma_free_coherent(&pdev->dev, tspi->dma_buf_size,
-				tspi->tx_buf, tspi->tx_buf_phys);
+
 	if (tspi->tx_dma)
-		tegra_dma_free_channel(tspi->tx_dma);
-	if (tspi->rx_buf)
-		dma_free_coherent(&pdev->dev, tspi->dma_buf_size,
-			  tspi->rx_buf, tspi->rx_buf_phys);
+		spi_tegra_deinit_dma_param(tspi, false);
+
 	if (tspi->rx_dma)
-		tegra_dma_free_channel(tspi->rx_dma);
+		spi_tegra_deinit_dma_param(tspi, true);
 
 	/* Disable clock if it is always enabled */
 	if (tspi->is_clkon_always)
