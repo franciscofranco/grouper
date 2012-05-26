@@ -27,6 +27,7 @@
 
 #include "ltr558als.h"
 #include "../iio.h"
+#include "../sysfs.h"
 
 #define DRIVER_VERSION "1.0"
 #define DEVICE_NAME "LTR_558ALS"
@@ -34,7 +35,6 @@
 struct ltr558_chip {
 	struct i2c_client	*client;
 	struct mutex	lock;
-	struct iio_dev	*indio_dev;
 	int		irq;
 
 	bool	is_als_enable;
@@ -240,7 +240,7 @@ static ssize_t show_prox_enable(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	if (chip->is_prox_enable)
@@ -253,7 +253,7 @@ static ssize_t store_prox_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	int err = 0;
 	unsigned long lval;
@@ -287,7 +287,7 @@ static ssize_t show_proxim_low_threshold(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->prox_low_thres);
@@ -297,7 +297,7 @@ static ssize_t store_proxim_low_threshold(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	bool st;
 	unsigned long lval;
@@ -328,7 +328,7 @@ static ssize_t show_proxim_high_threshold(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->prox_high_thres);
@@ -338,7 +338,7 @@ static ssize_t store_proxim_high_threshold(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	bool st;
 	unsigned long lval;
@@ -369,7 +369,7 @@ static ssize_t show_als_enable(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	if (chip->is_als_enable)
@@ -382,7 +382,7 @@ static ssize_t store_als_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	int err = 0;
 	unsigned long lval;
@@ -416,7 +416,7 @@ static ssize_t show_als_low_threshold(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->als_low_thres);
@@ -426,7 +426,7 @@ static ssize_t store_als_low_threshold(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	bool st;
 	unsigned long lval;
@@ -456,7 +456,7 @@ static ssize_t show_als_high_threshold(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->als_high_thres);
@@ -466,7 +466,7 @@ static ssize_t store_als_high_threshold(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	struct i2c_client *client = chip->client;
 	bool st;
 	unsigned long lval;
@@ -496,7 +496,7 @@ static ssize_t show_proxim_persist(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->prox_persist);
@@ -506,7 +506,7 @@ static ssize_t store_proxim_persist(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	unsigned long lval;
 
 	dev_vdbg(dev, "%s()\n", __func__);
@@ -530,7 +530,7 @@ static ssize_t show_als_persist(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 
 	dev_vdbg(dev, "%s()\n", __func__);
 	return sprintf(buf, "%d\n", chip->als_persist);
@@ -540,7 +540,7 @@ static ssize_t store_als_persist(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	unsigned long lval;
 
 	dev_vdbg(dev, "%s()\n", __func__);
@@ -564,7 +564,7 @@ static ssize_t show_proxim_data(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	int prox_data = 0;
 	ssize_t buf_count = 0;
 
@@ -587,7 +587,7 @@ static ssize_t show_als_data(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	ssize_t buf_count = 0;
 	int als_data = 0;
 
@@ -611,7 +611,7 @@ static ssize_t show_name(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ltr558_chip *chip = indio_dev->dev_data;
+	struct ltr558_chip *chip = iio_priv(indio_dev);
 	return sprintf(buf, "%s\n", chip->client->name);
 }
 
@@ -733,14 +733,17 @@ static int ltr558_probe(struct i2c_client *client,
 {
 	int ret = 0;
 	struct ltr558_chip *chip;
+	struct iio_dev *indio_dev;
 
-	/* data memory allocation */
-	chip = kzalloc(sizeof(struct ltr558_chip), GFP_KERNEL);
-	if (chip == NULL) {
-		printk(KERN_ALERT "%s: LTR-558ALS kzalloc failed.\n", __func__);
-		ret = -ENOMEM;
+	indio_dev = iio_allocate_device(sizeof(*chip));
+	if (indio_dev == NULL) {
+		dev_err(&client->dev, "Memory allocation fails\n");
+		ret =  -ENOMEM;
 		goto exit;
 	}
+	chip = iio_priv(indio_dev);
+
+	dev_dbg(&client->dev, "%s() called\n", __func__);
 
 	i2c_set_clientdata(client, chip);
 	chip->client = client;
@@ -760,34 +763,26 @@ static int ltr558_probe(struct i2c_client *client,
 
 	ret = ltr558_chip_init(client);
 	if (ret)
-		goto exit_free;
-
-	chip->indio_dev = iio_allocate_device(0);
-	if (!chip->indio_dev) {
-		dev_err(&client->dev, "iio allocation fails\n");
 		goto exit_irq;
-	}
 
-	chip->indio_dev->info = &ltr558_info;
-	chip->indio_dev->dev.parent = &client->dev;
-	chip->indio_dev->dev_data = (void *)(chip);
-	chip->indio_dev->modes = INDIO_DIRECT_MODE;
-	ret = iio_device_register(chip->indio_dev);
+	indio_dev->name = id->name;
+	indio_dev->info = &ltr558_info;
+	indio_dev->dev.parent = &client->dev;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&client->dev, "iio registration fails\n");
-		goto exit_iio_free;
+		goto exit_irq;
 	}
 
 	dev_dbg(&client->dev, "%s() success\n", __func__);
 	return 0;
 
-exit_iio_free:
-	iio_free_device(chip->indio_dev);
 exit_irq:
 	if (chip->irq > 0)
 		free_irq(chip->irq, chip);
 exit_free:
-	kfree(chip);
+	iio_free_device(indio_dev);
 exit:
 	return ret;
 }
@@ -796,9 +791,11 @@ exit:
 static int ltr558_remove(struct i2c_client *client)
 {
 	struct ltr558_chip *chip = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev;
+	indio_dev = iio_priv_to_dev(chip);
 
 	dev_dbg(&client->dev, "%s()\n", __func__);
-	iio_device_unregister(chip->indio_dev);
+	iio_device_unregister(indio_dev);
 	if (chip->irq > 0)
 		free_irq(chip->irq, chip);
 	ltr558_ps_disable(client);
