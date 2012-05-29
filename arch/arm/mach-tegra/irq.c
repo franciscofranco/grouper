@@ -26,6 +26,7 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
+#include <mach/gpio.h>
 #include <mach/legacy_irq.h>
 
 #include "board.h"
@@ -66,9 +67,33 @@ static void __iomem *ictlr_reg_base[] = {
 
 #ifdef CONFIG_PM_SLEEP
 static u32 cop_ier[NUM_ICTLRS];
+static u32 cop_iep[NUM_ICTLRS];
 static u32 cpu_ier[NUM_ICTLRS];
 static u32 cpu_iep[NUM_ICTLRS];
+
+static u32 ictlr_wake_mask[NUM_ICTLRS];
 #endif
+
+int tegra_update_lp1_irq_wake(unsigned int irq, bool enable)
+{
+#ifdef CONFIG_PM_SLEEP
+	u8 index;
+	u32 mask;
+
+	if (irq < FIRST_LEGACY_IRQ ||
+		irq >= FIRST_LEGACY_IRQ + NUM_ICTLRS * 32)
+		return -EINVAL;
+
+	index = ((irq - FIRST_LEGACY_IRQ) >> 5);
+	mask = BIT((irq - FIRST_LEGACY_IRQ) % 32);
+	if (enable)
+		ictlr_wake_mask[index] |= mask;
+	else
+		ictlr_wake_mask[index] &= ~mask;
+#endif
+
+	return 0;
+}
 
 static inline void tegra_irq_write_mask(unsigned int irq, unsigned long reg)
 {
@@ -131,11 +156,28 @@ static int tegra_set_type(struct irq_data *d, unsigned int flow_type)
 	return tegra_pm_irq_set_wake_type(d->irq, flow_type);
 }
 
-
 #ifdef CONFIG_PM_SLEEP
+/*
+ * Caller ensures that tegra_set_wake (irq_set_wake callback)
+ * is called for non-gpio wake sources only
+ */
 static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 {
-	return tegra_pm_irq_set_wake(d->irq, enable);
+	int ret;
+
+	/* pmc lp0 wake enable for non-gpio wake sources */
+	ret = tegra_pm_irq_set_wake(d->irq, enable);
+	if (ret)
+		pr_err("Failed lp0 wake %s for irq=%d\n",
+			(enable ? "enable" : "disable"), d->irq);
+
+	/* lp1 wake enable for wake sources */
+	ret = tegra_update_lp1_irq_wake(d->irq, enable);
+	if (ret)
+		pr_err("Failed lp1 wake %s for irq=%d\n",
+			(enable ? "enable" : "disable"), d->irq);
+
+	return ret;
 }
 
 static int tegra_legacy_irq_suspend(void)
@@ -146,9 +188,13 @@ static int tegra_legacy_irq_suspend(void)
 	local_irq_save(flags);
 	for (i = 0; i < NUM_ICTLRS; i++) {
 		void __iomem *ictlr = ictlr_reg_base[i];
+		/* save interrupt state */
 		cpu_ier[i] = readl(ictlr + ICTLR_CPU_IER);
 		cpu_iep[i] = readl(ictlr + ICTLR_CPU_IEP_CLASS);
 		cop_ier[i] = readl(ictlr + ICTLR_COP_IER);
+		cop_iep[i] = readl(ictlr + ICTLR_COP_IEP_CLASS);
+
+		/* disable COP interrupts */
 		writel(~0, ictlr + ICTLR_COP_IER_CLR);
 
 		/* disable CPU interrupts */
@@ -173,7 +219,7 @@ static void tegra_legacy_irq_resume(void)
 		writel(cpu_iep[i], ictlr + ICTLR_CPU_IEP_CLASS);
 		writel(~0ul, ictlr + ICTLR_CPU_IER_CLR);
 		writel(cpu_ier[i], ictlr + ICTLR_CPU_IER_SET);
-		writel(0, ictlr + ICTLR_COP_IEP_CLASS);
+		writel(cop_iep[i], ictlr + ICTLR_COP_IEP_CLASS);
 		writel(~0ul, ictlr + ICTLR_COP_IER_CLR);
 		writel(cop_ier[i], ictlr + ICTLR_COP_IER_SET);
 	}

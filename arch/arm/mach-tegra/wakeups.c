@@ -27,48 +27,83 @@
 #include "gpio-names.h"
 #include "wakeups.h"
 
-extern int *tegra_wake_event_irq;
-extern unsigned int tegra_wake_event_irq_size;
+extern struct tegra_wake_info *tegra_wake_event_data;
+extern unsigned int tegra_wake_event_data_size;
 
-int tegra_irq_to_wake(int irq)
+/*
+ * FIXME: unable to pass rising and falling
+ * flags from usb driver hence using polarity field
+ * from wake table to set wake_mask_any
+ * for selected usb wake sources - VBUS and ID
+ */
+static int update_wake_mask(unsigned int index, int flow_type,
+	struct wake_mask_types *wake_msk)
+{
+	int trigger_val;
+	/*
+	 * set wake function calls with flow_type as -1
+	 * set wake type function calls update_wake_mask with
+	 * the wake polarity
+	 */
+	if (flow_type == -1) {
+		pr_debug("Wake%d flow_type=%d\n",
+			index, flow_type);
+		/* use argument wake_mask_hi to return mask */
+		wake_msk->wake_mask_hi |= (1ULL << index);
+	} else {
+		trigger_val = (flow_type & IRQF_TRIGGER_MASK);
+		if ((tegra_wake_event_data[index].polarity ==
+			POLARITY_EDGE_ANY) ||
+			(trigger_val ==
+			(IRQF_TRIGGER_RISING |
+			IRQF_TRIGGER_FALLING))) {
+			pr_debug("Wake%d flow_type=ANY\n", index);
+			wake_msk->wake_mask_any |= (1ULL << index);
+		} else if ((trigger_val == IRQF_TRIGGER_HIGH) ||
+			(trigger_val == IRQF_TRIGGER_RISING)) {
+			pr_debug("Wake%d flow_type=HI\n", index);
+			wake_msk->wake_mask_hi |= (1ULL << index);
+		} else if ((trigger_val == IRQF_TRIGGER_LOW) ||
+			(trigger_val == IRQF_TRIGGER_FALLING)) {
+			pr_debug("Wake%d flow_type=LO\n", index);
+			wake_msk->wake_mask_lo |= (1ULL << index);
+		} else {
+			pr_err("Error: Wake%d UNKNOWN flow_type=%d\n",
+				index, flow_type);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+int tegra_irq_to_wake(unsigned int irq, int flow_type,
+	struct wake_mask_types *wake_msk)
 {
 	int i;
-	int wake_irq;
-	int search_gpio;
-	static int last_wake = -1;
+	int err;
 
-	/* Two level wake irq search for gpio based wakeups -
-	 * 1. check for GPIO irq(based on tegra_wake_event_irq table)
-	 * e.g. for a board, wake7 based on GPIO PU6 and irq==390 done first
-	 * 2. check for gpio bank irq assuming search for GPIO irq
-	 *    preceded this search.
-	 * e.g. in this step check for gpio bank irq GPIO6 irq==119
+	wake_msk->wake_mask_hi = 0ULL;
+	wake_msk->wake_mask_lo = 0ULL;
+	wake_msk->wake_mask_any = 0ULL;
+	/*
+	 * check for irq based on tegra_wake_event_data table
 	 */
-	for (i = 0; i < tegra_wake_event_irq_size; i++) {
-		/* return if step 1 matches */
-		if (tegra_wake_event_irq[i] == irq) {
-			pr_info("Wake%d for irq=%d\n", i, irq);
-			last_wake = i;
-			return i;
-		}
-
-		/* step 2 below uses saved last_wake from step 1
-		 * in previous call */
-		search_gpio = irq_to_gpio(
-			tegra_wake_event_irq[i]);
-		if (search_gpio < 0)
+	for (i = 0; i < tegra_wake_event_data_size; i++) {
+		if (tegra_wake_event_data[i].irq == irq) {
+			err = update_wake_mask(i, flow_type, wake_msk);
+			if (err)
+				return err;
 			continue;
-		wake_irq = tegra_gpio_get_bank_int_nr(search_gpio);
-		if (wake_irq < 0)
-			continue;
-		if ((last_wake == i) &&
-			(wake_irq == irq)) {
-			pr_info("gpio bank wake found: wake%d for irq=%d\n",
-				i, irq);
-			return i;
 		}
 	}
 
+	if (wake_msk->wake_mask_hi || wake_msk->wake_mask_lo ||
+		wake_msk->wake_mask_any) {
+		pr_debug("Enabling wake sources for irq=%d, mask hi=%#llx, lo=%#llx, any=%#llx, flow_type=%d\n",
+			irq, wake_msk->wake_mask_hi, wake_msk->wake_mask_lo,
+			wake_msk->wake_mask_any, flow_type);
+		return 0;
+	}
 	return -EINVAL;
 }
 
@@ -77,9 +112,19 @@ int tegra_wake_to_irq(int wake)
 	if (wake < 0)
 		return -EINVAL;
 
-	if (wake >= tegra_wake_event_irq_size)
+	if (wake >= tegra_wake_event_data_size)
 		return -EINVAL;
 
-	return tegra_wake_event_irq[wake];
+	return tegra_wake_event_data[wake].irq;
+}
+
+int tegra_disable_wake_source(int wake)
+{
+	if (wake >= tegra_wake_event_data_size)
+		return -EINVAL;
+
+	tegra_wake_event_data[wake].irq = -EINVAL;
+
+	return 0;
 }
 

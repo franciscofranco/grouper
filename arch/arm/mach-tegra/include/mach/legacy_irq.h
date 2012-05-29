@@ -19,5 +19,7 @@
 #define _ARCH_ARM_MACH_TEGRA_LEGARY_IRQ_H
 
 void tegra_init_legacy_irq_cop(void);
+/* lp1 wake interrupts enabled or disabled using this API */
+int tegra_update_lp1_irq_wake(unsigned int irq, bool enable);
 
 #endif
