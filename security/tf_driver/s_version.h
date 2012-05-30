@@ -33,12 +33,12 @@
  */
 
 #define S_VERSION_OS "A"          /* "A" for all Android */
-#define S_VERSION_PLATFORM "A"    /* "A" for Tegra2 */
+#define S_VERSION_PLATFORM "B"    /* "B" for Tegra3 */
 
 /*
  * This version number must be updated for each new release
  */
-#define S_VERSION_MAIN  "01.07"
+#define S_VERSION_MAIN  "01.08"
 
 /*
 * If this is a patch or engineering version use the following
