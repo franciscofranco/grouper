@@ -4,7 +4,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-
+#include <linux/earlysuspend.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
@@ -76,6 +76,7 @@ struct al3010_data {
 	struct i2c_client *client;
 	struct mutex lock;
 	struct miscdevice misc_dev;
+	struct early_suspend light_sensor_early_suspender;
 	u8 reg_cache[AL3010_NUM_CACHABLE_REGS];
 	u8 power_state_before_suspend;
 };
@@ -174,7 +175,9 @@ static int al3010_set_power_state(struct i2c_client *client, int state)
 static int al3010_get_power_state(struct i2c_client *client)
 {
 	struct al3010_data *data = i2c_get_clientdata(client);
-	u8 cmdreg = data->reg_cache[AL3010_MODE_COMMAND];
+	//u8 cmdreg = data->reg_cache[AL3010_MODE_COMMAND];
+	// do not use cache data check power state , directly get register data from IC.
+	u8 cmdreg = i2c_smbus_read_byte_data(client, AL3010_MODE_COMMAND);
 	return (cmdreg & AL3010_POW_MASK) >> AL3010_POW_SHIFT;
 }
 
@@ -386,6 +389,66 @@ static const struct attribute_group al3010_attr_group = {
 	.attrs = al3010_attributes,
 };
 
+static int al3010_chip_suspend(struct al3010_data *data)
+{
+	int ret = 0;
+	ret = al3010_set_power_state(data->client, 0);
+	light_sensor_ready = false;
+	catch_first_poll_time = false;
+	return ret;
+}
+
+static int al3010_chip_resume(struct al3010_data *data)
+{
+	/* restore registers from cache */
+	int ret=0;
+	if (al3010_get_power_state(data->client) == 0){
+		int i=0;
+		for (i = 0; i < ARRAY_SIZE(data->reg_cache); i++)
+			if (i2c_smbus_write_byte_data(data->client, i, data->reg_cache[i]))
+				return -EIO;
+		ret = al3010_set_power_state(data->client,1);
+	}else{
+		printk("al3010 debug log : light sensor chip is resumed\n");
+	}
+	return ret;
+}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+
+static int al3010_early_suspend(struct early_suspend *h)
+{
+	if(al3010_hardware_fail==true){
+		printk("al3010_early_suspend\n");
+		return 0;
+	}
+	printk("al3010_early_suspend+\n");
+	int ret = 0;
+	//+++
+	struct al3010_data *data = container_of(h, struct al3010_data, light_sensor_early_suspender);
+	ret = al3010_chip_suspend(data);
+    //---
+	printk("al3010_early_suspend-\n");
+	return ret;
+}
+
+static int al3010_late_resume(struct early_suspend *h)
+{
+	if(al3010_hardware_fail==true){
+		printk("al3010_late_resume\n");
+		return 0;
+	}
+	printk("al3010_late_resume+\n");
+	int ret=0;
+	//+++
+	struct al3010_data *data = container_of(h, struct al3010_data, light_sensor_early_suspender);
+	ret = al3010_chip_resume(data);
+	//---
+	printk("al3010_late_resume-\n");
+	return ret;
+}
+#endif
+
 static int al3010_init_client(struct i2c_client *client)
 {
 	struct al3010_data *data = i2c_get_clientdata(client);
@@ -405,6 +468,7 @@ static int al3010_init_client(struct i2c_client *client)
 	}
 	//al3010_set_resolution(client, 0);
 	//al3010_set_mode(client, 0);
+
 
 	return 0;
 }
@@ -555,7 +619,12 @@ static int __devinit al3010_probe(struct i2c_client *client,
 				data->misc_dev.name);
 		goto exit_kfree;
 	}
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	data->light_sensor_early_suspender.suspend = al3010_early_suspend;
+	data->light_sensor_early_suspender.resume = al3010_late_resume;
+	data->light_sensor_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	register_early_suspend(&data->light_sensor_early_suspender);
+#endif
 	return 0;
 
 exit_kfree:
@@ -584,12 +653,10 @@ static int al3010_suspend(struct i2c_client *client, pm_message_t mesg)
 	}
 	printk("al3010_suspend+\n");
 	int ret = 0;
+	//+++
 	struct al3010_data *data = i2c_get_clientdata(client);
-
-	data->power_state_before_suspend = al3010_get_power_state(client);
-	ret = al3010_set_power_state(client, 0);
-	light_sensor_ready = false;
-	catch_first_poll_time = false;
+	ret = al3010_chip_suspend(data);
+	//---
 	printk("al3010_suspend-\n");
 	return ret;
 }
@@ -601,19 +668,11 @@ static int al3010_resume(struct i2c_client *client)
 		return 0;
 	}
 	printk("al3010_resume+\n");
-	int i;
 	int ret=0;
+	//+++
 	struct al3010_data *data = i2c_get_clientdata(client);
-
-	/* restore registers from cache */
-	for (i = 0; i < ARRAY_SIZE(data->reg_cache); i++)
-		if (i2c_smbus_write_byte_data(client, i, data->reg_cache[i]))
-			return -EIO;
-	ret = al3010_set_power_state(client,
-			data->power_state_before_suspend);
-	//do_gettimeofday(&t_resume_time);
-	//printk("light sensor debug : al3010 resume timestamp , tv_sec  = %d\n",t_resume_time.tv_sec);
-	//printk("light sensor debug : al3010 resume timestamp , tv_usec = %d\n",t_resume_time.tv_usec);
+	ret = al3010_chip_resume(data);
+	//---
 	printk("al3010_resume-\n");
 	return ret;
 }
