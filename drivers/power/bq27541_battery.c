@@ -230,7 +230,6 @@ static struct bq27541_device_info {
 	struct delayed_work low_low_bat_work;
 	struct miscdevice battery_misc;
 	struct wake_lock low_battery_wake_lock;
-	struct wake_lock cable_event_wake_lock;
 	int smbus_status;
 	int battery_present;
 	int low_battery_present;
@@ -420,7 +419,7 @@ int battery_callback(unsigned usb_cable_state)
        printk("========================================================\n");
 
 	check_cabe_type();
-       wake_lock_timeout(&bq27541_device->cable_event_wake_lock, DELAY_FOR_CORRECT_CHARGER_STATUS*HZ);
+
 	if(! battery_cable_status) {
 		if (old_cable_status == USB_AC_Adapter) {
 			power_supply_changed(&bq27541_supply[Charger_Type_AC]);
@@ -673,7 +672,6 @@ static int bq27541_probe(struct i2c_client *client,
 
 	spin_lock_init(&bq27541_device->lock);
 	wake_lock_init(&bq27541_device->low_battery_wake_lock, WAKE_LOCK_SUSPEND, "low_battery_detection");
-	wake_lock_init(&bq27541_device->cable_event_wake_lock, WAKE_LOCK_SUSPEND, "battery_cable_event");
 
 	/* Register sysfs */
 	ret = sysfs_create_group(&client->dev.kobj, &battery_smbus_group);
