@@ -132,10 +132,8 @@ static int put_scan_to_buf(struct iio_dev *indio_dev, unsigned char *d,
 /**
  *  inv_read_fifo() - Transfer data from FIFO to ring buffer.
  */
-static irqreturn_t inv_read_fifo(int irq, void *p)
+int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 {
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
 	struct inv_ami306_state_s *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 	int result, status, d_ind;
@@ -176,20 +174,35 @@ end_session:
 	b = AMI_CTRL3_FORCE_BIT;
 	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL3, 1, &b);
 
-	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
 void inv_ami306_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
 	iio_kfifo_free(indio_dev->buffer);
 };
+static int inv_ami306_postenable(struct iio_dev *indio_dev)
+{
+	struct inv_ami306_state_s *st = iio_priv(indio_dev);
+	int result;
+
+	result = set_ami306_enable(indio_dev, true);
+	schedule_delayed_work(&st->work,
+		msecs_to_jiffies(st->delay));
+	return 0;
+}
+
+static int inv_ami306_predisable(struct iio_dev *indio_dev)
+{
+	struct inv_ami306_state_s *st = iio_priv(indio_dev);
+	cancel_delayed_work_sync(&st->work);
+	return 0;
+}
 
 static const struct iio_buffer_setup_ops inv_ami306_ring_setup_ops = {
 	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
+	.postenable = &inv_ami306_postenable,
+	.predisable = &inv_ami306_predisable,
 };
 
 int inv_ami306_configure_ring(struct iio_dev *indio_dev)
@@ -206,25 +219,9 @@ int inv_ami306_configure_ring(struct iio_dev *indio_dev)
 	/* setup ring buffer */
 	ring->scan_timestamp = true;
 	indio_dev->setup_ops = &inv_ami306_ring_setup_ops;
-	/*scan count double count timestamp. should subtract 1. but
-	number of channels still includes timestamp*/
-	indio_dev->pollfunc = iio_alloc_pollfunc(&inv_ami_irq_handler,
-					&inv_read_fifo,
-					IRQF_ONESHOT,
-					indio_dev,
-					"%s_consumer%d",
-					indio_dev->name,
-					indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
-	}
 
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
-error_iio_sw_rb_free:
-	iio_kfifo_free(indio_dev->buffer);
-	return ret;
 }
 /**
  *  @}

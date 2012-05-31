@@ -147,6 +147,7 @@ void inv_ami306_remove_trigger(struct iio_dev *indio_dev);
 int set_ami306_enable(struct iio_dev *indio_dev, int state);
 int ami306_read_raw_data(struct inv_ami306_state_s *st,
 				short dat[3]);
+int inv_read_ami306_fifo(struct iio_dev *indio_dev);
 
 #endif  /* #ifndef _INV_GYRO_H_ */
 

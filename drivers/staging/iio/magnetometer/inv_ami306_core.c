@@ -258,6 +258,7 @@ int set_ami306_enable(struct iio_dev *indio_dev, int state)
 		if (result)
 			return result;
 		buf = AMI_CTRL3_FORCE_BIT;
+		st->timestamp = iio_get_time_ns();
 		result = i2c_smbus_write_i2c_block_data(st->i2c,
 				REG_AMI_CTRL3, 1, &buf);
 		if (result)
@@ -340,6 +341,8 @@ static ssize_t ami306_rate_store(struct device *dev,
 	error = kstrtoul(buf, 10, &data);
 	if (error)
 		return error;
+	if (0 == data)
+		return -EINVAL;
 	/* transform rate to delay in ms */
 	data = 1000 / data;
 	if (data > AMI_MAX_DELAY)
@@ -365,8 +368,11 @@ static void ami306_work_func(struct work_struct *work)
 	struct inv_ami306_state_s *st =
 		container_of((struct delayed_work *)work,
 			struct inv_ami306_state_s, work);
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	unsigned long delay = msecs_to_jiffies(st->delay);
-	iio_trigger_poll(st->trig, iio_get_time_ns());
+
+	inv_read_ami306_fifo(indio_dev);
+	st->timestamp = iio_get_time_ns();
 	schedule_delayed_work(&st->work, delay);
 }
 

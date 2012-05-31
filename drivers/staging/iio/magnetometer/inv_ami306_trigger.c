@@ -42,30 +42,8 @@
 #include "../trigger.h"
 #include "inv_ami306_iio.h"
 
-/**
- * inv_ami306_data_rdy_trigger_set_state() set datardy interrupt state
- **/
-static int inv_ami306_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
-{
-	struct iio_dev *indio_dev = trig->private_data;
-	struct inv_ami306_state_s *st = iio_priv(indio_dev);
-	int result;
-
-	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	result = set_ami306_enable(indio_dev, state);
-	if (state)
-		schedule_delayed_work(&st->work,
-			msecs_to_jiffies(st->delay));
-	else
-		cancel_delayed_work_sync(&st->work);
-
-	return 0;
-}
-
 static const struct iio_trigger_ops inv_ami306_trigger_ops = {
 	.owner = THIS_MODULE,
-	.set_trigger_state = &inv_ami306_data_rdy_trigger_set_state,
 };
 
 int inv_ami306_probe_trigger(struct iio_dev *indio_dev)
