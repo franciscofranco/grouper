@@ -1,4 +1,5 @@
 
+
 /*
  * arch/arm/mach-tegra/board-grouper-sensors.c
  *
@@ -287,7 +288,6 @@ static struct i2c_board_info __initdata inv_mpu_i2c2_board_info[] = {
         },
 };
 
-#ifdef CONFIG_MPU_SENSORS_MPU6050B1
 static void mpuirq_init(void)
 {
 	int ret = 0;
@@ -313,7 +313,6 @@ static void mpuirq_init(void)
 	i2c_register_board_info(MPU_GYRO_BUS_NUM, inv_mpu_i2c2_board_info,
 		ARRAY_SIZE(inv_mpu_i2c2_board_info));
 }
-#endif
 
 #ifndef CONFIG_TEGRA_INTERNAL_TSENSOR_EDP_SUPPORT
 static int nct_get_temp(void *_data, long *temp)
@@ -445,9 +444,7 @@ int __init grouper_sensors_init(void)
 	i2c_register_board_info(4, grouper_i2c4_nct1008_board_info,
 		ARRAY_SIZE(grouper_i2c4_nct1008_board_info));
 
-#ifdef CONFIG_MPU_SENSORS_MPU6050B1
 	mpuirq_init();
-#endif
 
 	i2c_register_board_info(2, cardhu_i2c1_board_info_al3010,
 		ARRAY_SIZE(cardhu_i2c1_board_info_al3010));

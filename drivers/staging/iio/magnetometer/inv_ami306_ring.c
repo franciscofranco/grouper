@@ -41,6 +41,66 @@
 #include "../trigger_consumer.h"
 #include "../sysfs.h"
 
+#define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
+static int gain[3] = {100, 100, 100};
+bool Load_compass_cali = false;
+
+// function for loading compass calibration file.
+static int access_calibration_file(void)
+{
+	char buf[256];
+	int ret;
+	struct file *fp = NULL;
+	mm_segment_t oldfs;
+	int data[23];
+	int ii;
+
+	oldfs=get_fs();
+	set_fs(get_ds());
+	memset(buf, 0, sizeof(u8)*256);
+
+	fp=filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
+	if (!IS_ERR(fp)) {
+		printk("ami306 open calibration file success\n");
+		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
+		printk("ami306 calibration content is :\n%s\n", buf);
+		sscanf(buf,"%6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d\n",
+			&data[0],
+			&data[1], &data[2], &data[3],
+			&data[4], &data[5], &data[6],
+			&data[7], &data[8], &data[9],
+			&data[10], &data[11], &data[12],
+			&data[13], &data[14], &data[15],
+			&data[16], &data[17], &data[18],
+			&data[19], &data[20], &data[21],
+			&data[22]);
+
+		// if the gain value in calibration is out of the range we set, we set it to default.
+		if((data[19] > 150) || (data[19] < 50) ||
+		   (data[20] > 150) || (data[20] < 50) ||
+		   (data[21] > 150) || (data[21] < 50)){
+			for(ii=0; ii<3; ii++)
+				gain[ii] = 100;
+		}else{
+			// load the gain from the calibration file.
+			for(ii=0; ii<3; ii++)
+				gain[ii] = data[ii+19];
+		}
+
+		// the content of calibration files about e-compass
+		printk("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
+
+		return 0;
+	}
+	else
+	{
+		printk("No ami306 calibration file\n");
+		set_fs(oldfs);
+		return -1;
+	}
+	return -1;
+}
+
 /**
  *  inv_irq_handler() - Cache a timestamp at each data ready interrupt.
  */
@@ -82,6 +142,7 @@ static irqreturn_t inv_read_fifo(int irq, void *p)
 	char b;
 	char *tmp;
 	s64 tmp_buf[2];
+	int ii;
 
 	result = i2c_smbus_read_i2c_block_data(st->i2c, REG_AMI_STA1, 1, &b);
 	if (result < 0)
@@ -92,6 +153,21 @@ static irqreturn_t inv_read_fifo(int irq, void *p)
 			pr_err("error reading raw\n");
 			goto end_session;
 		}
+
+		// load the calibration file if we read the raw data from e-compass first time.
+		if(!Load_compass_cali) {
+			result = access_calibration_file();
+			Load_compass_cali = true;
+		}
+
+		printk("(joseph-kernel) compass");
+		for (ii=0; ii<3; ii++) {
+			//printk("(%d", st->compass_data[ii]);
+			st->compass_data[ii] = (short)(st->compass_data[ii]*gain[ii]/100);
+			//printk(",%d); ", st->compass_data[ii]);
+		}
+		printk("\n");
+
 		tmp = (unsigned char *)tmp_buf;
 		d_ind = put_scan_to_buf(indio_dev, tmp, st->compass_data,
 						INV_AMI306_SCAN_MAGN_X);
