@@ -6223,6 +6223,12 @@ static void migrate_tasks(unsigned int dead_cpu)
 	 */
 	rq->stop = NULL;
 
+	/*
+	 * Ensure rt_rq is not throttled so its threads can be migrated using
+	 * pick_next_task_rt
+	 */
+	rq->rt.rt_throttled = 0;
+
 	for ( ; ; ) {
 		/*
 		 * There's this thread running, bail when that's the only
