@@ -88,15 +88,6 @@ static u32 lp2_wake_timers[] = {
 #endif
 };
 
-static bool lp2_timers_irq_enabled[] = {
-	false,
-#ifdef CONFIG_SMP
-	false,
-	false,
-	false,
-#endif
-};
-
 static irqreturn_t tegra_lp2wake_interrupt(int irq, void *dev_id)
 {
 	int cpu = (int)dev_id;
@@ -185,16 +176,15 @@ static int tegra3_resume_wake_timer(unsigned int cpu)
 static void tegra3_register_wake_timer(unsigned int cpu)
 {
 	int ret;
-	if (!lp2_timers_irq_enabled[cpu]){
-		ret = setup_irq(tegra_lp2wake_irq[cpu].irq, &tegra_lp2wake_irq[cpu]);
-		if (ret ) {
-			pr_err("Failed to register LP2 timer IRQ for CPU %d: "
-				"irq=%d, ret=%d\n", cpu,
-				tegra_lp2wake_irq[cpu].irq, ret);
-			goto fail;
-		}
-		lp2_timers_irq_enabled[cpu]=true;
+
+	ret = setup_irq(tegra_lp2wake_irq[cpu].irq, &tegra_lp2wake_irq[cpu]);
+	if (ret) {
+		pr_err("Failed to register LP2 timer IRQ for CPU %d: "
+			"irq=%d, ret=%d\n", cpu,
+			tegra_lp2wake_irq[cpu].irq, ret);
+		goto fail;
 	}
+
 	ret = tegra3_resume_wake_timer(cpu);
 	if (ret)
 		goto fail;
@@ -220,10 +210,7 @@ static void tegra3_unregister_wake_timer(unsigned int cpu)
 	tegra3_suspend_wake_timer(cpu);
 
 	/* Dispose of this IRQ. */
-	if(lp2_timers_irq_enabled[cpu]){
-		remove_irq(tegra_lp2wake_irq[cpu].irq, &tegra_lp2wake_irq[cpu]);
-		lp2_timers_irq_enabled[cpu]=false;
-	}
+	remove_irq(tegra_lp2wake_irq[cpu].irq, &tegra_lp2wake_irq[cpu]);
 }
 #endif
 
