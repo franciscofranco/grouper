@@ -978,6 +978,7 @@ static const struct snd_kcontrol_new rt5640_snd_controls[] = {
 	SOC_ENUM_EXT("DMIC Switch", rt5640_dmic_enum,
 		rt5640_dmic_get, rt5640_dmic_put),
 	SOC_ENUM("ADC IF1 SWITCH", rt5640_if1_adc_enum),
+	SOC_ENUM("DAC IF1 SWITCH", rt5640_if1_dac_enum),
 
 #ifdef RT5640_REG_RW
 	{
