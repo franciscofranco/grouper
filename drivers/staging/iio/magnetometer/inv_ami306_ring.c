@@ -160,13 +160,9 @@ static irqreturn_t inv_read_fifo(int irq, void *p)
 			Load_compass_cali = true;
 		}
 
-		printk("(joseph-kernel) compass");
 		for (ii=0; ii<3; ii++) {
-			//printk("(%d", st->compass_data[ii]);
 			st->compass_data[ii] = (short)(st->compass_data[ii]*gain[ii]/100);
-			//printk(",%d); ", st->compass_data[ii]);
 		}
-		printk("\n");
 
 		tmp = (unsigned char *)tmp_buf;
 		d_ind = put_scan_to_buf(indio_dev, tmp, st->compass_data,
