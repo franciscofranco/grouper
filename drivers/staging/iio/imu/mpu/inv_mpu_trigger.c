@@ -72,13 +72,6 @@ int inv_mpu_probe_trigger(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 
-	ret = request_irq(st->irq,
-			  &iio_trigger_generic_data_rdy_poll,
-			  IRQF_TRIGGER_RISING,
-			  "inv_mpu",
-			  st->trig);
-	if (ret)
-		goto error_free_trig;
 	/* select default trigger */
 	st->trig->dev.parent = &st->i2c->dev;
 	st->trig->private_data = indio_dev;
@@ -88,14 +81,10 @@ int inv_mpu_probe_trigger(struct iio_dev *indio_dev)
 	/* select default trigger */
 	indio_dev->trig = st->trig;
 	if (ret)
-		goto error_free_irq;
+		goto error_ret;
 
 	return 0;
 
-error_free_irq:
-	free_irq(st->irq, st->trig);
-error_free_trig:
-	iio_free_trigger(st->trig);
 error_ret:
 	return ret;
 }
@@ -105,7 +94,6 @@ void inv_mpu_remove_trigger(struct iio_dev *indio_dev)
 	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 
 	iio_trigger_unregister(st->trig);
-	free_irq(st->irq, st->trig);
 	iio_free_trigger(st->trig);
 }
 /**

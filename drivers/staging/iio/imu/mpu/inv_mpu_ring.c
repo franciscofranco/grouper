@@ -309,15 +309,14 @@ void inv_clear_kfifo(struct inv_gyro_state_s *st)
 /**
  *  inv_irq_handler() - Cache a timestamp at each data ready interrupt.
  */
-static irqreturn_t inv_irq_handler(int irq, void *p)
+static irqreturn_t inv_irq_handler(int irq, void *dev_id)
 {
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct inv_gyro_state_s *st = iio_priv(indio_dev);
+	struct inv_gyro_state_s *st;
 	long long timestamp;
 	int result, catch_up;
 	unsigned int time_since_last_irq;
 
+	st = (struct inv_gyro_state_s *)dev_id;
 	timestamp = iio_get_time_ns();
 	time_since_last_irq = ((unsigned int)(timestamp
 		- st->last_isr_time))/ONE_K_HZ;
@@ -414,11 +413,11 @@ static void inv_report_data_3050(struct iio_dev *indio_dev, s64 t,
 /**
  *  inv_read_fifo_mpu3050() - Transfer data from FIFO to ring buffer for mpu3050.
  */
-irqreturn_t inv_read_fifo_mpu3050(int irq, void *p)
+irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 {
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct inv_gyro_state_s *st = iio_priv(indio_dev);
+
+	struct inv_gyro_state_s *st = (struct inv_gyro_state_s *)dev_id;
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	int bytes_per_datum;
 	unsigned char data[64];
 	int result;
@@ -486,13 +485,11 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *p)
 		}
 	}
 end_session:
-	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 flush_fifo:
 	/* Flush HW and SW FIFOs. */
 	inv_reset_fifo(indio_dev);
 	inv_clear_kfifo(st);
-	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
@@ -621,11 +618,11 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 /**
  *  inv_read_fifo() - Transfer data from FIFO to ring buffer.
  */
-static irqreturn_t inv_read_fifo(int irq, void *p)
+irqreturn_t inv_read_fifo(int irq, void *dev_id)
 {
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
-	struct inv_gyro_state_s *st = iio_priv(indio_dev);
+
+	struct inv_gyro_state_s *st = (struct inv_gyro_state_s *)dev_id;
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	size_t bytes_per_datum;
 	int result;
 	unsigned char data[BYTES_FOR_DMP + QUATERNION_BYTES];
@@ -715,26 +712,35 @@ static irqreturn_t inv_read_fifo(int irq, void *p)
 	if (bytes_per_datum == 0)
 		inv_report_gyro_accl_compass(indio_dev, data, timestamp);
 end_session:
-	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 flush_fifo:
 	/* Flush HW and SW FIFOs. */
 	inv_reset_fifo(indio_dev);
 	inv_clear_kfifo(st);
-	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
 void inv_mpu_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
+	free_irq(st->i2c->irq, st);
 	iio_kfifo_free(indio_dev->buffer);
 };
 
+int inv_postenable(struct iio_dev *indio_dev)
+{
+	return set_inv_enable(indio_dev, 1);
+
+}
+int inv_predisable(struct iio_dev *indio_dev)
+{
+	return set_inv_enable(indio_dev, 0);
+}
+
 static const struct iio_buffer_setup_ops inv_mpu_ring_setup_ops = {
 	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
+	.postenable = &inv_postenable,
+	.predisable = &inv_predisable,
 };
 
 int inv_mpu_configure_ring(struct iio_dev *indio_dev)
@@ -755,25 +761,15 @@ int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 	/*scan count double count timestamp. should subtract 1. but
 	number of channels still includes timestamp*/
 	if (INV_MPU3050 == st->chip_type)
-		indio_dev->pollfunc = iio_alloc_pollfunc(&inv_irq_handler,
-						 &inv_read_fifo_mpu3050,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
+		ret = request_threaded_irq(st->i2c->irq, inv_irq_handler,
+			inv_read_fifo_mpu3050,
+			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
 	else
-		indio_dev->pollfunc = iio_alloc_pollfunc(&inv_irq_handler,
-						 &inv_read_fifo,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+		ret = request_threaded_irq(st->i2c->irq, inv_irq_handler,
+			inv_read_fifo,
+			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
+	if (ret)
 		goto error_iio_sw_rb_free;
-	}
 
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
