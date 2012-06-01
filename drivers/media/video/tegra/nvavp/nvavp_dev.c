@@ -893,7 +893,8 @@ static int nvavp_get_syncpointid_ioctl(struct file *filp, unsigned int cmd,
 		else
 			return 0;
 	}
-	return -EFAULT;
+	pr_err("%s: invalid syncpoint ioctl %d\n", __func__, _IOC_NR(cmd));
+	return -EINVAL;
 }
 
 static int nvavp_set_nvmapfd_ioctl(struct file *filp, unsigned int cmd,
@@ -1148,8 +1149,10 @@ static long tegra_nvavp_ioctl(struct file *filp, unsigned int cmd,
 
 	if (_IOC_TYPE(cmd) != NVAVP_IOCTL_MAGIC ||
 	    _IOC_NR(cmd) < NVAVP_IOCTL_MIN_NR ||
-	    _IOC_NR(cmd) > NVAVP_IOCTL_MAX_NR)
-		return -EFAULT;
+	    _IOC_NR(cmd) > NVAVP_IOCTL_MAX_NR) {
+		pr_err("%s: invalid argument ioctl %d\n", __func__, _IOC_NR(cmd));
+		return -EINVAL;
+	}
 
 	switch (cmd) {
 	case NVAVP_IOCTL_SET_NVMAP_FD:
