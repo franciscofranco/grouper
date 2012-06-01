@@ -22,8 +22,9 @@
 #include <mach/gpio.h>
 
 #include "gpio-names.h"
+#include "wakeups.h"
 
-static int tegra_wake_event_irq[] = {
+static int tegra_wake_event_irq_t3[] = {
 	TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PO5),	/* wake0 */
 	TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV1),	/* wake1 */
 	TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PL1),	/* wake2 */
@@ -68,55 +69,5 @@ static int tegra_wake_event_irq[] = {
 	INT_USB3, /* TEGRA_USB3_UTMIP, */	/* wake41 */
 };
 
-int tegra_irq_to_wake(int irq)
-{
-	int i;
-	int wake_irq;
-	int search_gpio;
-	static int last_wake = -1;
-
-	/* Two level wake irq search for gpio based wakeups -
-	 * 1. check for GPIO irq(based on tegra_wake_event_irq table)
-	 * e.g. for a board, wake7 based on GPIO PU6 and irq==390 done first
-	 * 2. check for gpio bank irq assuming search for GPIO irq
-	 *    preceded this search.
-	 * e.g. in this step check for gpio bank irq GPIO6 irq==119
-	 */
-	for (i = 0; i < ARRAY_SIZE(tegra_wake_event_irq); i++) {
-		/* return if step 1 matches */
-		if (tegra_wake_event_irq[i] == irq) {
-			pr_info("Wake%d for irq=%d\n", i, irq);
-			last_wake = i;
-			return i;
-		}
-
-		/* step 2 below uses saved last_wake from step 1
-		 * in previous call */
-		search_gpio = irq_to_gpio(
-			tegra_wake_event_irq[i]);
-		if (search_gpio < 0)
-			continue;
-		wake_irq = tegra_gpio_get_bank_int_nr(search_gpio);
-		if (wake_irq < 0)
-			continue;
-		if ((last_wake == i) &&
-			(wake_irq == irq)) {
-			pr_info("gpio bank wake found: wake%d for irq=%d\n",
-				i, irq);
-			return i;
-		}
-	}
-
-	return -EINVAL;
-}
-
-int tegra_wake_to_irq(int wake)
-{
-	if (wake < 0)
-		return -EINVAL;
-
-	if (wake >= ARRAY_SIZE(tegra_wake_event_irq))
-		return -EINVAL;
-
-	return tegra_wake_event_irq[wake];
-}
+int *tegra_wake_event_irq = tegra_wake_event_irq_t3;
+unsigned int tegra_wake_event_irq_size = ARRAY_SIZE(tegra_wake_event_irq_t3);

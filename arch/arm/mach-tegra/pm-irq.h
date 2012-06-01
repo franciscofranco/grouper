@@ -22,8 +22,6 @@
 int tegra_pm_irq_set_wake(int irq, int enable);
 int tegra_pm_irq_set_wake_type(int irq, int flow_type);
 bool tegra_pm_irq_lp0_allowed(void);
-int tegra_irq_to_wake(int irq);
-int tegra_wake_to_irq(int wake);
 #else
 static inline int tegra_pm_irq_set_wake_type(int irq, int flow_type)
 {

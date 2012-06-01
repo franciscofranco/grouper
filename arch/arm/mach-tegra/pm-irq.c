@@ -30,6 +30,7 @@
 #include <mach/iomap.h>
 
 #include "pm-irq.h"
+#include "wakeups.h"
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_LATCH_WAKEUPS	(1 << 5)
