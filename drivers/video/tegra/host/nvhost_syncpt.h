@@ -159,6 +159,11 @@ int nvhost_syncpt_wait_check(struct nvhost_syncpt *sp,
 
 void nvhost_syncpt_debug(struct nvhost_syncpt *sp);
 
+static inline int nvhost_syncpt_is_valid(struct nvhost_syncpt *sp, u32 id)
+{
+	return id != NVSYNCPT_INVALID && id < sp->nb_pts;
+}
+
 int nvhost_mutex_try_lock(struct nvhost_syncpt *sp, int idx);
 
 void nvhost_mutex_unlock(struct nvhost_syncpt *sp, int idx);
