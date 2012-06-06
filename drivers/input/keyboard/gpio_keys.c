@@ -10,6 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/mach-types.h>
 
 #include <linux/module.h>
 
@@ -325,6 +326,11 @@ static struct attribute *gpio_keys_attrs[] = {
 static struct attribute_group gpio_keys_attr_group = {
 	.attrs = gpio_keys_attrs,
 };
+static char *key_descriptions[] = {
+	"KEY_VOLUMEDOWN",
+	"KEY_VOLUMEUP",
+	"KEY_POWER",
+};
 
 static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 {
@@ -332,21 +338,6 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
-
-	switch (button->code) {
-	case KEY_POWER:
-		pr_info("gpio_keys: %s KEY_POWER\n", state ? "Pressed" : "Released");
-		break;
-	case KEY_VOLUMEUP:
-		pr_info("gpio_keys: %s KEY_VOLUMEUP\n", state ? "Pressed" : "Released");
-		break;
-	case KEY_VOLUMEDOWN:
-		pr_info("gpio_keys: %s KEY_VOLUMEDOWN\n", state ? "Pressed" : "Released");
-		break;
-	default:
-		pr_info("gpio_keys: %s %u\n", state ? "Pressed" : "Released", button->code);
-		break;
-	}
 
 	if (type == EV_ABS) {
 		if (state)
@@ -361,6 +352,17 @@ static void gpio_keys_gpio_work_func(struct work_struct *work)
 {
 	struct gpio_button_data *bdata =
 		container_of(work, struct gpio_button_data, work);
+
+	/* Valid keys were logged for debugging in machine grouper */
+	const struct gpio_keys_button *button = bdata->button;
+	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0)
+		^ button->active_low;
+
+	if ((machine_is_grouper()) &&
+		(button->code <= KEY_POWER) &&
+		(button->code >= KEY_VOLUMEDOWN))
+		pr_info("gpio_keys: %s %s\n", state ? "Pressed" : "Released",
+			key_descriptions[button->code - KEY_VOLUMEDOWN]);
 
 	gpio_keys_gpio_report_event(bdata);
 }
