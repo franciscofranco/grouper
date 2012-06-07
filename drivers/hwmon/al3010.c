@@ -45,10 +45,8 @@ static int calibration_base_lux = 1000;
 static int calibration_regs = 880; // default K value 880 is average K value of PR devices
 static int default_calibration_regs = 880;
 
-static struct timeval t_first_poll_time;
-static bool light_sensor_ready = true;
-static bool catch_first_poll_time = false;
-static int time_for_sensor_ready = 100; //milisecond
+static bool is_poweron_after_resume = false;
+static struct timeval t_poweron_timestamp;
 
 #define AL3010_IOC_MAGIC 0xF3
 #define AL3010_IOC_MAXNR 2
@@ -85,6 +83,7 @@ static int revise_lux_times = 2;
 static bool al3010_hardware_fail = false;
 
 static int al3010_update_calibration();
+static int al3010_chip_resume(struct al3010_data *data);
 /*
  * register access helpers
  */
@@ -177,7 +176,9 @@ static int al3010_get_power_state(struct i2c_client *client)
 	struct al3010_data *data = i2c_get_clientdata(client);
 	//u8 cmdreg = data->reg_cache[AL3010_MODE_COMMAND];
 	// do not use cache data check power state , directly get register data from IC.
+	mutex_lock(&data->lock);
 	u8 cmdreg = i2c_smbus_read_byte_data(client, AL3010_MODE_COMMAND);
+	mutex_unlock(&data->lock);
 	return (cmdreg & AL3010_POW_MASK) >> AL3010_POW_SHIFT;
 }
 
@@ -321,6 +322,7 @@ static ssize_t al3010_refresh_calibration(struct device *dev,
 static ssize_t al3010_show_revise_lux(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
+	//printk("light sensor al3010 show_revise_lux+\n");
 	if(al3010_hardware_fail==true){
 		return sprintf(buf, "%d\n", -1);
 	}
@@ -329,28 +331,23 @@ static ssize_t al3010_show_revise_lux(struct device *dev,
 	/* No LUX data if not operational */
 	if (al3010_get_power_state(client) != 0x01)
 		return -EBUSY;
-
 	//+++ wait al3010 wake up
-	if(light_sensor_ready == false){
-		int tmp_lux = al3010_get_adc_value(client);
-		if( tmp_lux > 0){
-			light_sensor_ready = true;
-			catch_first_poll_time = true;
-		}else if(catch_first_poll_time == false){
-			do_gettimeofday(&t_first_poll_time);
-			catch_first_poll_time = true;
-			return sprintf(buf, "%d\n", -1);
-		}else{
-			struct timeval t_current_time;
-			int diff_time = 0;
-			do_gettimeofday(&t_current_time);
-			diff_time = ( (t_current_time.tv_sec-t_first_poll_time.tv_sec)*1000000 + (t_current_time.tv_usec-t_first_poll_time.tv_usec) )/1000;
-			if(diff_time > time_for_sensor_ready){
-				light_sensor_ready = true;
-			}else{
-				return sprintf(buf, "%d\n", -1);
-			}
+	if(is_poweron_after_resume == true){
+		int require_wait_time = 50;//(ms)
+		struct timeval t_current_time;
+		int diff_time = 0;
+		do_gettimeofday(&t_current_time);
+		diff_time = ( (t_current_time.tv_sec-t_poweron_timestamp.tv_sec)*1000000 + (t_current_time.tv_usec-t_poweron_timestamp.tv_usec) )/1000;
+		//printk("light sensor debug : first_get_lux_time - later_resume_time = %d ms \n",diff_time);
+		int real_wait_time = require_wait_time - diff_time;
+		if(real_wait_time>require_wait_time){
+			//printk("light sensor debug : first event wait time = %d\n",require_wait_time);
+			msleep(require_wait_time);
+		}else if(real_wait_time>0){
+			//printk("light sensor debug : first event wait time = %d\n",real_wait_time);
+                        msleep(real_wait_time);
 		}
+		is_poweron_after_resume = false;
 	}
 	//---
 
@@ -368,12 +365,23 @@ static ssize_t al3010_show_default_lux(struct device *dev,
 	return sprintf(buf, "%d\n", show_default_lux_value);
 }
 
+/* power on*/
+static ssize_t al3010_power_on(struct device *dev ,
+                                 struct device_attribute *attr, char *buf)
+{
+        struct i2c_client *client = to_i2c_client(dev);
+	struct al3010_data *data = i2c_get_clientdata(client);
+        int ret = al3010_chip_resume(data);
+	return sprintf(buf, "%d\n", ret);
+}
+
 static SENSOR_DEVICE_ATTR(show_reg, 0644, al3010_show_reg, NULL, 1);
 static SENSOR_DEVICE_ATTR(show_lux, 0644, al3010_show_lux, NULL, 2);
 static SENSOR_DEVICE_ATTR(lightsensor_status, 0644, al3010_show_power_state, NULL, 3);
 static SENSOR_DEVICE_ATTR(refresh_cal, 0644, al3010_refresh_calibration, NULL, 4);
 static SENSOR_DEVICE_ATTR(show_revise_lux, 0644, al3010_show_revise_lux, NULL, 5);
 static SENSOR_DEVICE_ATTR(show_default_lux, 0644, al3010_show_default_lux, NULL, 6);
+static SENSOR_DEVICE_ATTR(power_on,0644,al3010_power_on,NULL,7);
 
 static struct attribute *al3010_attributes[] = {
 	&sensor_dev_attr_show_reg.dev_attr.attr,
@@ -382,6 +390,7 @@ static struct attribute *al3010_attributes[] = {
 	&sensor_dev_attr_refresh_cal.dev_attr.attr,
 	&sensor_dev_attr_show_revise_lux.dev_attr.attr,
 	&sensor_dev_attr_show_default_lux.dev_attr.attr,
+	&sensor_dev_attr_power_on.dev_attr.attr,
 	NULL
 };
 
@@ -393,8 +402,6 @@ static int al3010_chip_suspend(struct al3010_data *data)
 {
 	int ret = 0;
 	ret = al3010_set_power_state(data->client, 0);
-	light_sensor_ready = false;
-	catch_first_poll_time = false;
 	return ret;
 }
 
@@ -403,11 +410,17 @@ static int al3010_chip_resume(struct al3010_data *data)
 	/* restore registers from cache */
 	int ret=0;
 	if (al3010_get_power_state(data->client) == 0){
+	        mutex_lock(&data->lock);
 		int i=0;
 		for (i = 0; i < ARRAY_SIZE(data->reg_cache); i++)
-			if (i2c_smbus_write_byte_data(data->client, i, data->reg_cache[i]))
+			if (i2c_smbus_write_byte_data(data->client, i, data->reg_cache[i])){
+				mutex_unlock(&data->lock);
 				return -EIO;
+			}
+		mutex_unlock(&data->lock);
 		ret = al3010_set_power_state(data->client,1);
+                is_poweron_after_resume = true;
+                do_gettimeofday(&t_poweron_timestamp);
 	}else{
 		printk("al3010 debug log : light sensor chip is resumed\n");
 	}
@@ -427,7 +440,7 @@ static int al3010_early_suspend(struct early_suspend *h)
 	//+++
 	struct al3010_data *data = container_of(h, struct al3010_data, light_sensor_early_suspender);
 	ret = al3010_chip_suspend(data);
-    //---
+        //---
 	printk("al3010_early_suspend-\n");
 	return ret;
 }
@@ -622,7 +635,7 @@ static int __devinit al3010_probe(struct i2c_client *client,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	data->light_sensor_early_suspender.suspend = al3010_early_suspend;
 	data->light_sensor_early_suspender.resume = al3010_late_resume;
-	data->light_sensor_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	data->light_sensor_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB+100;
 	register_early_suspend(&data->light_sensor_early_suspender);
 #endif
 	return 0;
