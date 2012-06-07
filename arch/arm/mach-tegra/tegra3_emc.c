@@ -497,6 +497,7 @@ static inline void do_clock_change(u32 clk_setting)
 
 	mc_readl(MC_EMEM_ADR_CFG);	/* completes prev writes */
 	writel(clk_setting, (u32)clk_base + emc->reg);
+	readl((u32)clk_base + emc->reg);/* completes prev write */
 
 	err = wait_for_update(EMC_INTSTATUS,
 			      EMC_INTSTATUS_CLKCHANGE_COMPLETE, true);
