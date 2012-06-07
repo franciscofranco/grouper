@@ -333,7 +333,7 @@ static ssize_t al3010_show_revise_lux(struct device *dev,
 		return -EBUSY;
 	//+++ wait al3010 wake up
 	if(is_poweron_after_resume == true){
-		int require_wait_time = 50;//(ms)
+		int require_wait_time = 200;//(ms)
 		struct timeval t_current_time;
 		int diff_time = 0;
 		do_gettimeofday(&t_current_time);
