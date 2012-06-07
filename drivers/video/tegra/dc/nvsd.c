@@ -134,7 +134,8 @@ static u8 nvsd_get_bw_idx(struct tegra_dc_sd_settings *settings)
 static bool nvsd_phase_in_adjustments(struct tegra_dc *dc,
 	struct tegra_dc_sd_settings *settings)
 {
-	u8 step, cur_sd_brightness, commanded;
+	u8 step, cur_sd_brightness;
+	int commanded;
  	u16 target_k, cur_k;
 	u32 man_k, val;
 	struct platform_device *pdev;
@@ -411,10 +412,14 @@ void nvsd_init(struct tegra_dc *dc, struct tegra_dc_sd_settings *settings)
 	 * we're about to enable). */
 	val = tegra_dc_readl(dc, DC_DISP_SD_CONTROL);
 
-	if (val & SD_ENABLE_NORMAL)
-		i = tegra_dc_readl(dc, DC_DISP_SD_HW_K_VALUES);
-	else
+	if (val & SD_ENABLE_NORMAL) {
+		if (settings->phase_in_adjustments)
+			i = tegra_dc_readl(dc, DC_DISP_SD_MAN_K_VALUES);
+		else
+			i = tegra_dc_readl(dc, DC_DISP_SD_HW_K_VALUES);
+	} else {
 		i = 0; /* 0 values for RGB = 1.0, i.e. non-affected */
+	}
 
 	tegra_dc_writel(dc, i, DC_DISP_SD_MAN_K_VALUES);
 	/* Enable manual correction mode here so that changing the
