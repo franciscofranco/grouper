@@ -163,7 +163,7 @@ static int grouper_disp1_check_fb(struct device *dev, struct fb_info *info);
 static struct platform_pwm_backlight_data grouper_backlight_data = {
 	.pwm_id		= 0,
 	.max_brightness	= 255,
-	.dft_brightness	= 224,
+	.dft_brightness	= 85,
 	.pwm_period_ns	= 50000,
 	.init		= grouper_backlight_init,
 	.exit		= grouper_backlight_exit,
