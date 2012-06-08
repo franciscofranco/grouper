@@ -385,6 +385,9 @@ struct tegra_dc_out {
 #define TEGRA_DC_ORDER_RED_BLUE		0
 #define TEGRA_DC_ORDER_BLUE_RED		1
 
+#define V_BLANK_FLIP		0
+#define V_BLANK_NVSD		1
+
 struct tegra_dc;
 struct nvmap_handle_ref;
 
