@@ -42,11 +42,9 @@
 #include "../sysfs.h"
 
 #define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
-static int gain[3] = {100, 100, 100};
-bool Load_compass_cali = false;
 
-// function for loading compass calibration file.
-static int access_calibration_file(void)
+/* function for loading compass calibration file. */
+static int access_cali_file(short *gain)
 {
 	char buf[256];
 	int ret;
@@ -64,7 +62,10 @@ static int access_calibration_file(void)
 		printk("ami306 open calibration file success\n");
 		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
 		printk("ami306 calibration content is :\n%s\n", buf);
-		sscanf(buf,"%6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d %6d %6d\n%6d\n",
+		sscanf(buf, "%6d\n%6d %6d %6d\n"
+			"%6d %6d %6d\n%6d %6d %6d\n"
+			"%6d %6d %6d\n%6d %6d %6d\n"
+			"%6d %6d %6d\n%6d %6d %6d\n%6d\n",
 			&data[0],
 			&data[1], &data[2], &data[3],
 			&data[4], &data[5], &data[6],
@@ -75,19 +76,16 @@ static int access_calibration_file(void)
 			&data[19], &data[20], &data[21],
 			&data[22]);
 
-		// if the gain value in calibration is out of the range we set, we set it to default.
 		if((data[19] > 150) || (data[19] < 50) ||
 		   (data[20] > 150) || (data[20] < 50) ||
 		   (data[21] > 150) || (data[21] < 50)){
 			for(ii=0; ii<3; ii++)
 				gain[ii] = 100;
 		}else{
-			// load the gain from the calibration file.
 			for(ii=0; ii<3; ii++)
 				gain[ii] = data[ii+19];
 		}
 
-		// the content of calibration files about e-compass
 		printk("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
 
 		return 0;
@@ -152,14 +150,18 @@ int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 			goto end_session;
 		}
 
-		// load the calibration file if we read the raw data from e-compass first time.
-		if(!Load_compass_cali) {
-			result = access_calibration_file();
-			Load_compass_cali = true;
+		if (!st->data_chk.load_cali) {
+			result = access_cali_file(st->data_chk.gain);
+			st->data_chk.load_cali = true;
 		}
 
-		for (ii=0; ii<3; ii++) {
-			st->compass_data[ii] = (short)(st->compass_data[ii]*gain[ii]/100);
+		for (ii = 0; ii < 3; ii++) {
+			st->data_chk.ori[ii] = st->compass_data[ii];
+			st->compass_data[ii] = (short)
+				(st->compass_data[ii] * st->data_chk.gain[ii]);
+			st->compass_data[ii] = (short)
+				(st->compass_data[ii] / 100);
+			st->data_chk.post[ii] = st->compass_data[ii];
 		}
 
 		tmp = (unsigned char *)tmp_buf;

@@ -362,6 +362,23 @@ static ssize_t ami306_rate_show(struct device *dev,
 	return sprintf(buf, "%d\n", 1000 / st->delay);
 }
 
+static ssize_t compass_cali_test(struct device *dev,
+		struct device_attribute *devattr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct inv_ami306_state_s *st = iio_priv(indio_dev);
+	int bufcnt = 0;
+
+	bufcnt = sprintf(buf,
+		"gain: %d, %d, %d\nori:(%d, %d, %d); post:(%d, %d, %d)\n",
+		st->data_chk.gain[0], st->data_chk.gain[1],
+		st->data_chk.gain[2], st->data_chk.ori[0],
+		st->data_chk.ori[1], st->data_chk.ori[2],
+		st->data_chk.post[0], st->data_chk.post[1],
+		st->data_chk.post[2]);
+
+	return bufcnt;
+}
 
 static void ami306_work_func(struct work_struct *work)
 {
@@ -405,10 +422,12 @@ static const struct iio_chan_spec compass_channels[] = {
 static DEVICE_ATTR(compass_matrix, S_IRUGO, inv_compass_matrix_show, NULL);
 static DEVICE_ATTR(sampling_frequency, S_IRUGO | S_IWUSR, ami306_rate_show,
 		ami306_rate_store);
+static DEVICE_ATTR(compass_cali_test, S_IRUGO, compass_cali_test, NULL);
 
 static struct attribute *inv_ami306_attributes[] = {
 	&dev_attr_compass_matrix.attr,
 	&dev_attr_sampling_frequency.attr,
+	&dev_attr_compass_cali_test.attr,
 	NULL,
 };
 static const struct attribute_group inv_attribute_group = {
@@ -434,6 +453,8 @@ static int inv_ami306_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int result;
 	char data;
+	int ii;
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;
 		goto out_no_free;
@@ -449,6 +470,11 @@ static int inv_ami306_probe(struct i2c_client *client,
 	st->plat_data =
 		*(struct mpu_platform_data *)dev_get_platdata(&client->dev);
 	st->delay = 10;
+
+	/* init for loading factory file*/
+	st->data_chk.load_cali = false;
+	for (ii = 0; ii < 3; ii++)
+		st->data_chk.gain[ii] = 100;
 
 	/* Make state variables available to all _show and _store functions. */
 	i2c_set_clientdata(client, indio_dev);
