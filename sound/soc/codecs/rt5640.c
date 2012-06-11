@@ -1483,6 +1483,18 @@ static int rt5640_spk_event(struct snd_soc_dapm_widget *w,
 			RT5640_PWR_CLS_D, RT5640_PWR_CLS_D);
 		rt5640_index_update_bits(codec,
 			RT5640_CLSD_INT_REG1, 0xf000, 0xf000);
+		/*Enable  DRC */
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_1,
+			RT5640_DRC_AGC_P_MASK | RT5640_DRC_AGC_MASK |
+			RT5640_DRC_AGC_UPD,
+			RT5640_DRC_AGC_P_DAC | RT5640_DRC_AGC_EN |
+			RT5640_DRC_AGC_UPD);
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_2,
+			RT5640_DRC_AGC_PRB_MASK,
+			0x0003);
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_3,
+			RT5640_DRC_AGC_TAR_MASK,
+			0x0080);
 		snd_soc_update_bits(codec, RT5640_SPK_VOL,
 			RT5640_L_MUTE | RT5640_R_MUTE, 0);
 		rt5640_update_eqmode(codec,NAKASI);
@@ -1492,6 +1504,16 @@ static int rt5640_spk_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, RT5640_SPK_VOL,
 			RT5640_L_MUTE | RT5640_R_MUTE,
 			RT5640_L_MUTE | RT5640_R_MUTE);
+		/*Disable DRC */
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_1,
+			RT5640_DRC_AGC_P_MASK | RT5640_DRC_AGC_MASK |
+			RT5640_DRC_AGC_UPD, RT5640_DRC_AGC_UPD);
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_2,
+			RT5640_DRC_AGC_PRB_MASK,
+			0x0000);
+		snd_soc_update_bits(codec, RT5640_DRC_AGC_3,
+			RT5640_DRC_AGC_TAR_MASK,
+			0x0000);
 		rt5640_index_update_bits(codec,
 			RT5640_CLSD_INT_REG1, 0xf000, 0x0000);
 		snd_soc_update_bits(codec, RT5640_PWR_DIG1,
