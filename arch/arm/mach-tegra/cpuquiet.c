@@ -20,7 +20,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/cpufreq.h>
@@ -47,20 +46,15 @@ static struct workqueue_struct *cpuquiet_wq;
 static struct delayed_work cpuquiet_work;
 static struct work_struct minmax_work;
 
+static struct kobject *tegra_auto_sysfs_kobject;
+
 static bool no_lp;
-module_param(no_lp, bool, 0644);
-
+static bool enable;
 static unsigned long up_delay;
-module_param(up_delay, ulong, 0644);
 static unsigned long down_delay;
-module_param(down_delay, ulong, 0644);
-
 static int mp_overhead = 10;
-module_param(mp_overhead, int, 0644);
 static unsigned int idle_top_freq;
-module_param(idle_top_freq, uint, 0644);
 static unsigned int idle_bottom_freq;
-module_param(idle_bottom_freq, uint, 0644);
 
 static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
@@ -222,8 +216,8 @@ static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 
 	if ((n >= 1) && is_lp_cluster()) {
 		/* make sure cpu rate is within g-mode range before switching */
-		unsigned int speed = max(
-			tegra_getspeed(0), clk_get_min_rate(cpu_g_clk) / 1000);
+		unsigned long speed = max((unsigned long)tegra_getspeed(0),
+					clk_get_min_rate(cpu_g_clk) / 1000);
 		tegra_update_cpu_speed(speed);
 
 		clk_set_parent(cpu_clk, cpu_g_clk);
@@ -293,8 +287,94 @@ static struct notifier_block max_cpus_notifier = {
 	.notifier_call = max_cpus_notify,
 };
 
+static void delay_callback(struct cpuquiet_attribute *attr)
+{
+	unsigned long val;
+
+	if (attr) {
+		val = (*((unsigned long *)(attr->param)));
+		(*((unsigned long *)(attr->param))) = msecs_to_jiffies(val);
+	}
+}
+
+static void enable_callback(struct cpuquiet_attribute *attr)
+{
+	mutex_lock(tegra3_cpu_lock);
+
+	if (!enable && cpq_state != TEGRA_CPQ_DISABLED) {
+		cpq_state = TEGRA_CPQ_DISABLED;
+		mutex_unlock(tegra3_cpu_lock);
+		cancel_delayed_work_sync(&cpuquiet_work);
+		pr_info("Tegra cpuquiet clusterswitch disabled\n");
+		mutex_lock(tegra3_cpu_lock);
+	} else if (enable && cpq_state == TEGRA_CPQ_DISABLED) {
+		cpq_state = TEGRA_CPQ_IDLE;
+		pr_info("Tegra cpuquiet clusterswitch enabled\n");
+		tegra_cpu_set_speed_cap(NULL);
+	}
+
+	mutex_unlock(tegra3_cpu_lock);
+}
+
+CPQ_BASIC_ATTRIBUTE(no_lp, 0644, bool);
+CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(mp_overhead, 0644, int);
+CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(enable, 0644, bool, enable_callback);
+
+static struct attribute *tegra_auto_attributes[] = {
+	&no_lp_attr.attr,
+	&up_delay_attr.attr,
+	&down_delay_attr.attr,
+	&idle_top_freq_attr.attr,
+	&idle_bottom_freq_attr.attr,
+	&mp_overhead_attr.attr,
+	&enable_attr.attr,
+	NULL,
+};
+
+static const struct sysfs_ops tegra_auto_sysfs_ops = {
+	.show = cpuquiet_auto_sysfs_show,
+	.store = cpuquiet_auto_sysfs_store,
+};
+
+static struct kobj_type ktype_sysfs = {
+	.sysfs_ops = &tegra_auto_sysfs_ops,
+	.default_attrs = tegra_auto_attributes,
+};
+
+static int tegra_auto_sysfs(void)
+{
+	int err;
+
+	tegra_auto_sysfs_kobject = kzalloc(sizeof(*tegra_auto_sysfs_kobject),
+					GFP_KERNEL);
+
+	if (!tegra_auto_sysfs_kobject)
+		return -ENOMEM;
+
+	err = cpuquiet_kobject_init(tegra_auto_sysfs_kobject, &ktype_sysfs,
+				"tegra_cpuquiet");
+
+	if (err)
+		kfree(tegra_auto_sysfs_kobject);
+
+	return err;
+}
+
 int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 {
+	int err;
+
+	cpu_clk = clk_get_sys(NULL, "cpu");
+	cpu_g_clk = clk_get_sys(NULL, "cpu_g");
+	cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
+
+	if (IS_ERR(cpu_clk) || IS_ERR(cpu_g_clk) || IS_ERR(cpu_lp_clk))
+		return -ENOENT;
+
 	/*
 	 * Not bound to the issuer CPU (=> high-priority), has rescue worker
 	 * task, single-threaded, freezable.
@@ -324,6 +404,8 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	tegra3_cpu_lock = cpu_lock;
 
 	cpq_state = INITIAL_STATE;
+	enable = cpq_state == TEGRA_CPQ_DISABLED ? false : true;
+
 
 	pr_info("Tegra cpuquiet initialized: %s\n",
 		(cpq_state == TEGRA_CPQ_DISABLED) ? "disabled" : "enabled");
@@ -335,11 +417,24 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 		pr_err("%s: Failed to register max cpus PM QoS notifier\n",
 			__func__);
 
-	return cpuquiet_register_driver(&tegra_cpuquiet_driver);
+	err = cpuquiet_register_driver(&tegra_cpuquiet_driver);
+	if (err) {
+		destroy_workqueue(cpuquiet_wq);
+		return err;
+	}
+
+	err = tegra_auto_sysfs();
+	if (err) {
+		cpuquiet_unregister_driver(&tegra_cpuquiet_driver);
+		destroy_workqueue(cpuquiet_wq);
+	}
+
+	return err;
 }
 
 void tegra_auto_hotplug_exit(void)
 {
 	destroy_workqueue(cpuquiet_wq);
         cpuquiet_unregister_driver(&tegra_cpuquiet_driver);
+	kobject_put(tegra_auto_sysfs_kobject);
 }
