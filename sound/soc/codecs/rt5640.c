@@ -61,8 +61,6 @@
 #define STOP_COMMUNICATION 401
 #define START_COMMUNICATION 402
 
-#define DEPOP_DELAY (1)
-
 static int input_source=INPUT_SOURCE_NORMAL;
 static int output_source=OUTPUT_SOURCE_NORMAL;
 static int input_agc = INPUT_SOURCE_NO_AGC;
@@ -1452,7 +1450,7 @@ static int rt5640_adc_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		msleep(1);
+		usleep_range(1000, 1500);
 		rt5640_index_update_bits(codec,
 			RT5640_CHOP_DAC_ADC, 0x1000, 0x1000);
 		break;
@@ -1479,7 +1477,7 @@ static int rt5640_spk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		msleep(DEPOP_DELAY);
+		usleep_range(1000, 1500); /* depop delay */
 		snd_soc_update_bits(codec, RT5640_PWR_DIG1,
 			RT5640_PWR_CLS_D, RT5640_PWR_CLS_D);
 		rt5640_index_update_bits(codec,
@@ -1549,7 +1547,8 @@ static void rt5640_pmu_depop(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 		RT5640_PWR_HP_L | RT5640_PWR_HP_R | RT5640_PWR_HA,
 		RT5640_PWR_HP_L | RT5640_PWR_HP_R | RT5640_PWR_HA);
-	msleep(50);
+	/* wait for power to be stable to depop */
+	msleep(30);
 	snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 		RT5640_PWR_FV1 | RT5640_PWR_FV2 | RT5640_PWR_HP_L |
 		RT5640_PWR_HP_R | RT5640_PWR_HA,
@@ -1575,7 +1574,7 @@ static void rt5640_pmu_depop(struct snd_soc_codec *codec)
 		RT5640_RSTN_DIS | RT5640_HP_L_SMT_EN | RT5640_HP_R_SMT_EN);
 	snd_soc_update_bits(codec, RT5640_HP_VOL,
 		RT5640_L_MUTE | RT5640_R_MUTE, 0);
-	msleep(100);
+	usleep_range(1000, 1500);
 	snd_soc_update_bits(codec, RT5640_DEPOP_M1,
 		RT5640_HP_SG_MASK | RT5640_HP_L_SMT_MASK |
 		RT5640_HP_R_SMT_MASK, RT5640_HP_SG_DIS |
@@ -1604,7 +1603,7 @@ static void rt5640_pmd_depop(struct snd_soc_codec *codec)
 		RT5640_HP_L_SMT_EN | RT5640_HP_R_SMT_EN);
 	snd_soc_update_bits(codec, RT5640_HP_VOL,
 		RT5640_L_MUTE | RT5640_R_MUTE, RT5640_L_MUTE | RT5640_R_MUTE);
-	msleep(30);
+	usleep_range(1000, 1500);
 	snd_soc_update_bits(codec, RT5640_DEPOP_M1,
 		RT5640_HP_SG_MASK | RT5640_HP_L_SMT_MASK |
 		RT5640_HP_R_SMT_MASK, RT5640_HP_SG_DIS |
@@ -2715,7 +2714,11 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 				RT5640_PWR_BG | RT5640_PWR_VREF2,
 				RT5640_PWR_VREF1 | RT5640_PWR_MB |
 				RT5640_PWR_BG | RT5640_PWR_VREF2);
-			msleep(100);
+			/*
+			 * wait 10ms to
+			 * make 1st and 2nd reference voltages stable
+			 */
+			usleep_range(10000, 15000);
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
@@ -3289,7 +3292,8 @@ static int rt5640_probe(struct snd_soc_codec *codec)
 		RT5640_PWR_BG | RT5640_PWR_VREF2,
 		RT5640_PWR_VREF1 | RT5640_PWR_MB |
 		RT5640_PWR_BG | RT5640_PWR_VREF2);
-	msleep(100);
+	/* need wait 10ms to make 1st and 2nd reference voltage stable */
+	usleep_range(10000, 15000);
 	snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 		RT5640_PWR_FV1 | RT5640_PWR_FV2,
 		RT5640_PWR_FV1 | RT5640_PWR_FV2);
