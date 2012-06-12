@@ -4426,6 +4426,7 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("avp.sclk", "nvavp", "sclk"),
 	CLK_DUPLICATE("avp.emc", "nvavp", "emc"),
 	CLK_DUPLICATE("vde.cbus", "nvavp", "vde"),
+	CLK_DUPLICATE("epp.cbus", "tegra_isp", "epp"),
 };
 
 struct clk *tegra_ptr_clks[] = {
