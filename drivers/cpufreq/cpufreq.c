@@ -33,6 +33,10 @@
 
 #include <trace/events/power.h>
 
+/* includes for the undervolt interface */
+#include "../../arch/arm/mach-tegra/dvfs.h"
+#include "../../arch/arm/mach-tegra/clock.h"
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -45,6 +49,8 @@ static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
+
+int user_mv_table[MAX_DVFS_FREQS] = { 800, 825, 850, 875, 900, 912, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1212, 1237 };
 
 /*
  * cpu_policy_rwsem is a per CPU reader-writer semaphore designed to cure
@@ -596,6 +602,67 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+	int i = 0;
+	char *c = buf;
+	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
+
+	i = cpu_clk_g->dvfs->num_freqs;
+	
+	if (i == 0) {
+		pr_info("[franciscofranco] %s - error fetching the number of entries so we break earlier.", __func__);
+		return 0;
+	}
+	
+	for (i--; i >= 0; i--)
+		c += sprintf(c, "%ld %d\n", cpu_clk_g->dvfs->freqs[i]/1000000, cpu_clk_g->dvfs->millivolts[i]);
+	
+	return c - buf;
+}
+
+static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	int i = 0;
+	int ret;
+	unsigned long cur_volt;
+	char cur_size[16];
+	
+	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
+	
+	i = cpu_clk_g->dvfs->num_freqs;
+	
+	if (i == 0) {
+		pr_info("[franciscofranco] %s - error fetching the number of entries, so we break earlier.", __func__);
+		return 0;
+	}
+	
+	for (i--; i >= 0; i--) {
+		if (cpu_clk_g->dvfs->freqs[i]/1000000 != 0) {
+			ret = sscanf(buf, "%lu", &cur_volt);
+			if (ret != 1)
+				return -EINVAL;
+				
+			if (cur_volt >= 600 && cur_volt <= 1250) {
+				user_mv_table[i] = cur_volt;
+				pr_info("[franciscofranco] %s - table[%d]: %lu\n", __func__, i, cur_volt);
+			}
+			
+			ret = sscanf(buf, "%s", cur_size);
+			
+			if (ret == 0)
+				return 0;
+				
+			buf += (strlen(cur_size) + 1);
+		}
+	}
+	
+	/* lets update the table now */
+	cpu_clk_g->dvfs->millivolts = user_mv_table;
+	
+	return count;
+}
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -613,6 +680,7 @@ cpufreq_freq_attr_rw(scaling_setspeed);
 cpufreq_freq_attr_rw(dvfs_test);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
+cpufreq_freq_attr_rw(UV_mV_table);
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -629,6 +697,7 @@ static struct attribute *default_attrs[] = {
 	&dvfs_test.attr,
 	&policy_min_freq.attr,
 	&policy_max_freq.attr,
+	&UV_mV_table.attr,
 	NULL
 };
 
