@@ -17,7 +17,7 @@
  *  @brief       Hardware drivers.
  *
  *  @{
- *      @file    inv_ami306.c
+ *      @file    inv_ami306_core.c
  *      @brief   Invensense implementation for AMI306
  *      @details This driver currently works for the AMI306
  */
@@ -38,6 +38,8 @@
 #include <linux/spinlock.h>
 #include "inv_ami306_iio.h"
 #include "../sysfs.h"
+
+static unsigned char late_initialize = true;
 
 static int ami306_read_param(struct inv_ami306_state_s *st)
 {
@@ -251,9 +253,12 @@ int set_ami306_enable(struct iio_dev *indio_dev, int state)
 		result =  ami306_read_param(st);
 		if (result)
 			return result;
-	       result = ami306_initial_b0_adjust(st);
-		if (result)
-			return result;
+		if (late_initialize) {
+			result = ami306_initial_b0_adjust(st);
+			if (result)
+				return result;
+			late_initialize = false;
+		}
 		result = ami306_start_sensor(st);
 		if (result)
 			return result;
