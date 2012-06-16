@@ -157,10 +157,9 @@ int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 
 		for (ii = 0; ii < 3; ii++) {
 			st->data_chk.ori[ii] = st->compass_data[ii];
-			st->compass_data[ii] = (short)
-				(st->compass_data[ii] * st->data_chk.gain[ii]);
-			st->compass_data[ii] = (short)
-				(st->compass_data[ii] / 100);
+			st->compass_data[ii] =
+				(short)((int)st->compass_data[ii] *
+				st->data_chk.gain[ii] / 100);
 			st->data_chk.post[ii] = st->compass_data[ii];
 		}
 
