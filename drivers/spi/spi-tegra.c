@@ -736,7 +736,12 @@ static void spi_tegra_start_transfer(struct spi_device *spi,
 
 	command2 = tspi->def_command2_reg;
 	if (is_first_of_msg) {
-		pm_runtime_get_sync(&tspi->pdev->dev);
+		if ((ret = pm_runtime_get_sync(&tspi->pdev->dev)) < 0) {
+			dev_err(&tspi->pdev->dev,
+				"%s: pm_runtime_get_sync() returns %d\n",
+				__func__, ret);
+			return;
+		}
 
 		spi_tegra_clear_status(tspi);
 
