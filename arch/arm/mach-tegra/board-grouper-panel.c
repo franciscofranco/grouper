@@ -217,6 +217,7 @@ static int grouper_panel_enable(void)
 		else
 			regulator_enable(grouper_lvds_vdd_panel);
 	}
+	msleep(20);
 
 	return 0;
 }
