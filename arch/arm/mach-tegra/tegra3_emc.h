@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/tegra3_emc.h
  *
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright (C) 2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/tegra3_emc.c
  *
- * Copyright (C) 2011 NVIDIA Corporation
+ * Copyright (C) 2012 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1176,22 +1176,49 @@ int tegra_emc_set_over_temp_state(unsigned long state)
 
 }
 
-int tegra_emc_set_eack_state(unsigned long state)
+/* non-zero state value will reduce eack_disable_refcnt */
+static int tegra_emc_set_eack_state(unsigned long state)
 {
 	unsigned long flags;
 	u32 mc_override;
+	static int eack_disable_refcnt = 0;
 
 	spin_lock_irqsave(&emc_access_lock, flags);
 
-	mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
-
-	if (state)
+	/*
+	 * refcnt > 0 implies there is at least one client requiring eack
+	 * disabled. refcnt of 0 implies eack is enabled
+	 */
+	if (eack_disable_refcnt == 1 && state) {
+		mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
 		enable_early_ack(mc_override);
-	else
+	} else if (eack_disable_refcnt == 0 && !state) {
+		mc_override = mc_readl(MC_EMEM_ARB_OVERRIDE);
 		disable_early_ack(mc_override);
+	}
+
+	if (state) {
+		if (likely(eack_disable_refcnt > 0)) {
+			--eack_disable_refcnt;
+		} else {
+			pr_err("%s: Ignored a request to underflow eack "
+				"disable reference counter\n",__func__);
+			dump_stack();
+		}
+	} else {
+		++eack_disable_refcnt;
+	}
 
 	spin_unlock_irqrestore(&emc_access_lock, flags);
 	return 0;
+}
+
+int tegra_emc_enable_eack(void) {
+	return tegra_emc_set_eack_state(1);
+}
+
+int tegra_emc_disable_eack(void) {
+	return tegra_emc_set_eack_state(0);
 }
 
 #ifdef CONFIG_DEBUG_FS

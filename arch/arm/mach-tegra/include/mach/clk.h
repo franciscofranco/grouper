@@ -6,7 +6,7 @@
  * Author:
  *	Erik Gilling <konkers@google.com>
  *
- * Copyright (C) 2010-2011 NVIDIA Corporation
+ * Copyright (C) 2010-2012 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -47,10 +47,20 @@ static inline int tegra_dvfs_set_rate(struct clk *c, unsigned long rate)
 unsigned long clk_get_rate_all_locked(struct clk *c);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void tegra_sdmmc_tap_delay(struct clk *c, int delay);
+
+static inline int tegra_emc_enable_eack(void) {
+	return 0;
+}
+
+static inline int tegra_emc_disable_eack(void) {
+	return 0;
+}
 #else
 static inline void tegra_sdmmc_tap_delay(struct clk *c, int delay)
 {
 }
+int tegra_emc_enable_eack(void);
+int tegra_emc_disable_eack(void);
 #endif
 int tegra_dvfs_rail_disable_by_name(const char *reg_id);
 int tegra_clk_cfg_ex(struct clk *c, enum tegra_clk_ex_param p, u32 setting);
