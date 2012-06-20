@@ -863,7 +863,7 @@ static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)
 	val |= HOSTPC1_DEVLC_PHCD;
 	writel(val, base + HOSTPC1_DEVLC);
 #endif
-	if (phy->instance == 2) {
+	if (phy->hotplug) {
 		val = readl(base + USB_SUSP_CTRL);
 		val |= USB_PHY_CLK_VALID_INT_ENB;
 		writel(val, base + USB_SUSP_CTRL);
@@ -1480,7 +1480,7 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 		writel(val, base + UTMIP_BAT_CHRG_CFG0);
 	}
 
-	if (phy->instance != 2) {
+	if (!phy->hotplug) {
 		val = readl(base + UTMIP_XCVR_CFG0);
 		val |= (UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
 			 UTMIP_FORCE_PDZI_POWERDOWN);
@@ -1510,7 +1510,7 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 
 	utmi_phy_clk_disable(phy);
 
-	utmip_pad_power_off(phy, true);
+	utmip_pad_power_off(phy, is_dpd);
 	return 0;
 }
 
