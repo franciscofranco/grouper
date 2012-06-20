@@ -967,6 +967,11 @@ static void spi_tegra_curr_transfer_complete(struct spi_tegra_data *tspi,
 		udelay(tspi->cur->delay_usecs);
 	}
 
+	if (list_empty(&tspi->queue)) {
+		dev_err(&tspi->pdev->dev, "Handling empty list\n");
+		return;
+	}
+
 	m = list_first_entry(&tspi->queue, struct spi_message, queue);
 	if (err)
 		m->status = -EIO;
