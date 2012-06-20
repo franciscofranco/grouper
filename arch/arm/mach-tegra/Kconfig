@@ -1,3 +1,17 @@
+# Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms and conditions of the GNU General Public License,
+# version 2, as published by the Free Software Foundation.
+#
+# This program is distributed in the hope it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 if ARCH_TEGRA
 
 comment "NVIDIA Tegra options"
@@ -403,6 +417,12 @@ config TEGRA_EMC_TO_DDR_CLOCK
 	int "EMC to DDR clocks ratio"
 	default "2" if ARCH_TEGRA_2x_SOC
 	default "1"
+
+config TEGRA_SE_ON_CBUS
+	bool "To Drive SE clock from cbus"
+	default y
+	help
+	  This option enables SE clock to be derived from cbus
 
 config TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
 	bool "Use conservative cpu frequency governor when device enters early suspend"
