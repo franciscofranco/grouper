@@ -2059,6 +2059,11 @@ static void tegra_dc_vblank(struct work_struct *work)
 
 	mutex_lock(&dc->lock);
 
+	if (!dc->enabled) {
+		mutex_unlock(&dc->lock);
+		return;
+	}
+
 	/* Clear the V_BLANK_FLIP bit of vblank ref-count if update is clean. */
 	if (!tegra_dc_windows_are_dirty(dc))
 		clear_bit(V_BLANK_FLIP, &dc->vblank_ref_count);
