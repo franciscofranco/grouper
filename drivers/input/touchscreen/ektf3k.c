@@ -822,14 +822,14 @@ static int elan_ktf3k_ts_set_power_source(struct i2c_client *client, u8 state)
 
 	dev_dbg(&client->dev, "[elan] %s: enter\n", __func__);
     /*0x52 0x40 0x00 0x01  =>    Battery Mode
-       0x52 0x41 0x00 0x01  =>   AC Adapter Mode
-       0x52 0x42 0x00 0x01 =>    USB Mode */
+       0x52 0x41 0x00 0x01  =>    USB and AC Adapter Mode
+      */
 	cmd[1] |= state & 0x0F;
 
 	dev_dbg(&client->dev,
 		"[elan] dump cmd: %02x, %02x, %02x, %02x\n",
 		cmd[0], cmd[1], cmd[2], cmd[3]);
-	
+      dev_info(&private_ts->client->dev, "Update power source to %d\n", state);	
       down(&pSem);
       length = i2c_master_send(client, cmd, sizeof(cmd));
       up(&pSem);
@@ -858,28 +858,14 @@ static int elan_ktf3k_ts_get_power_source(struct i2c_client *client)
 
 static void update_power_source(){
       unsigned power_source = now_usb_cable_status;
-	if(private_ts == NULL || work_lock) return;
-
-	if(private_ts->abs_x_max == ELAN_X_MAX_202T) //TF 700T device
-	    return; // do nothing for TF700T;
-	    
-      touch_debug(DEBUG_INFO, "Update power source to %d\n", power_source);
-      switch(power_source){
-	case USB_NO_Cable:
-	    elan_ktf3k_ts_set_power_source(private_ts->client, 0);
-	    break;
-	case USB_Cable:
-          elan_ktf3k_ts_set_power_source(private_ts->client, 1);
-	    break;
-	case USB_AC_Adapter:
-          elan_ktf3k_ts_set_power_source(private_ts->client, 2);
-      }
-  
+      if(private_ts == NULL || work_lock) return;
+	// Send power state 1 if USB cable and AC charger was plugged on. 
+      elan_ktf3k_ts_set_power_source(private_ts->client, power_source != USB_NO_Cable);
 }
 
 void touch_callback(unsigned cable_status){ 
       now_usb_cable_status = cable_status;
-      //update_power_source();
+      update_power_source();
 }
 
 static int elan_ktf3k_ts_recv_data(struct i2c_client *client, uint8_t *buf, int size)
@@ -1623,7 +1609,7 @@ static int elan_ktf3k_ts_probe(struct i2c_client *client,
   else
     touch_debug(DEBUG_INFO, "[ELAN]misc_register finished!!");	
 
-  //update_power_source();
+  update_power_source();
   return 0;
 
 err_input_register_device_failed:

@@ -108,6 +108,11 @@ static int smb347_configure_charger(struct i2c_client *client, int value);
 static int smb347_configure_interrupts(struct i2c_client *client);
 extern unsigned int grouper_query_pcba_revision();
 extern int battery_callback(unsigned usb_cable_state);
+/* Enable or disable the callback for the battery driver. */
+#define TOUCH_CALLBACK_ENABLED 1
+#ifdef TOUCH_CALLBACK_ENABLED
+extern void touch_callback(unsigned cable_status);
+#endif
 
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf);
 
@@ -668,6 +673,10 @@ static int cable_type_detect(void)
 	if (gpio_get_value(gpio)) {
 			printk("INOK=H\n");
 			success = battery_callback(non_cable);
+#ifdef TOUCH_CALLBACK_ENABLED
+                   touch_callback(non_cable);
+#endif
+
 	} else {
 			printk("INOK=L\n");
 
@@ -682,14 +691,25 @@ static int cable_type_detect(void)
 					if(retval == APSD_CDP) {	//APSD resulted
 							printk("Cable: CDP\n");
 							success = battery_callback(ac_cable);
+#ifdef TOUCH_CALLBACK_ENABLED
+                                             touch_callback(ac_cable);
+#endif 
 					} else if(retval == APSD_DCP) {
 							printk("Cable: DCP\n");
 							success = battery_callback(ac_cable);
+#ifdef TOUCH_CALLBACK_ENABLED
+                                             touch_callback(ac_cable);
+#endif 
+
 					} else if(retval == APSD_OTHER) {
 							printk("Cable: OTHER\n");
 					} else if(retval == APSD_SDP) {
 							printk("Cable: SDP\n");
 							success = battery_callback(usb_cable);
+#ifdef TOUCH_CALLBACK_ENABLED
+                                             touch_callback(usb_cable);
+#endif 
+
 					} else
 							printk("Unkown Plug In Cable type !\n");
 				}else
