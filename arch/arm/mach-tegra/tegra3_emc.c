@@ -189,7 +189,13 @@ enum {
 
 static int emc_num_burst_regs;
 
-static struct clk_mux_sel tegra_emc_clk_sel[TEGRA_EMC_TABLE_MAX_SIZE];
+struct emc_sel {
+	struct clk	*input;
+	u32		value;
+	unsigned long	input_rate;
+};
+
+static struct emc_sel tegra_emc_clk_sel[TEGRA_EMC_TABLE_MAX_SIZE];
 static struct tegra_emc_table start_timing;
 static const struct tegra_emc_table *emc_timing;
 static unsigned long dram_over_temp_state = DRAM_OVER_TEMP_NONE;
@@ -820,24 +826,37 @@ struct clk *tegra_emc_predict_parent(unsigned long rate, u32 *div_value)
 	return NULL;
 }
 
-static const struct clk_mux_sel *find_matching_input(
-	unsigned long table_rate,
-	u32 *div_value)
+int find_matching_input(unsigned long table_rate, struct emc_sel *emc_clk_sel)
 {
-	unsigned long inp_rate;
+	u32 div_value;
+	unsigned long input_rate;
 	const struct clk_mux_sel *sel;
 
-	for (sel = emc->inputs; sel->input != NULL; sel++) {
-		/* Table entries specify rate in kHz */
-		inp_rate = clk_get_rate(sel->input) / 1000;
+	/* Table entries specify rate in kHz */
+	table_rate *= 1000;
 
-		if ((inp_rate >= table_rate) &&
-		     (inp_rate % table_rate == 0)) {
-			*div_value = 2 * inp_rate / table_rate - 2;
-			return sel;
+	for (sel = emc->inputs; sel->input != NULL; sel++) {
+		input_rate = clk_get_rate(sel->input);
+
+		if ((input_rate >= table_rate) &&
+		     (input_rate % table_rate == 0)) {
+			div_value = 2 * input_rate / table_rate - 2;
+			break;
 		}
 	}
-	return NULL;
+
+	if (sel->input) {
+		emc_clk_sel->input = sel->input;
+		emc_clk_sel->input_rate = input_rate;
+
+		/* Get ready emc clock selection settings for this table rate */
+		emc_clk_sel->value = sel->value << EMC_CLK_SOURCE_SHIFT;
+		emc_clk_sel->value |= (div_value << EMC_CLK_DIV_SHIFT);
+		if ((div_value == 0) && (emc_clk_sel->input == emc->parent))
+			emc_clk_sel->value |= EMC_CLK_LOW_JITTER_ENABLE;
+		return 0;
+	}
+	return -EINVAL;
 }
 
 static void adjust_emc_dvfs_table(const struct tegra_emc_table *table,
@@ -941,10 +960,9 @@ static struct notifier_block tegra_emc_resume_nb = {
 void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 {
 	int i, mv;
-	u32 reg, div_value;
+	u32 reg;
 	bool max_entry = false;
 	unsigned long boot_rate, max_rate;
-	const struct clk_mux_sel *sel;
 
 	emc_stats.clkchange_count = 0;
 	spin_lock_init(&emc_stats.spinlock);
@@ -994,8 +1012,7 @@ void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 
 		BUG_ON(table[i].rev != table[0].rev);
 
-		sel = find_matching_input(table_rate, &div_value);
-		if (!sel)
+		if (find_matching_input(table_rate, &tegra_emc_clk_sel[i]))
 			continue;
 
 		if (table_rate == boot_rate)
@@ -1003,17 +1020,6 @@ void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 
 		if (table_rate == max_rate)
 			max_entry = true;
-
-		tegra_emc_clk_sel[i] = *sel;
-		BUG_ON(div_value >
-		       (EMC_CLK_DIV_MASK >> EMC_CLK_DIV_SHIFT));
-		tegra_emc_clk_sel[i].value <<= EMC_CLK_SOURCE_SHIFT;
-		tegra_emc_clk_sel[i].value |= (div_value << EMC_CLK_DIV_SHIFT);
-
-		if ((div_value == 0) &&
-		    (tegra_emc_clk_sel[i].input == emc->parent)) {
-			tegra_emc_clk_sel[i].value |= EMC_CLK_LOW_JITTER_ENABLE;
-		}
 
 		if (table[i].burst_regs[MC_EMEM_ARB_MISC0_INDEX] &
 		    MC_EMEM_ARB_MISC0_EMC_SAME_FREQ)
