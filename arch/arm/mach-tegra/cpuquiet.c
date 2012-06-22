@@ -37,7 +37,7 @@
 #include "cpu-tegra.h"
 #include "clock.h"
 
-#define INITIAL_STATE		TEGRA_CPQ_IDLE
+#define INITIAL_STATE		TEGRA_CPQ_DISABLED
 #define UP_DELAY_MS		70
 #define DOWN_DELAY_MS		2000
 

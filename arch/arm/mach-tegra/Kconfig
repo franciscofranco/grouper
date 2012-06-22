@@ -361,9 +361,13 @@ config TEGRA_CLUSTER_CONTROL
 	depends on ARCH_TEGRA_HAS_DUAL_CPU_CLUSTERS
 	default y if PM_SLEEP
 
+config TEGRA_CPUQUIET
+	bool
+
 config TEGRA_AUTO_HOTPLUG
 	bool "Enable automatic CPU hot-plugging"
 	depends on HOTPLUG_CPU && CPU_FREQ && !ARCH_CPU_PROBE_RELEASE && !ARCH_TEGRA_2x_SOC
+	select TEGRA_CPUQUIET
 	default y
 	help
 	  This option enables turning CPUs off/on and switching tegra
