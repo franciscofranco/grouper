@@ -2789,6 +2789,9 @@ static void tegra3_clk_cbus_init(struct clk *c)
 {
 	c->state = OFF;
 	c->set = true;
+	c->shared_bus_backup.bus_rate =
+		clk_get_rate(c->shared_bus_backup.input) /
+		c->shared_bus_backup.value;
 }
 
 static int tegra3_clk_cbus_enable(struct clk *c)

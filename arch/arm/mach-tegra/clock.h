@@ -76,6 +76,12 @@ struct clk_mux_sel {
 	u32		value;
 };
 
+struct clk_backup {
+	struct clk	*input;
+	u32		value;
+	unsigned long	bus_rate;
+};
+
 struct clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
@@ -152,7 +158,7 @@ struct clk {
 	u32				reg_shift;
 
 	struct list_head		shared_bus_list;
-	struct clk_mux_sel		shared_bus_backup;
+	struct clk_backup		shared_bus_backup;
 
 	union {
 		struct {
