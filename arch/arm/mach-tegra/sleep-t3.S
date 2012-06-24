@@ -92,6 +92,7 @@
 #define CLK_RESET_PLLP_OUTB		0xa8
 
 #define PMC_PLLP_WB0_OVERRIDE		0xf8
+#define PMC_PLLM_WB0_OVERRIDE		0x1dc
 
 #define CLK_RESET_CLK_SOURCE_MSELECT	0x3b4
 
@@ -527,10 +528,12 @@ tegra3_cpu_clk32k:
 	tst	r0, #PMC_CTRL_SIDE_EFFECT_LP0
 	beq	lp1_clocks_prepare
 
-	/* enable PLLM via PMC in LP0 */
+	/* enable PLLM auto-restart via PMC in LP0; restore override settings */
 	ldr	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
 	orr	r0, r0, #((1 << 12) | (1 << 11))
 	str	r0, [r4, #PMC_PLLP_WB0_OVERRIDE]
+	ldr	r0, [r4, #PMC_SCRATCH2]
+	str	r0, [r4, #PMC_PLLM_WB0_OVERRIDE]
 	mov	pc, lr
 
 	/* start by jumping to clkm to safely disable PLLs, then jump

@@ -45,6 +45,8 @@
 
 #define TEGRA_IRAM_CODE_AREA		(TEGRA_IRAM_BASE + SZ_4K)
 
+/* PMC_SCRATCH2 is used for PLLM boot state if PLLM auto-restart is enabled */
+#define PMC_SCRATCH2			0x58
 /* PMC_SCRATCH37-39 and 41 are used for tegra_pen_lock in Tegra2 idle */
 #define PMC_SCRATCH37                   0x130
 #define PMC_SCRATCH38                   0x134

@@ -228,6 +228,14 @@
 
 #define PMC_PLLP_WB0_OVERRIDE				0xf8
 #define PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE		(1 << 12)
+#define PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE		(1 << 11)
+#define PMC_PLLM_WB0_OVERRIDE				0x1dc
+#define PMC_PLLM_WB0_OVERRIDE_DIVP_MASK			(0x7<<15)
+#define PMC_PLLM_WB0_OVERRIDE_DIVP_SHIFT		15
+#define PMC_PLLM_WB0_OVERRIDE_DIVN_MASK			(0x3FF<<5)
+#define PMC_PLLM_WB0_OVERRIDE_DIVN_SHIFT		5
+#define PMC_PLLM_WB0_OVERRIDE_DIVM_MASK			(0x1F)
+#define PMC_PLLM_WB0_OVERRIDE_DIVM_SHIFT		0
 
 #define UTMIP_PLL_CFG2					0x488
 #define UTMIP_PLL_CFG2_STABLE_COUNT(x)			(((x) & 0xfff) << 6)
@@ -1464,6 +1472,30 @@ static void tegra3_utmi_param_configure(struct clk *c)
 	clk_writel(reg, UTMIP_PLL_CFG1);
 }
 
+static void tegra3_pll_m_override_update(struct clk *c, bool init)
+{
+	u32 val = pmc_readl(PMC_PLLP_WB0_OVERRIDE);
+
+	if (!(val & PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE))
+		return;
+
+	/* override PLLM state with PMC settings */
+	c->state = (val & PMC_PLLP_WB0_OVERRIDE_PLLM_ENABLE) ? ON : OFF;
+
+	val = pmc_readl(PMC_PLLM_WB0_OVERRIDE);
+	c->mul = (val & PMC_PLLM_WB0_OVERRIDE_DIVN_MASK) >>
+		PMC_PLLM_WB0_OVERRIDE_DIVN_SHIFT;
+	c->div = (val & PMC_PLLM_WB0_OVERRIDE_DIVM_MASK) >>
+		PMC_PLLM_WB0_OVERRIDE_DIVM_SHIFT;
+	c->div *= (0x1 << ((val & PMC_PLLM_WB0_OVERRIDE_DIVP_MASK) >>
+			   PMC_PLLM_WB0_OVERRIDE_DIVP_SHIFT));
+
+	/* Save initial override settings in Scratch2 register; will be used by
+	   LP0 entry code to restore PLLM boot configuration */
+	if (init)
+		pmc_writel(val, PMC_SCRATCH2);
+}
+
 static void tegra3_pll_clk_init(struct clk *c)
 {
 	u32 val = clk_readl(c->reg + PLL_BASE);
@@ -1505,6 +1537,9 @@ static void tegra3_pll_clk_init(struct clk *c)
 	if (c->flags & PLLU) {
 		tegra3_utmi_param_configure(c);
 	}
+
+	if (c->flags & PLLM)
+		tegra3_pll_m_override_update(c, true);
 }
 
 static int tegra3_pll_clk_enable(struct clk *c)
@@ -1549,6 +1584,27 @@ static void tegra3_pll_clk_disable(struct clk *c)
 	}
 }
 
+static int tegra3_pllm_override_rate(
+	struct clk *c, const struct clk_pll_freq_table *sel, u32 p_div)
+{
+	u32 val, old_base;
+
+	old_base = val = pmc_readl(PMC_PLLM_WB0_OVERRIDE);
+
+	/* Keep default CPCON and DCCON in override configuration */
+	val &= ~(PMC_PLLM_WB0_OVERRIDE_DIVM_MASK |
+		 PMC_PLLM_WB0_OVERRIDE_DIVN_MASK |
+		 PMC_PLLM_WB0_OVERRIDE_DIVP_MASK);
+	val |= (sel->m << PMC_PLLM_WB0_OVERRIDE_DIVM_SHIFT) |
+		(sel->n << PMC_PLLM_WB0_OVERRIDE_DIVN_SHIFT) |
+		(p_div << PMC_PLLM_WB0_OVERRIDE_DIVP_SHIFT);
+
+	if (val != old_base)
+		pmc_writel(val, PMC_PLLM_WB0_OVERRIDE);
+
+	return 0;
+}
+
 static int tegra3_pll_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	u32 val, p_div, old_base;
@@ -1568,7 +1624,7 @@ static int tegra3_pll_clk_set_rate(struct clk *c, unsigned long rate)
 		return ret;
 	}
 
-	if (c->flags & PLLM) {
+	if ((c->flags & PLLM) && (c->state == ON)) {
 		if (rate != clk_get_rate_locked(c)) {
 			pr_err("%s: Can not change memory %s rate in flight\n",
 			       __func__, c->name);
@@ -1649,6 +1705,13 @@ static int tegra3_pll_clk_set_rate(struct clk *c, unsigned long rate)
 
 	c->mul = sel->n;
 	c->div = sel->m * sel->p;
+
+	if (c->flags & PLLM) {
+		val = pmc_readl(PMC_PLLP_WB0_OVERRIDE);
+		if (val & PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)
+			return tegra3_pllm_override_rate(
+				c, sel, p_div >> PLL_BASE_DIVP_SHIFT);
+	}
 
 	old_base = val = clk_readl(c->reg + PLL_BASE);
 	val &= ~(PLL_BASE_DIVM_MASK | PLL_BASE_DIVN_MASK |
@@ -5091,6 +5154,7 @@ static void tegra_clk_resume(void)
 
 	/* Since EMC clock is not restored, and may not preserve parent across
 	   suspend, update current state, and mark EMC DFS as out of sync */
+	tegra3_pll_m_override_update(&tegra_pll_m, false);
 	p = tegra_clk_emc.parent;
 	tegra3_periph_clk_init(&tegra_clk_emc);
 
