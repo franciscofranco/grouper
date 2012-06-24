@@ -717,7 +717,7 @@ static inline void emc_cfg_power_restore(void)
  * This function updates the shadow registers for a new clock frequency,
  * and relies on the clock lock on the emc clock to avoid races between
  * multiple frequency changes */
-int tegra_emc_set_rate(unsigned long rate)
+static int emc_set_rate(unsigned long rate, bool use_backup)
 {
 	int i;
 	u32 clk_setting;
@@ -750,7 +750,8 @@ int tegra_emc_set_rate(unsigned long rate)
 	else
 		last_timing = emc_timing;
 
-	clk_setting = tegra_emc_clk_sel[i].value;
+	clk_setting = use_backup ? emc->shared_bus_backup.value :
+		tegra_emc_clk_sel[i].value;
 
 	spin_lock_irqsave(&emc_access_lock, flags);
 	emc_set_clock(&tegra_emc_table[i], last_timing, clk_setting);
@@ -764,6 +765,17 @@ int tegra_emc_set_rate(unsigned long rate)
 	pr_debug("%s: rate %lu setting 0x%x\n", __func__, rate, clk_setting);
 
 	return 0;
+}
+
+int tegra_emc_set_rate(unsigned long rate)
+{
+	return emc_set_rate(rate, false);
+}
+
+int tegra_emc_backup(unsigned long rate)
+{
+	BUG_ON(rate != emc->shared_bus_backup.bus_rate);
+	return emc_set_rate(rate, true);
 }
 
 /* Select the closest EMC rate that is higher than the requested rate */
@@ -808,7 +820,7 @@ struct clk *tegra_emc_predict_parent(unsigned long rate, u32 *div_value)
 	int i;
 
 	if (!tegra_emc_table)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	pr_debug("%s: %lu\n", __func__, rate);
 
@@ -817,25 +829,40 @@ struct clk *tegra_emc_predict_parent(unsigned long rate, u32 *div_value)
 
 	for (i = 0; i < tegra_emc_table_size; i++) {
 		if (tegra_emc_table[i].rate == rate) {
+			struct clk *p = tegra_emc_clk_sel[i].input;
+
 			*div_value = (tegra_emc_clk_sel[i].value &
 				EMC_CLK_DIV_MASK) >> EMC_CLK_DIV_SHIFT;
-			return tegra_emc_clk_sel[i].input;
+			if (tegra_emc_clk_sel[i].input_rate != clk_get_rate(p))
+				return NULL;
+
+			return p;
 		}
 	}
-
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 
-int find_matching_input(unsigned long table_rate, struct emc_sel *emc_clk_sel)
+int find_matching_input(unsigned long table_rate, bool mc_same_freq,
+			struct emc_sel *emc_clk_sel, struct clk *cbus)
 {
-	u32 div_value;
-	unsigned long input_rate;
+	u32 div_value = 0;
+	unsigned long input_rate = 0;
 	const struct clk_mux_sel *sel;
+	const struct clk_mux_sel *parent_sel = NULL;
+	const struct clk_mux_sel *backup_sel = NULL;
 
 	/* Table entries specify rate in kHz */
 	table_rate *= 1000;
 
 	for (sel = emc->inputs; sel->input != NULL; sel++) {
+		if (sel->input == emc->shared_bus_backup.input) {
+			backup_sel = sel;
+			continue;	/* skip backup souce */
+		}
+
+		if (sel->input == emc->parent)
+			parent_sel = sel;
+
 		input_rate = clk_get_rate(sel->input);
 
 		if ((input_rate >= table_rate) &&
@@ -844,6 +871,37 @@ int find_matching_input(unsigned long table_rate, struct emc_sel *emc_clk_sel)
 			break;
 		}
 	}
+
+#ifdef CONFIG_TEGRA_PLLM_RESTRICTED
+	/*
+	 * When match not found, check if this rate can be backed-up by cbus
+	 * Then, we will be able to re-lock boot parent PLLM, and use it as
+	 * an undivided source. Backup is supported only on LPDDR2 platforms
+	 * with restricted PLLM usage. Just one backup entry is recognized,
+	 * and it must be between EMC maximum and half maximum rates.
+	 */
+	if ((dram_type == DRAM_TYPE_LPDDR2) && (sel->input == NULL) &&
+	    (emc->shared_bus_backup.bus_rate == 0) && cbus) {
+		BUG_ON(!parent_sel || !backup_sel);
+
+		if ((table_rate == clk_round_rate(cbus, table_rate)) &&
+		    (table_rate < clk_get_max_rate(emc)) &&
+		    (table_rate >= clk_get_max_rate(emc) / 2)) {
+			emc->shared_bus_backup.bus_rate = table_rate;
+
+			/* Get ready emc clock backup selection settings */
+			emc->shared_bus_backup.value =
+				(backup_sel->value << EMC_CLK_SOURCE_SHIFT) |
+				(cbus->div << EMC_CLK_DIV_SHIFT) |
+				(mc_same_freq ? EMC_CLK_MC_SAME_FREQ : 0);
+
+			/* Select undivided PLLM as regular source */
+			sel = parent_sel;
+			input_rate = table_rate;
+			div_value = 0;
+		}
+	}
+#endif
 
 	if (sel->input) {
 		emc_clk_sel->input = sel->input;
@@ -854,6 +912,8 @@ int find_matching_input(unsigned long table_rate, struct emc_sel *emc_clk_sel)
 		emc_clk_sel->value |= (div_value << EMC_CLK_DIV_SHIFT);
 		if ((div_value == 0) && (emc_clk_sel->input == emc->parent))
 			emc_clk_sel->value |= EMC_CLK_LOW_JITTER_ENABLE;
+		if (mc_same_freq)
+			emc_clk_sel->value |= EMC_CLK_MC_SAME_FREQ;
 		return 0;
 	}
 	return -EINVAL;
@@ -963,6 +1023,7 @@ void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 	u32 reg;
 	bool max_entry = false;
 	unsigned long boot_rate, max_rate;
+	struct clk *cbus = tegra_get_clock_by_name("cbus");
 
 	emc_stats.clkchange_count = 0;
 	spin_lock_init(&emc_stats.spinlock);
@@ -1006,13 +1067,16 @@ void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 
 	/* Match EMC source/divider settings with table entries */
 	for (i = 0; i < tegra_emc_table_size; i++) {
+		bool mc_same_freq = MC_EMEM_ARB_MISC0_EMC_SAME_FREQ &
+			table[i].burst_regs[MC_EMEM_ARB_MISC0_INDEX];
 		unsigned long table_rate = table[i].rate;
 		if (!table_rate)
 			continue;
 
 		BUG_ON(table[i].rev != table[0].rev);
 
-		if (find_matching_input(table_rate, &tegra_emc_clk_sel[i]))
+		if (find_matching_input(table_rate, mc_same_freq,
+					&tegra_emc_clk_sel[i], cbus))
 			continue;
 
 		if (table_rate == boot_rate)
@@ -1020,10 +1084,6 @@ void tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 
 		if (table_rate == max_rate)
 			max_entry = true;
-
-		if (table[i].burst_regs[MC_EMEM_ARB_MISC0_INDEX] &
-		    MC_EMEM_ARB_MISC0_EMC_SAME_FREQ)
-			tegra_emc_clk_sel[i].value |= EMC_CLK_MC_SAME_FREQ;
 	}
 
 	/* Validate EMC rate and voltage limits */

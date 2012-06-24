@@ -306,6 +306,8 @@
 
 static void tegra3_pllp_init_dependencies(unsigned long pllp_rate);
 static int tegra3_clk_shared_bus_update(struct clk *bus);
+static int tegra3_emc_relock_set_rate(struct clk *emc, unsigned long old_rate,
+	unsigned long new_rate, unsigned long new_pll_rate);
 
 static unsigned long cpu_stay_on_backup_max;
 static struct clk *emc_bridge;
@@ -2576,8 +2578,15 @@ static int tegra3_emc_clk_set_rate(struct clk *c, unsigned long rate)
 	 * to achieve requested rate. */
 	p = tegra_emc_predict_parent(rate, &div_value);
 	div_value += 2;		/* emc has fractional DIV_U71 divider */
+
+	/* No matching rate in emc dfs table */
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	/* Table rate found, but need to relock source pll */
 	if (!p)
-		return -EINVAL;
+		return tegra3_emc_relock_set_rate(c, clk_get_rate_locked(c),
+						  rate, rate * (div_value / 2));
 
 	if (p == c->parent) {
 		if (div_value == c->div)
@@ -4025,7 +4034,7 @@ static struct clk_mux_sel mux_pllm_pllc_pllp_plla[] = {
 
 static struct clk_mux_sel mux_pllm_pllc_pllp_clkm[] = {
 	{ .input = &tegra_pll_m, .value = 0},
-	/* { .input = &tegra_pll_c, .value = 1}, not used on tegra3 */
+	{ .input = &tegra_pll_c, .value = 1},
 	{ .input = &tegra_pll_p, .value = 2},
 	{ .input = &tegra_clk_m, .value = 3},
 	{ 0, 0},
@@ -4148,6 +4157,9 @@ static struct clk tegra_clk_emc = {
 	.flags = MUX | DIV_U71 | PERIPH_EMC_ENB,
 	.u.periph = {
 		.clk_num = 57,
+	},
+	.shared_bus_backup = {
+		.input = &tegra_pll_c,
 	},
 	.rate_change_nh = &emc_rate_change_nh,
 };
@@ -4473,6 +4485,86 @@ struct clk *tegra_ptr_clks[] = {
 	&tegra_clk_emc_bridge,
 	&tegra_clk_cbus,
 };
+
+static int tegra3_emc_relock_set_rate(struct clk *emc, unsigned long old_rate,
+	unsigned long new_rate, unsigned long new_pll_rate)
+{
+	int ret;
+
+	struct clk *sbus = &tegra_clk_sbus_cmplx;
+	struct clk *cbus = &tegra_clk_cbus;
+	struct clk *pll_m = &tegra_pll_m;
+	unsigned long backup_rate = emc->shared_bus_backup.bus_rate;
+	unsigned long flags;
+
+	bool on_pllm = emc->parent == pll_m;
+
+	/*
+	 * Relock procedure pre-conditions:
+	 * - LPDDR2 only
+	 * - EMC clock is enabled, and EMC backup rate is found in DFS table
+	 * - All 3 shared buses: emc, sbus, cbus can sleep
+	 */
+	if ((tegra_emc_get_dram_type() != DRAM_TYPE_LPDDR2) || !emc->refcnt ||
+	    !backup_rate || (cbus->parent != emc->shared_bus_backup.input) ||
+	    !clk_cansleep(emc) || !clk_cansleep(cbus) || !clk_cansleep(sbus))
+		return -ENOSYS;
+
+	/* Move sbus from PLLM by setting it at low rate threshold level */
+	clk_lock_save(sbus, &flags);
+	if (clk_get_rate_locked(sbus) > sbus->u.system.threshold) {
+		ret = clk_set_rate_locked(sbus, sbus->u.system.threshold);
+		if (ret)
+			goto _sbus_out;
+	}
+
+	/* If PLLM is current EMC parent set cbus to backup rate, and move EMC
+	   to backup PLLC */
+	if (on_pllm) {
+		clk_lock_save(cbus, &flags);
+		clk_enable(cbus->parent);
+		ret = clk_set_rate_locked(cbus, backup_rate);
+		if (ret) {
+			clk_disable(cbus->parent);
+			goto _cbus_out;
+		}
+
+		ret = tegra_emc_backup(backup_rate);
+		if (ret) {
+			clk_disable(cbus->parent);
+			goto _cbus_out;
+		}
+		clk_disable(emc->parent);
+		clk_reparent(emc, cbus->parent);
+	}
+
+	/*
+	 * Re-lock PLLM and switch EMC to it; relocking error indicates that
+	 * PLLM has some other than EMC or sbus client. In this case PLLM has
+	 * not been changed, and we still can safely switch back. Recursive
+	 * tegra3_emc_clk_set_rate() call below will be resolved, since PLLM
+	 * is now matching target rate.
+	 */
+	ret = clk_set_rate(pll_m, new_pll_rate);
+	if (ret) {
+		if (on_pllm)
+			tegra3_emc_clk_set_rate(emc, old_rate);
+	} else
+		ret = tegra3_emc_clk_set_rate(emc, new_rate);
+
+
+_cbus_out:
+	if (on_pllm) {
+		tegra3_clk_shared_bus_update(cbus);
+		clk_unlock_restore(cbus, &flags);
+	}
+
+_sbus_out:
+	tegra3_clk_shared_bus_update(sbus);
+	clk_unlock_restore(sbus, &flags);
+
+	return ret;
+}
 
 /*
  * Backup rate targets for each CPU mode is selected below Fmax(Vmin), and
