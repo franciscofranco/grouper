@@ -97,10 +97,13 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	ret = kfifo_in(&kf->kf, data, r->bytes_per_datum);
-	if (ret != r->bytes_per_datum)
-		return -EBUSY;
-
+	if (kfifo_avail(&kf->kf) >= r->bytes_per_datum) {
+		ret = kfifo_in(&kf->kf, data, r->bytes_per_datum);
+		if (ret != r->bytes_per_datum)
+			return -EBUSY;
+	} else {
+		return -ENOMEM;
+	}
 	r->stufftoread = true;
 	wake_up_interruptible(&r->pollq);
 
