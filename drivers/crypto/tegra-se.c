@@ -4,7 +4,7 @@
  *
  * Support for Tegra Security Engine hardware crypto algorithms.
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1899,14 +1899,6 @@ static int tegra_se_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	err = request_irq(se_dev->irq, tegra_se_irq, IRQF_DISABLED,
-			DRIVER_NAME, se_dev);
-	if (err) {
-		dev_err(se_dev->dev, "request_irq failed - irq[%d] err[%d]\n",
-			se_dev->irq, err);
-		goto err_irq;
-	}
-
 	/* Initialize the clock */
 	se_dev->pclk = clk_get(se_dev->dev, "se");
 	if (IS_ERR(se_dev->pclk)) {
@@ -1938,6 +1930,14 @@ static int tegra_se_probe(struct platform_device *pdev)
 	sg_tegra_se_dev = se_dev;
 	pm_runtime_enable(se_dev->dev);
 	tegra_se_key_read_disable_all();
+
+	err = request_irq(se_dev->irq, tegra_se_irq, IRQF_DISABLED,
+			DRIVER_NAME, se_dev);
+	if (err) {
+		dev_err(se_dev->dev, "request_irq failed - irq[%d] err[%d]\n",
+			se_dev->irq, err);
+		goto clean;
+	}
 
 	err = tegra_se_alloc_ll_buf(se_dev, SE_MAX_SRC_SG_COUNT,
 		SE_MAX_DST_SG_COUNT);
