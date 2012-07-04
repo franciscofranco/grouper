@@ -57,7 +57,7 @@ enum charger_type {
 enum cable_type {
 	non_cable =0,
 	usb_cable,
-	TBD,
+	unknow_cable,
 	ac_cable,
 };
 
@@ -76,6 +76,13 @@ struct smb347_charger {
 	enum charger_type chrg_type;
 	charging_callback_t	charger_cb;
 	int suspend_ongoing;
+	enum cable_type cur_cable_type;
+	enum cable_type old_cable_type;
+	struct delayed_work curr_limit_work;
+	struct delayed_work test_fail_clear_work;
+	unsigned long time_of_1800mA_limit;
+	unsigned char test_1800mA_fail;
+	unsigned int curr_limit;
 };
 
 int smb347_battery_online(void);
