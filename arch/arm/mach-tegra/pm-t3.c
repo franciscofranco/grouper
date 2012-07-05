@@ -101,6 +101,12 @@
 #define CPU_CLOCK(cpu)	(0x1<<(8+cpu))
 #define CPU_RESET(cpu)	(0x1111ul<<(cpu))
 
+#define PLLX_FO_G (1<<28)
+#define PLLX_FO_LP (1<<29)
+
+#define CLK_RST_CONTROLLER_PLLX_MISC_0 \
+	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0xE4)
+
 static int cluster_switch_prolog_clock(unsigned int flags)
 {
 	u32 reg;
@@ -188,6 +194,20 @@ static int cluster_switch_prolog_clock(unsigned int flags)
 	return 0;
 }
 
+static inline void enable_pllx_cluster_port(void)
+{
+	u32 val = readl(CLK_RST_CONTROLLER_PLLX_MISC_0);
+	val &= (is_lp_cluster()?(~PLLX_FO_G):(~PLLX_FO_LP));
+	writel(val, CLK_RST_CONTROLLER_PLLX_MISC_0);
+}
+
+static inline void disable_pllx_cluster_port(void)
+{
+	u32 val = readl(CLK_RST_CONTROLLER_PLLX_MISC_0);
+	val |= (is_lp_cluster()?PLLX_FO_G:PLLX_FO_LP);
+	writel(val, CLK_RST_CONTROLLER_PLLX_MISC_0);
+}
+
 void tegra_cluster_switch_prolog(unsigned int flags)
 {
 	unsigned int target_cluster = flags & TEGRA_POWER_CLUSTER_MASK;
@@ -222,6 +242,9 @@ void tegra_cluster_switch_prolog(unsigned int flags)
 
 			/* Set up the flow controller to switch CPUs. */
 			reg |= FLOW_CTRL_CPU_CSR_SWITCH_CLUSTER;
+
+			/* Enable target port of PLL_X */
+			enable_pllx_cluster_port();
 		}
 	}
 
@@ -303,6 +326,9 @@ void tegra_cluster_switch_epilog(unsigned int flags)
 		cluster_switch_epilog_actlr();
 		cluster_switch_epilog_gic();
 	}
+
+	/* Disable unused port of PLL_X */
+	disable_pllx_cluster_port();
 
 	#if DEBUG_CLUSTER_SWITCH
 	{
