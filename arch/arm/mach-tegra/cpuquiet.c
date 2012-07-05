@@ -388,13 +388,6 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	INIT_DELAYED_WORK(&cpuquiet_work, tegra_cpuquiet_work_func);
 	INIT_WORK(&minmax_work, min_max_constraints_workfunc);
 
-	cpu_clk = clk_get_sys(NULL, "cpu");
-	cpu_g_clk = clk_get_sys(NULL, "cpu_g");
-	cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
-
-	if (IS_ERR(cpu_clk) || IS_ERR(cpu_g_clk) || IS_ERR(cpu_lp_clk))
-		return -ENOENT;
-
 	idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
 	idle_bottom_freq = clk_get_min_rate(cpu_g_clk) / 1000;
 
