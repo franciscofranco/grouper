@@ -134,7 +134,7 @@ static void apply_core_config(void)
 
 static void tegra_cpuquiet_work_func(struct work_struct *work)
 {
-	bool update_cr_config = false;
+	bool state_changed = false;
 
 	mutex_lock(tegra3_cpu_lock);
 
@@ -148,7 +148,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 					/*catch-up with governor target speed */
 					tegra_cpu_set_speed_cap(NULL);
 					/* process pending core requests*/
-					update_cr_config = true;
+					state_changed = true;
 				}
 			}
 			break;
@@ -159,6 +159,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 				if (!clk_set_parent(cpu_clk, cpu_lp_clk)) {
 					/*catch-up with governor target speed*/
 					tegra_cpu_set_speed_cap(NULL);
+					state_changed = true;
 				}
 			}
 			break;
@@ -169,8 +170,12 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 
 	mutex_unlock(tegra3_cpu_lock);
 
-	if (update_cr_config)
+	if (state_changed && cpq_state == TEGRA_CPQ_SWITCH_TO_LP) {
+		cpuquiet_device_busy();
+	} else if (state_changed && cpq_state == TEGRA_CPQ_SWITCH_TO_G) {
 		apply_core_config();
+		cpuquiet_device_free();
+	}
 }
 
 static void min_max_constraints_workfunc(struct work_struct *work)
@@ -212,6 +217,8 @@ static void min_max_constraints_workfunc(struct work_struct *work)
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
+	bool g_cluster = false;
+
 	mutex_lock(tegra3_cpu_lock);
 
 	if ((n >= 1) && is_lp_cluster()) {
@@ -221,12 +228,16 @@ static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 		tegra_update_cpu_speed(speed);
 
 		clk_set_parent(cpu_clk, cpu_g_clk);
+		g_cluster = true;
 	}
 
 	tegra_cpu_set_speed_cap(NULL);
 	mutex_unlock(tegra3_cpu_lock);
 
 	schedule_work(&minmax_work);
+
+	if (g_cluster)
+		cpuquiet_device_free();
 
 	return NOTIFY_OK;
 }
@@ -253,6 +264,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 		/* Switch to G-mode if suspend rate is high enough */
 		if (is_lp_cluster() && (cpu_freq >= idle_bottom_freq)) {
 			clk_set_parent(cpu_clk, cpu_g_clk);
+			cpuquiet_device_free();
 		}
 		return;
 	}
@@ -306,11 +318,13 @@ static void enable_callback(struct cpuquiet_attribute *attr)
 		mutex_unlock(tegra3_cpu_lock);
 		cancel_delayed_work_sync(&cpuquiet_work);
 		pr_info("Tegra cpuquiet clusterswitch disabled\n");
+		cpuquiet_device_busy();
 		mutex_lock(tegra3_cpu_lock);
 	} else if (enable && cpq_state == TEGRA_CPQ_DISABLED) {
 		cpq_state = TEGRA_CPQ_IDLE;
 		pr_info("Tegra cpuquiet clusterswitch enabled\n");
 		tegra_cpu_set_speed_cap(NULL);
+		cpuquiet_device_free();
 	}
 
 	mutex_unlock(tegra3_cpu_lock);
