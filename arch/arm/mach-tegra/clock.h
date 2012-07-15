@@ -27,7 +27,7 @@
 #else
 #define USE_PLL_LOCK_BITS 1	/* Use lock bits for PLL stabiliation */
 #define USE_PLLE_SS 1		/* Use spread spectrum coefficients for PLLE */
-#define PLL_POST_LOCK_DELAY 50	/* Safety delay after lock is detected */
+#define PLL_POST_LOCK_DELAY 2	/* Safety delay after lock is detected */
 #endif
 
 #define DIV_BUS			(1 << 0)
