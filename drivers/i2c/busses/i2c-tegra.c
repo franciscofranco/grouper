@@ -1084,13 +1084,13 @@ static int tegra_i2c_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tegra_i2c_dev_pm_ops = {
+static const struct dev_pm_ops tegra_i2c_pm = {
 	.suspend_noirq = tegra_i2c_suspend_noirq,
 	.resume_noirq = tegra_i2c_resume_noirq,
 };
-#define TEGRA_I2C_DEV_PM_OPS (&tegra_i2c_dev_pm_ops)
+#define TEGRA_I2C_PM	(&tegra_i2c_pm)
 #else
-#define TEGRA_I2C_DEV_PM_OPS NULL
+#define TEGRA_I2C_PM	NULL
 #endif
 
 #if defined(CONFIG_OF)
@@ -1109,7 +1109,7 @@ static struct platform_driver tegra_i2c_driver = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(tegra_i2c_of_match),
-		.pm    = TEGRA_I2C_DEV_PM_OPS,
+		.pm    = TEGRA_I2C_PM,
 	},
 };
 
