@@ -157,7 +157,6 @@ struct tegra_i2c_dev {
 	int irq;
 	bool irq_disabled;
 	int is_dvc;
-	bool is_slave;
 	struct completion msg_complete;
 	int msg_err;
 	u8 *msg_buf;
@@ -490,7 +489,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		0 << I2C_FIFO_CONTROL_RX_TRIG_SHIFT;
 	i2c_writel(i2c_dev, val, I2C_FIFO_CONTROL);
 
-	if (i2c_dev->is_slave)
+	if (!i2c_dev->is_dvc)
 		tegra_i2c_slave_init(i2c_dev);
 
 	if (tegra_i2c_flush_fifos(i2c_dev))
@@ -931,9 +930,6 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->is_dvc = plat->is_dvc;
 	i2c_dev->arb_recovery = plat->arb_recovery;
 	init_completion(&i2c_dev->msg_complete);
-
-	if (irq == INT_I2C || irq == INT_I2C2 || irq == INT_I2C3)
-		i2c_dev->is_slave = true;
 
 	platform_set_drvdata(pdev, i2c_dev);
 
