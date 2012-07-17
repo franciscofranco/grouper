@@ -20,6 +20,8 @@
 #include <linux/gpio.h>
 
 #include <mach/board-grouper-misc.h>
+#include <mach/pinmux.h>
+#include <mach/pinmux-t3.h>
 #include "gpio-names.h"
 #include "fuse.h"
 
@@ -32,14 +34,86 @@ static struct kobj_attribute module##_attr = { \
 	.show = module##_show, \
 }
 
-//PCBID is composed of three GPIO pins predefined by nakasi HW schematic
+/* PCBID is composed of ten GPIO pins */
 static unsigned int grouper_pcbid;
+
+static const struct pins grouper_pcbid_pins[] = {
+	{TEGRA_GPIO_PR4, TEGRA_PINGROUP_KB_ROW4, "PCB_ID0", true},
+	{TEGRA_GPIO_PR5, TEGRA_PINGROUP_KB_ROW5, "PCB_ID1", true},
+	{TEGRA_GPIO_PQ4, TEGRA_PINGROUP_KB_COL4, "PCB_ID2", true},
+	{TEGRA_GPIO_PQ7, TEGRA_PINGROUP_KB_COL7, "PCB_ID3", false},
+	{TEGRA_GPIO_PR2, TEGRA_PINGROUP_KB_ROW2, "PCB_ID4", false},
+	{TEGRA_GPIO_PQ5, TEGRA_PINGROUP_KB_COL5, "PCB_ID5", false},
+	{TEGRA_GPIO_PJ0, TEGRA_PINGROUP_GMI_CS0_N, "PCB_ID6", true},
+	{TEGRA_GPIO_PJ2, TEGRA_PINGROUP_GMI_CS1_N, "PCB_ID7", true},
+	{TEGRA_GPIO_PI7, TEGRA_PINGROUP_GMI_WAIT, "PCB_ID8", true},
+	{TEGRA_GPIO_PC7, TEGRA_PINGROUP_GMI_WP_N, "PCB_ID9", true},
+};
+
+/* PROJECTID is composed of four GPIO pins */
+static unsigned int grouper_projectid;
+
+static const struct pins grouper_projectid_pins[] = {
+	{TEGRA_GPIO_PK2, TEGRA_PINGROUP_GMI_CS4_N, "PROJECT_ID0", true},
+	{TEGRA_GPIO_PI3, TEGRA_PINGROUP_GMI_CS6_N, "PROJECT_ID1", true},
+	{TEGRA_GPIO_PK3, TEGRA_PINGROUP_GMI_CS2_N, "PROJECT_ID2", true},
+	{TEGRA_GPIO_PK4, TEGRA_PINGROUP_GMI_CS3_N, "PROJECT_ID3", true},
+};
+
+unsigned int grouper_query_bt_wifi_module(void)
+{
+	unsigned int value = 0;
+	value = grouper_pcbid & 0x003;
+
+	return value;
+}
+EXPORT_SYMBOL(grouper_query_bt_wifi_module);
 
 unsigned int grouper_query_pcba_revision(void)
 {
-	return grouper_pcbid & 0x7;
+	unsigned int value = 0;
+	value = (grouper_pcbid & 0x038) >> 3;
+
+	return value;
 }
 EXPORT_SYMBOL(grouper_query_pcba_revision);
+
+unsigned int grouper_query_audio_codec(void)
+{
+	unsigned int value = 0;
+	value = (grouper_pcbid & 0x0c0) >> 6;
+
+	return value;
+}
+EXPORT_SYMBOL(grouper_query_audio_codec);
+
+unsigned int grouper_query_gps_module(void)
+{
+	unsigned int value = 0;
+	value = (grouper_pcbid & 0x300) >> 8;
+
+	return value;
+}
+EXPORT_SYMBOL(grouper_query_gps_module);
+
+unsigned int grouper_get_project_id(void)
+{
+	unsigned int value = 0;
+	value = grouper_projectid & 0xf;
+
+	return value;
+}
+EXPORT_SYMBOL(grouper_get_project_id);
+
+static unsigned int grouper_get_pcb_id(void)
+{
+	unsigned int value = 0;
+	/* concatenate projectid[13:10] with pcbid[9:0] in new format. */
+	value = (grouper_get_project_id() << ARRAY_SIZE(grouper_pcbid_pins)) |
+		(grouper_pcbid & 0x3ff);
+
+	return value;
+}
 
 static ssize_t grouper_chipid_show(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf)
@@ -47,27 +121,35 @@ static ssize_t grouper_chipid_show(struct kobject *kobj,
 	char *s = buf;
 
 	s += sprintf(s, "%016llx\n", tegra_chip_uid());
-	return (s - buf);
+	return s - buf;
 }
 
 static ssize_t grouper_pcbid_show(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf)
 {
 	char *s = buf;
-	int i;
 
-	for (i = 3; i > 0; i--)
-		s += sprintf(s, "%c", grouper_pcbid & (1 << (i - 1)) ? '1' : '0');
-	s += sprintf(s, "b\n");
-	return (s - buf);
+	s += sprintf(s, "%04x\n", grouper_get_pcb_id());
+	return s - buf;
+}
+
+static ssize_t grouper_projectid_show(struct kobject *kobj,
+	struct kobj_attribute *attr, char *buf)
+{
+	char *s = buf;
+
+	s += sprintf(s, "%02x\n", grouper_get_project_id());
+	return s - buf;
 }
 
 GROUPER_MISC_ATTR(grouper_chipid);
 GROUPER_MISC_ATTR(grouper_pcbid);
+GROUPER_MISC_ATTR(grouper_projectid);
 
 static struct attribute *attr_list[] = {
 	&grouper_chipid_attr.attr,
 	&grouper_pcbid_attr.attr,
+	&grouper_projectid_attr.attr,
 	NULL,
 };
 
@@ -77,43 +159,54 @@ static struct attribute_group attr_group = {
 
 static struct platform_device *grouper_misc_device;
 
-static int pcbid_init(void)
+static int board_pins_init(
+	const struct pins *board_pins,
+	unsigned int pin_size,
+	unsigned int *pin_value)
 {
-	int ret;
+	int ret = 0, i = 0;
 
-	ret = gpio_request(TEGRA_GPIO_PQ7, "PCB_ID3");
-	if (ret) {
-		gpio_free(TEGRA_GPIO_PQ7);
-		return ret;
-        }
 
-	ret = gpio_request(TEGRA_GPIO_PR2, "PCB_ID4");
-	if (ret) {
-		gpio_free(TEGRA_GPIO_PQ7);
-		gpio_free(TEGRA_GPIO_PR2);
-		return ret;
-        }
+	for (i = 0; i < pin_size; i++) {
+		ret = gpio_request(board_pins[i].gpio, board_pins[i].label);
 
-	ret = gpio_request(TEGRA_GPIO_PQ5, "PCB_ID5");
-	if (ret) {
-		gpio_free(TEGRA_GPIO_PQ7);
-		gpio_free(TEGRA_GPIO_PR2);
-		gpio_free(TEGRA_GPIO_PQ5);
-		return ret;
-        }
+		if (ret) {
+			while (i >= 0) {
+				gpio_free(board_pins[i].gpio);
+				i--;
+			}
+			return ret;
+		}
+		tegra_gpio_enable(board_pins[i].gpio);
+		gpio_direction_input(board_pins[i].gpio);
+		*pin_value |= gpio_get_value(board_pins[i].gpio) << i;
+	}
 
-	tegra_gpio_enable(TEGRA_GPIO_PQ7);
-	tegra_gpio_enable(TEGRA_GPIO_PR2);
-	tegra_gpio_enable(TEGRA_GPIO_PQ5);
-
-	gpio_direction_input(TEGRA_GPIO_PQ7);
-	gpio_direction_input(TEGRA_GPIO_PR2);
-	gpio_direction_input(TEGRA_GPIO_PQ5);
-
-	grouper_pcbid = ((gpio_get_value(TEGRA_GPIO_PQ5) << 2) |
-			(gpio_get_value(TEGRA_GPIO_PR2) << 1) |
-			gpio_get_value(TEGRA_GPIO_PQ7));
 	return 0;
+}
+
+static void board_pins_reset(
+	const struct pins *board_pins,
+	unsigned int pin_size)
+{
+	int i = 0;
+	enum grouper_project_id project_id = grouper_get_project_id();
+
+	for (i = 0; i < pin_size; i++) {
+		if (board_pins[i].extended_pins) {
+			/* set no-pull */
+			tegra_pinmux_set_pullupdown(board_pins[i].pingroup,
+				TEGRA_PUPD_NORMAL);
+			if (project_id == GROUPER_PROJECT_NAKASI) {
+				/* disable input buffer */
+				tegra_pinmux_set_io(board_pins[i].pingroup,
+				TEGRA_PIN_OUTPUT);
+				/* mask GPIO_CNF */
+				tegra_gpio_disable(board_pins[i].gpio);
+				gpio_free(board_pins[i].gpio);
+			}
+		}
+	}
 }
 
 int __init grouper_misc_init(void)
@@ -122,7 +215,7 @@ int __init grouper_misc_init(void)
 
 	pr_debug("%s: start\n", __func__);
 
-	// create a platform device
+	/* create a platform device */
 	grouper_misc_device = platform_device_alloc("grouper_misc", -1);
 
         if (!grouper_misc_device) {
@@ -130,7 +223,7 @@ int __init grouper_misc_init(void)
 		goto fail_platform_device;
         }
 
-	// add a platform device to device hierarchy
+	/* add a platform device to device hierarchy */
 	ret = platform_device_add(grouper_misc_device);
 	if (ret) {
 		pr_err("[MISC]: cannot add device to platform.\n");
@@ -143,12 +236,25 @@ int __init grouper_misc_init(void)
 		goto fail_sysfs;
 	}
 
-	// acquire pcb_id info
-	ret = pcbid_init();
+	/* acquire pcb_id info */
+	ret = board_pins_init(grouper_pcbid_pins,
+		ARRAY_SIZE(grouper_pcbid_pins), &grouper_pcbid);
 	if (ret) {
 		pr_err("[MISC]: cannot acquire PCB_ID info.\n");
 		goto fail_sysfs;
 	}
+
+	/* acquire project_id info */
+	ret = board_pins_init(grouper_projectid_pins,
+		ARRAY_SIZE(grouper_projectid_pins), &grouper_projectid);
+	if (ret) {
+		pr_err("[MISC]: cannot acquire PROJECT_ID info.\n");
+		goto fail_sysfs;
+	}
+
+	/* print out pcb_id and project_id info */
+	pr_info("[MISC]: pcbid=0x%04x (projectid=0x%02x)\n",
+		grouper_get_pcb_id(), grouper_get_project_id());
 
 	return ret;
 
@@ -160,4 +266,17 @@ fail_platform_add_device:
 
 fail_platform_device:
 	return ret;
+}
+
+int __init grouper_misc_reset(void)
+{
+	/* reset pcb_id pins */
+	board_pins_reset(grouper_pcbid_pins,
+		ARRAY_SIZE(grouper_pcbid_pins));
+
+	/* reset project_id pins */
+	board_pins_reset(grouper_projectid_pins,
+		ARRAY_SIZE(grouper_projectid_pins));
+
+	return 0;
 }
