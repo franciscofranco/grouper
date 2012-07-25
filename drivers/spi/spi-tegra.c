@@ -1492,33 +1492,33 @@ skip_dma_alloc:
 	if (tspi->is_clkon_always)
 		spi_pm_runtime_get_sync(&pdev->dev);
 
-	master->dev.of_node = pdev->dev.of_node;
-	ret = spi_register_master(master);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
-		goto exit_pm_suspend;
-	}
-
-	/* create the workqueue for the kbc path */
+	/* create the workqueue for the spi transfer */
 	snprintf(spi_wq_name, sizeof(spi_wq_name), "spi_tegra-%d", pdev->id);
 	tspi->spi_workqueue = create_singlethread_workqueue(spi_wq_name);
 	if (!tspi->spi_workqueue) {
 		dev_err(&pdev->dev, "Failed to create work queue\n");
 		ret = -ENODEV;
-		goto exit_master_unregister;
+		goto exit_fail_wq;
 	}
 
 	INIT_WORK(&tspi->spi_transfer_work, tegra_spi_transfer_work);
 
+	master->dev.of_node = pdev->dev.of_node;
+	ret = spi_register_master(master);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
+		goto exit_destry_wq;
+	}
+
 	return ret;
 
-exit_master_unregister:
-	spi_unregister_master(master);
+exit_destry_wq:
+	destroy_workqueue(tspi->spi_workqueue);
 
+exit_fail_wq:
 	if (tspi->is_clkon_always)
 		spi_pm_runtime_put_sync(&pdev->dev);
 
-exit_pm_suspend:
 	if (!spi_pm_runtime_status_suspended(&pdev->dev))
 		tegra_spi_runtime_idle(&pdev->dev);
 
