@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/latency_allowance.c
  *
- * Copyright (C) 2011-2012, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (C) 2011 NVIDIA Corporation
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -115,7 +115,7 @@ struct la_client_info {
 
 static DEFINE_SPINLOCK(safety_lock);
 
-static int ns_per_tick = 30;
+static const int ns_per_tick = 30;
 /* fifo atom size in bytes for non-fdc clients*/
 static const int normal_atom_size = 16;
 /* fifo atom size in bytes for fdc clients*/
@@ -496,39 +496,6 @@ void tegra_disable_latency_scaling(enum tegra_la_id id)
 		la_debug("disabled scaling.");
 	}
 	spin_unlock(&safety_lock);
-}
-
-void tegra_latency_allowance_update_tick_length(unsigned int new_ns_per_tick)
-{
-	int i = 0;
-	int la;
-	unsigned long reg_read;
-	unsigned long reg_write;
-	unsigned long scale_factor = 0;
-
-	if (new_ns_per_tick != 30) {
-		ns_per_tick = new_ns_per_tick;
-		scale_factor = new_ns_per_tick / 30;
-
-		spin_lock(&safety_lock);
-		for (i = 0; i < ARRAY_SIZE(la_info) - 1; i++) {
-			reg_read = readl(la_info[i].reg_addr);
-			la = ((reg_read & la_info[i].mask) >> la_info[i].shift)
-				/ scale_factor;
-
-			reg_write = (reg_read & ~la_info[i].mask) |
-					(la << la_info[i].shift);
-			writel(reg_write, la_info[i].reg_addr);
-			scaling_info[i].la_set = la;
-		}
-		spin_unlock(&safety_lock);
-
-		/* Re-scale G2PR, G2SR, G2DR, G2DW with updated ns_per_tick */
-		tegra_set_latency_allowance(TEGRA_LA_G2PR, 20);
-		tegra_set_latency_allowance(TEGRA_LA_G2SR, 20);
-		tegra_set_latency_allowance(TEGRA_LA_G2DR, 20);
-		tegra_set_latency_allowance(TEGRA_LA_G2DW, 20);
-	}
 }
 
 static int la_regs_show(struct seq_file *s, void *unused)

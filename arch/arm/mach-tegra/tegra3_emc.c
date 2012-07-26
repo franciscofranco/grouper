@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/tegra3_emc.c
  *
- * Copyright (C) 2011-2012, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (C) 2011 NVIDIA Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@
 #include <asm/cacheflush.h>
 
 #include <mach/iomap.h>
-#include <mach/latency_allowance.h>
 
 #include "clock.h"
 #include "dvfs.h"
@@ -936,39 +935,12 @@ static struct notifier_block tegra_emc_resume_nb = {
 	.priority = -1,
 };
 
-static int tegra_emc_get_table_ns_per_tick(unsigned int emc_rate,
-					unsigned int table_tick_len)
-{
-	unsigned int ns_per_tick = 0;
-	unsigned int mc_period_10ns = 0;
-	unsigned int reg;
-
-	reg = mc_readl(MC_EMEM_ARB_MISC0) & MC_EMEM_ARB_MISC0_EMC_SAME_FREQ;
-
-	mc_period_10ns = ((reg ? (10 * NSEC_PER_MSEC) : (20 * NSEC_PER_MSEC)) /
-			(emc_rate));
-	ns_per_tick = ((table_tick_len & MC_EMEM_ARB_CFG_CYCLE_MASK)
-		* mc_period_10ns) / (10 *
-		(1 + ((table_tick_len & MC_EMEM_ARB_CFG_EXTRA_TICK_MASK)
-		>> MC_EMEM_ARB_CFG_EXTRA_TICK_SHIFT)));
-
-	/* round new_ns_per_tick to 30/60 */
-	if (ns_per_tick < 45)
-		ns_per_tick = 30;
-	else
-		ns_per_tick = 60;
-
-	return ns_per_tick;
-}
-
 int tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 {
 	int i, mv;
 	u32 reg, div_value;
 	bool max_entry = false;
 	unsigned long boot_rate, max_rate;
-	unsigned int ns_per_tick = 0;
-	unsigned int cur_ns_per_tick = 0;
 	const struct clk_mux_sel *sel;
 
 	emc_stats.clkchange_count = 0;
@@ -1029,19 +1001,6 @@ int tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 		if (table_rate == max_rate)
 			max_entry = true;
 
-		cur_ns_per_tick = tegra_emc_get_table_ns_per_tick(table_rate,
-				table[i].burst_regs[MC_EMEM_ARB_CFG_INDEX]);
-
-		if (ns_per_tick == 0) {
-			ns_per_tick = cur_ns_per_tick;
-		} else if (ns_per_tick != cur_ns_per_tick) {
-			pr_err("tegra: invalid EMC DFS table: "
-				"mismatched DFS tick lengths "
-				"within table!\n");
-			ns_per_tick = 0;
-			return 0;
-		}
-
 		tegra_emc_clk_sel[i] = *sel;
 		BUG_ON(div_value >
 		       (EMC_CLK_DIV_MASK >> EMC_CLK_DIV_SHIFT));
@@ -1064,8 +1023,6 @@ int tegra_init_emc(const struct tegra_emc_table *table, int table_size)
 		       " %lu kHz is not found\n", max_rate);
 		return 0;
 	}
-
-	tegra_latency_allowance_update_tick_length(ns_per_tick);
 
 	tegra_emc_table = table;
 
