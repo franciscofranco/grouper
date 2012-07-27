@@ -95,6 +95,8 @@ enum dhd_bus_state {
 #define DHD_BEACON_TIMEOUT_NORMAL	4
 #define DHD_BEACON_TIMEOUT_HIGH		10
 
+#define DYNAMIC_DTIM_SKIP 1
+
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
 	WAKE_LOCK_PRIV,
@@ -234,6 +236,11 @@ typedef struct dhd_pub {
 	int   txcnt_timeout;		/* counter txcnt timeout to send HANG */
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
+#endif
+#ifdef DYNAMIC_DTIM_SKIP
+	ulong pre_rx_packets;
+	int   dynamic_dtim_skip;
+	int   dynamic_dtim_data_counter;
 #endif
 } dhd_pub_t;
 
