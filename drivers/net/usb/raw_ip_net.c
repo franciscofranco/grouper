@@ -116,6 +116,13 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 	const struct usb_device_id *id)
 {
 	int i = g_i, j;
+	struct usb_device *usb_dev = interface_to_usbdev(intf);
+
+	if (5 == usb_dev->actconfig->desc.bNumInterfaces) {
+		pr_debug("%s: XMM 6260 core dump state, do not work with it.\n",
+				__func__)
+		return -ENODEV;
+	}
 
 	pr_debug("%s(%d) { intf %p id %p\n", __func__, __LINE__, intf, id);
 
