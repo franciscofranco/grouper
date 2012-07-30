@@ -556,6 +556,7 @@ static struct tegra_dc_platform_data grouper_disp1_pdata = {
 	.flags		= TEGRA_DC_FLAG_ENABLED,
 	.default_out	= &grouper_disp1_out,
 	.emc_clk_rate	= 300000000,
+	.min_emc_clk_rate	= 102000000,
 	.fb		= &grouper_fb_data,
 };
 
