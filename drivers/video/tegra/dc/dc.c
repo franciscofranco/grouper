@@ -2596,6 +2596,8 @@ static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 
 static bool _tegra_dc_enable(struct tegra_dc *dc)
 {
+	bool enabled = false;
+
 	if (dc->ndev->id == 0) {
 			struct timeval t_resume;
 			int diff_msec = 0;
@@ -2615,7 +2617,13 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 
 	tegra_dc_io_start(dc);
 
-	return _tegra_dc_controller_enable(dc);
+	enabled = _tegra_dc_controller_enable(dc);
+	if (dc->pdata->min_emc_clk_rate && enabled) {
+		clk_enable(dc->min_emc_clk);
+		clk_set_rate(dc->min_emc_clk, dc->pdata->min_emc_clk_rate);
+	}
+
+	return enabled;
 }
 
 void tegra_dc_enable(struct tegra_dc *dc)
@@ -2724,6 +2732,11 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 
 	_tegra_dc_controller_disable(dc);
 	tegra_dc_io_end(dc);
+
+	if (dc->pdata->min_emc_clk_rate) {
+		clk_set_rate(dc->min_emc_clk, 0);
+		clk_disable(dc->min_emc_clk);
+	}
 }
 
 void tegra_dc_disable(struct tegra_dc *dc)
@@ -2840,6 +2853,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 	struct tegra_dc *dc;
 	struct clk *clk;
 	struct clk *emc_clk;
+	struct clk *min_emc_clk;
 	struct resource	*res;
 	struct resource *base_res;
 	struct resource *fb_mem = NULL;
@@ -2903,8 +2917,16 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		goto err_put_clk;
 	}
 
+	min_emc_clk = clk_get(&ndev->dev, "min_emc");
+	if (IS_ERR_OR_NULL(min_emc_clk)) {
+		dev_err(&ndev->dev, "can't get min_emc clock\n");
+		ret = -ENOENT;
+		goto err_put_emc_clk;
+	}
+
 	dc->clk = clk;
 	dc->emc_clk = emc_clk;
+	dc->min_emc_clk = min_emc_clk;
 	dc->shift_clk_div = 1;
 	/* Initialize one shot work delay, it will be assigned by dsi
 	 * according to refresh rate later. */
@@ -2981,7 +3003,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 			dev_name(&ndev->dev), dc)) {
 		dev_err(&ndev->dev, "request_irq %d failed\n", irq);
 		ret = -EBUSY;
-		goto err_put_emc_clk;
+		goto err_put_min_emc_clk;
 	}
 
 	/* hack to balance enable_irq calls in _tegra_dc_enable() */
@@ -3027,6 +3049,8 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 err_free_irq:
 	free_irq(irq, dc);
+err_put_min_emc_clk:
+	clk_put(min_emc_clk);
 err_put_emc_clk:
 	clk_put(emc_clk);
 err_put_clk:

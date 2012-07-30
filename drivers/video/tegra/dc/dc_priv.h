@@ -80,6 +80,7 @@ struct tegra_dc {
 
 	struct clk			*clk;
 	struct clk			*emc_clk;
+	struct clk			*min_emc_clk;
 	int				emc_clk_rate;
 	int				new_emc_clk_rate;
 	u32				shift_clk_div;
