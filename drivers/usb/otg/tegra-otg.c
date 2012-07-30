@@ -311,13 +311,12 @@ static int tegra_otg_set_peripheral(struct otg_transceiver *otg,
 	udelay(1);
 	clk_disable(tegra->clk);
 
+	val &= ~(USB_ID_INT_STATUS | USB_VBUS_INT_STATUS);
+
 	if ((val & USB_ID_STATUS) && (val & USB_VBUS_STATUS)) {
 		val |= USB_VBUS_INT_STATUS;
 	} else if (!(val & USB_ID_STATUS)) {
 		val |= USB_ID_INT_STATUS;
-		val &= ~USB_VBUS_INT_STATUS;
-	} else {
-		val &= ~(USB_ID_INT_STATUS | USB_VBUS_INT_STATUS);
 	}
 
 	if ((val & USB_ID_INT_STATUS) || (val & USB_VBUS_INT_STATUS)) {
@@ -337,14 +336,6 @@ static int tegra_otg_set_host(struct otg_transceiver *otg,
 
 	tegra = container_of(otg, struct tegra_otg_data, otg);
 	otg->host = host;
-
-	clk_enable(tegra->clk);
-	val = otg_readl(tegra, USB_PHY_WAKEUP);
-	val &= ~(USB_VBUS_INT_STATUS | USB_ID_INT_STATUS);
-
-	val |= (USB_ID_INT_EN | USB_ID_PIN_WAKEUP_EN);
-	otg_writel(tegra, val, USB_PHY_WAKEUP);
-	clk_disable(tegra->clk);
 
 	return 0;
 }
