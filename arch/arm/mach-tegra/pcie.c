@@ -540,7 +540,7 @@ static void __devinit tegra_pcie_relax_enable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, tegra_pcie_relax_enable);
 
-static void __init tegra_pcie_preinit(void)
+static void tegra_pcie_preinit(void)
 {
 	pcie_io_space.name = "PCIe I/O Space";
 	pcie_io_space.start = PCIBIOS_MIN_IO;
@@ -588,7 +588,7 @@ static int tegra_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return INT_PCIE_INTR;
 }
 
-static struct pci_bus *tegra_pcie_scan_bus(int nr,
+static struct pci_bus __init *tegra_pcie_scan_bus(int nr,
 						  struct pci_sys_data *sys)
 {
 	struct tegra_pcie_port *pp;
@@ -602,7 +602,7 @@ static struct pci_bus *tegra_pcie_scan_bus(int nr,
 	return pci_scan_bus(sys->busnr, &tegra_pcie_ops, sys);
 }
 
-static struct hw_pci tegra_pcie_hw = {
+static struct hw_pci tegra_pcie_hw  __initdata = {
 	.nr_controllers	= MAX_PCIE_SUPPORTED_PORTS,
 	.preinit	= tegra_pcie_preinit,
 	.setup		= tegra_pcie_setup,
@@ -1177,7 +1177,7 @@ static int tegra_pcie_init(void)
 	return err;
 }
 
-static int tegra_pci_probe(struct platform_device *pdev)
+static int __init tegra_pci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct pci_dev *dev = NULL;
@@ -1286,7 +1286,7 @@ static const struct dev_pm_ops tegra_pci_pm_ops = {
 	};
 #endif
 
-static struct platform_driver tegra_pci_driver = {
+static struct platform_driver tegra_pci_driver __refdata = {
 	.probe   = tegra_pci_probe,
 	.remove  = tegra_pci_remove,
 	.driver  = {
