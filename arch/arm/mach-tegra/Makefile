@@ -33,7 +33,7 @@ obj-y                                   += gic.o
 obj-y                                   += sleep.o
 
 plus_sec := $(call as-instr,.arch_extension sec,+sec)
-AFLAGS_sleep.o :=-Wa,-march=armv7-a$(plus_sec)
+AFLAGS_sleep.o :=-Wa,-march=armv7-a+sec
 
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += sleep-t2.o
 obj-$(CONFIG_ARCH_TEGRA_3x_SOC)         += sleep-t3.o
