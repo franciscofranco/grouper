@@ -407,6 +407,13 @@ static void tegra_3x_sdhci_set_card_clock(struct sdhci_host *sdhci, unsigned int
 	if (clock && clock == sdhci->clock)
 		return;
 
+        /*
+         * Disable the card clock before disabling the internal
+         * clock to avoid abnormal clock waveforms.
+         */
+        clk = sdhci_readw(sdhci, SDHCI_CLOCK_CONTROL);
+        clk &= ~SDHCI_CLOCK_CARD_EN;
+        sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
 	sdhci_writew(sdhci, 0, SDHCI_CLOCK_CONTROL);
 
 	if (clock == 0)
