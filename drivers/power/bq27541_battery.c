@@ -481,7 +481,8 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 	}
 	if (psp == POWER_SUPPLY_PROP_VOLTAGE_NOW) {
 		val->intval = bq27541_device->bat_vol = rt_value;
-		BAT_NOTICE("voltage_now= %u mV\n", val->intval);
+		val->intval *= 1000;
+		BAT_NOTICE("voltage_now= %u uV\n", val->intval);
 	}
 	if (psp == POWER_SUPPLY_PROP_CURRENT_NOW) {
 		val->intval = rt_value;
