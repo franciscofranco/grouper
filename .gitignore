@@ -84,3 +84,9 @@ GTAGS
 *.orig
 *~
 \#*#
+
+mkboot/
+buildlean.sh
+boot.img
+arch/arm/boot/compressed/ashldi3.S
+arch/arm/boot/compressed/piggy.xzkern
