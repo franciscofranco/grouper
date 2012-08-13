@@ -302,6 +302,8 @@ static int tegra_otg_set_peripheral(struct otg_transceiver *otg,
 	tegra = container_of(otg, struct tegra_otg_data, otg);
 	otg->gadget = gadget;
 
+	msleep(10);
+
 	clk_enable(tegra->clk);
 	val = otg_readl(tegra, USB_PHY_WAKEUP);
 	val |= (USB_VBUS_INT_EN | USB_VBUS_WAKEUP_EN);
