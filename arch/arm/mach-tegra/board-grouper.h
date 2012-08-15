@@ -81,6 +81,10 @@ int grouper_keys_init(void);
 int grouper_pins_state_init(void);
 int grouper_emc_init(void);
 int grouper_edp_init(void);
+int grouper_ti_regulator_init(void);
+int grouper_ti_suspend_init(void);
+int grouper_ti_edp_init(void);
+
 void __init grouper_tsensor_init(void);
 int __init touch_init_raydium(int irq_gpio, int reset_gpio, int platform);
 int __init touch_init_synaptics_grouper(void);
@@ -117,5 +121,7 @@ int __init touch_init_synaptics_grouper(void);
 #define MPU_COMPASS_ORIENTATION	{ 0, -1, 0, -1, 0, 0, 0, 0, -1 }
 
 #define TDIODE_OFFSET	(10000) /* in millicelsius */
+
+int pmu_detection(void);
 
 #endif

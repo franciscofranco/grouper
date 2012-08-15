@@ -548,6 +548,8 @@ static int __init grouper_fixed_regulator_init(void)
 	struct platform_device **fixed_reg_devs;
 	int nfixreg_devs;
 
+	if(pmu_detection())
+		return 0;
 	tegra_get_board_info(&board_info);
 
 	if (board_info.fab == BOARD_FAB_A00) {
@@ -656,27 +658,4 @@ int __init grouper_edp_init(void)
 	return 0;
 }
 #endif
-
-unsigned int boot_reason=0;
-void tegra_booting_info(void )
-{
-	static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
-	unsigned int reg;
-	#define PMC_RST_STATUS_WDT (1)
-	#define PMC_RST_STATUS_SW   (3)
-
-	reg = readl(pmc +0x1b4);
-	printk("tegra_booting_info reg=%x\n",reg );
-
-	if (reg ==PMC_RST_STATUS_SW){
-		boot_reason=PMC_RST_STATUS_SW;
-		printk("tegra_booting_info-SW reboot\n");
-	} else if (reg ==PMC_RST_STATUS_WDT){
-		boot_reason=PMC_RST_STATUS_WDT;
-		printk("tegra_booting_info-watchdog reboot\n");
-	} else{
-		boot_reason=0;
-		printk("tegra_booting_info-normal\n");
-	}
-}
 

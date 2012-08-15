@@ -851,27 +851,84 @@ static void grouper_nfc_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PS7);
 	tegra_gpio_enable(TEGRA_GPIO_PR3);
 }
-extern tegra_booting_info(void );
+
+unsigned int boot_reason=0;
+void grouper_booting_info(void )
+{
+	static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+	unsigned int reg;
+	#define PMC_RST_STATUS_WDT (1)
+	#define PMC_RST_STATUS_SW   (3)
+
+	reg = readl(pmc +0x1b4);
+	printk("grouper_booting_info reg=%x\n",reg );
+
+	if (reg ==PMC_RST_STATUS_SW){
+		boot_reason=PMC_RST_STATUS_SW;
+		printk("grouper_booting_info-SW reboot\n");
+	} else if (reg ==PMC_RST_STATUS_WDT){
+		boot_reason=PMC_RST_STATUS_WDT;
+		printk("grouper_booting_info-watchdog reboot\n");
+	} else{
+		boot_reason=0;
+		printk("grouper_booting_info-normal\n");
+	}
+}
+int pmu_detection(void)
+{
+	int ret;
+	static int id8 = 0xFF;
+	#define PMU_ID_PIN TEGRA_GPIO_PK3
+
+	if (id8 != 0xFF)
+		goto end;
+	tegra_gpio_enable(PMU_ID_PIN);
+       ret = gpio_request(PMU_ID_PIN, "pmu_detection");
+	if (ret < 0) {
+		printk(KERN_ERR "request PMU_ID_PIN failed\n");
+		WARN_ON(1);
+	}
+
+	ret = gpio_direction_input(PMU_ID_PIN);
+	if (ret < 0) {
+		printk(KERN_ERR "failed to configure PMU_ID_PIN \n");
+		WARN_ON(1);
+		return 1;
+	}
+	id8 = gpio_get_value(PMU_ID_PIN);
+
+end:
+	printk(KERN_INFO "PMU is %s\n", id8 ? "TI" : "Maxim");
+	return id8;
+}
 static void __init tegra_grouper_init(void)
 {
 	tegra_thermal_init(&thermal_data);
 	tegra_clk_init_from_table(grouper_clk_init_table);
 	grouper_pinmux_init();
 	grouper_misc_init();
-	tegra_booting_info();
+	grouper_booting_info();
 	grouper_i2c_init();
 	grouper_spi_init();
 	grouper_usb_init();
 #ifdef CONFIG_TEGRA_EDP_LIMITS
-	grouper_edp_init();
+	if (pmu_detection())
+		grouper_ti_edp_init();
+	else
+		grouper_edp_init();
 #endif
 	grouper_uart_init();
 	grouper_audio_init();
 	platform_add_devices(grouper_devices, ARRAY_SIZE(grouper_devices));
 	tegra_ram_console_debug_init();
 	grouper_sdhci_init();
-	grouper_regulator_init();
-	grouper_suspend_init();
+	if (pmu_detection()) {
+		grouper_ti_regulator_init();
+		grouper_ti_suspend_init();
+	} else {
+		grouper_regulator_init();
+		grouper_suspend_init();
+	}
 	grouper_touch_init();
 	grouper_gps_init();
 	grouper_keys_init();
