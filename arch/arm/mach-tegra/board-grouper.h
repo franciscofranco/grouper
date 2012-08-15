@@ -81,6 +81,10 @@ int grouper_keys_init(void);
 int grouper_pins_state_init(void);
 int grouper_emc_init(void);
 int grouper_edp_init(void);
+int grouper_ti_regulator_init(void);
+int grouper_ti_suspend_init(void);
+int grouper_ti_edp_init(void);
+
 void __init grouper_tsensor_init(void);
 int __init touch_init_raydium(int irq_gpio, int reset_gpio, int platform);
 int __init touch_init_synaptics_grouper(void);
@@ -132,5 +136,7 @@ int __init touch_init_synaptics_grouper(void);
 #define XMM_GPIO_BB_SW_SEL			TEGRA_GPIO_PP1
 #define XMM_GPIO_IPC_BB_RST_IND		TEGRA_GPIO_PEE1
 #define XMM_GPIO_SIM_CARD_DET			TEGRA_GPIO_PW3
+
+int pmu_detection(void);
 
 #endif

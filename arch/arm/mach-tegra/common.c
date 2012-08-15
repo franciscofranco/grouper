@@ -644,16 +644,14 @@ enum audio_codec_type get_audio_codec_type(void)
 }
 __setup("audio_codec=", tegra_audio_codec_type);
 
-
 void tegra_get_board_info(struct board_info *bi)
 {
-	bi->board_id = (system_serial_high >> 16) & 0xFFFF;
-	bi->sku = (system_serial_high) & 0xFFFF;
-	bi->fab = (system_serial_low >> 24) & 0xFF;
-	bi->major_revision = (system_serial_low >> 16) & 0xFF;
-	bi->minor_revision = (system_serial_low >> 8) & 0xFF;
+	bi->board_id = 0xF41;
+	bi->sku = 0xA00;
+	bi->fab =0x1;
+	bi->major_revision = 0x044;
+	bi->minor_revision = 0x2;
 }
-
 static int __init tegra_pmu_board_info(char *info)
 {
 	char *p = info;
@@ -667,6 +665,7 @@ static int __init tegra_pmu_board_info(char *info)
 
 void tegra_get_pmu_board_info(struct board_info *bi)
 {
+	pmu_board_info.sku = 0x1;
 	memcpy(bi, &pmu_board_info, sizeof(struct board_info));
 }
 
