@@ -459,8 +459,8 @@ FIXED_REG(3, en_1v8_cam_a00,	en_1v8_cam,		max77663_rails(sd2),
 	0,	0,	TEGRA_GPIO_PS0,				true,	0,	1800);
 FIXED_REG(4, en_vddio_vid_a00,	en_vddio_vid,		NULL,
 	0,	0,	TEGRA_GPIO_PB2,				true,	0,	5000);
-FIXED_REG(5, en_3v3_modem_a00,	en_3v3_modem,		NULL,
-	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
+//FIXED_REG(5, en_3v3_modem_a00,	en_3v3_modem,		NULL,
+//	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a00,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
 //FIXED_REG(7, en_cam3_ldo_a00,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a00),
@@ -483,8 +483,8 @@ FIXED_REG(3, en_1v8_cam_a01,	en_1v8_cam,		max77663_rails(sd2),
 	0,	0,	TEGRA_GPIO_PS0,				true,	0,	1800);
 FIXED_REG(4, en_vddio_vid_a01,	en_vddio_vid,		NULL,
 	0,	0,	TEGRA_GPIO_PB2,				true,	0,	5000);
-FIXED_REG(5, en_3v3_modem_a01,	en_3v3_modem,		NULL,
-	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
+//FIXED_REG(5, en_3v3_modem_a01,	en_3v3_modem,		NULL,
+//	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a01,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a01),
 	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
 //FIXED_REG(7, en_cam3_ldo_a01,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a01),
@@ -510,7 +510,6 @@ FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
 	ADD_FIXED_REG(en_avdd_hdmi_usb_a00),	\
 	ADD_FIXED_REG(en_1v8_cam_a00),		\
 	ADD_FIXED_REG(en_vddio_vid_a00),	\
-	ADD_FIXED_REG(en_3v3_modem_a00),	\
 	ADD_FIXED_REG(en_vdd_pnl_a00),		\
 	ADD_FIXED_REG(en_vdd_com_a00),		\
 	ADD_FIXED_REG(en_3v3_fuse_a00),		\
@@ -522,7 +521,6 @@ FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
 	ADD_FIXED_REG(en_avdd_hdmi_usb_a01),	\
 	ADD_FIXED_REG(en_1v8_cam_a01),		\
 	ADD_FIXED_REG(en_vddio_vid_a01),	\
-	ADD_FIXED_REG(en_3v3_modem_a01),	\
 	ADD_FIXED_REG(en_vdd_pnl_a01),		\
 	ADD_FIXED_REG(en_vdd_com_a01),		\
 	ADD_FIXED_REG(en_3v3_fuse_a01),		\
