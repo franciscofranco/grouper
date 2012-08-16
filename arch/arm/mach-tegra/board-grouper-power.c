@@ -115,6 +115,7 @@ static struct regulator_consumer_supply max77663_ldo6_supply[] = {
 static struct regulator_consumer_supply max77663_ldo7_supply[] = {
 	REGULATOR_SUPPLY("avdd_dsi_csi", NULL),
 	REGULATOR_SUPPLY("pwrdet_mipi", NULL),
+	REGULATOR_SUPPLY("vddio_hsic", NULL),
 };
 
 static struct regulator_consumer_supply max77663_ldo8_supply[] = {
@@ -462,12 +463,12 @@ FIXED_REG(5, en_3v3_modem_a00,	en_3v3_modem,		NULL,
 	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a00,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
-FIXED_REG(7, en_cam3_ldo_a00,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a00),
-	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
+//FIXED_REG(7, en_cam3_ldo_a00,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a00),
+//	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
 FIXED_REG(8, en_vdd_com_a00,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a00),
 	1,	0,	TEGRA_GPIO_PD0,				true,	0,	3300);
-FIXED_REG(9,  en_vdd_sdmmc1_a00, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a00),
-	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
+//FIXED_REG(9,  en_vdd_sdmmc1_a00, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a00),
+//	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
 FIXED_REG(10, en_3v3_fuse_a00,	en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys_a00),
 	0,	0,	TEGRA_GPIO_PC1,				true,	0,	3300);
 FIXED_REG(11, cdc_en_a00,	cdc_en,			max77663_rails(sd2),
@@ -486,12 +487,12 @@ FIXED_REG(5, en_3v3_modem_a01,	en_3v3_modem,		NULL,
 	1,	1,	TEGRA_GPIO_PP0,				true,	0,	3300);
 FIXED_REG(6, en_vdd_pnl_a01,	en_vdd_pnl,		FIXED_SUPPLY(en_3v3_sys_a01),
 	0,	0,	TEGRA_GPIO_PW1,				true,	1,	3300);
-FIXED_REG(7, en_cam3_ldo_a01,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a01),
-	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
+//FIXED_REG(7, en_cam3_ldo_a01,	en_cam3_ldo,		FIXED_SUPPLY(en_3v3_sys_a01),
+//	0,	0,	TEGRA_GPIO_PR7,				true,	0,	3300);
 FIXED_REG(8, en_vdd_com_a01,	en_vdd_com,		FIXED_SUPPLY(en_3v3_sys_a01),
 	1,	0,	TEGRA_GPIO_PD0,				true,	0,	3300);
-FIXED_REG(9,  en_vdd_sdmmc1_a01, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a01),
-	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
+//FIXED_REG(9,  en_vdd_sdmmc1_a01, en_vdd_sdmmc1,		FIXED_SUPPLY(en_3v3_sys_a01),
+//	0,	0,	TEGRA_GPIO_PC6,				true,	0,	3300);
 FIXED_REG(10, en_3v3_fuse_a01,	en_3v3_fuse,		FIXED_SUPPLY(en_3v3_sys_a01),
 	0,	0,	TEGRA_GPIO_PC1,				true,	0,	3300);
 FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
@@ -511,9 +512,7 @@ FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
 	ADD_FIXED_REG(en_vddio_vid_a00),	\
 	ADD_FIXED_REG(en_3v3_modem_a00),	\
 	ADD_FIXED_REG(en_vdd_pnl_a00),		\
-	ADD_FIXED_REG(en_cam3_ldo_a00),		\
 	ADD_FIXED_REG(en_vdd_com_a00),		\
-	ADD_FIXED_REG(en_vdd_sdmmc1_a00),	\
 	ADD_FIXED_REG(en_3v3_fuse_a00),		\
 	ADD_FIXED_REG(cdc_en_a00),		\
 
@@ -525,9 +524,7 @@ FIXED_REG(11, cdc_en_a01,	cdc_en,			max77663_rails(sd2),
 	ADD_FIXED_REG(en_vddio_vid_a01),	\
 	ADD_FIXED_REG(en_3v3_modem_a01),	\
 	ADD_FIXED_REG(en_vdd_pnl_a01),		\
-	ADD_FIXED_REG(en_cam3_ldo_a01),		\
 	ADD_FIXED_REG(en_vdd_com_a01),		\
-	ADD_FIXED_REG(en_vdd_sdmmc1_a01),	\
 	ADD_FIXED_REG(en_3v3_fuse_a01),		\
 	ADD_FIXED_REG(cdc_en_a01),		\
 

@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <mach/pinmux.h>
+#include <mach/board-grouper-misc.h>
 #include "board.h"
 #include "board-grouper.h"
 #include "gpio-names.h"
@@ -423,6 +424,27 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	DEFAULT_PINMUX(ULPI_DATA3,      ULPI,            NORMAL,    NORMAL,     INPUT),
 };
 
+static __initdata struct tegra_pingroup_config pinmux_grouper3g[] = {
+	DEFAULT_PINMUX(LCD_DC1,         DISPLAYA,        PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(LCD_PWR2,        DISPLAYA,        PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(SPI2_CS2_N,      SPI2,            PULL_UP,      NORMAL,     INPUT),
+	DEFAULT_PINMUX(DAP3_DIN,        I2S2,            PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(SPI1_SCK,        SPI1,            PULL_UP,      NORMAL,     INPUT),
+	DEFAULT_PINMUX(GPIO_PU5,        PWM2,            PULL_DOWN,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(SPI1_MISO,       SPI1,            PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(SPI2_MOSI,       SPI2,            PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(CLK3_REQ,        DEV3,            PULL_DOWN,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(ULPI_NXT,        UARTD,           PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(ULPI_STP,        UARTD,           PULL_DOWN,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(KB_ROW7,         KBC,             PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(GPIO_PU3,        RSVD1,           PULL_DOWN,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(DAP1_FS,         I2S0,            NORMAL,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(DAP1_DIN,        I2S0,            NORMAL,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(DAP1_DOUT,       I2S0,            NORMAL,    NORMAL,     INPUT),
+	DEFAULT_PINMUX(DAP1_SCLK,       I2S0,            NORMAL,    NORMAL,     INPUT),
+};
+
+
 /*Do not use for now*/
 static __initdata struct tegra_pingroup_config unused_pins_lowpower[] = {
 	/*
@@ -519,14 +541,43 @@ static struct gpio_init_pin_info init_gpio_mode_grouper_common[] = {
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PR0, false, 0),
 };
 
+static struct gpio_init_pin_info init_gpio_mode_grouper3g[] = {
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PDD7, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PCC6, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PR0, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PD2, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PC6, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PW3, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PP1, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PX5, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PU5, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PX7, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PX0, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PEE1, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PY2, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PY3, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PR7, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PU3, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN1, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN2, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN0, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN3, false, 0),
+};
+
 static void __init grouper_gpio_init_configure(void)
 {
 	int len;
 	int i;
 	struct gpio_init_pin_info *pins_info;
+	u32 project_info = grouper_get_project_id();
 
-	len = ARRAY_SIZE(init_gpio_mode_grouper_common);
-	pins_info = init_gpio_mode_grouper_common;
+	if (project_info == GROUPER_PROJECT_NAKASI_3G) {
+		len = ARRAY_SIZE(init_gpio_mode_grouper3g);
+		pins_info = init_gpio_mode_grouper3g;
+	} else {
+		len = ARRAY_SIZE(init_gpio_mode_grouper_common);
+		pins_info = init_gpio_mode_grouper_common;
+	}
 
 	for (i = 0; i < len; ++i) {
 		tegra_gpio_init_configure(pins_info->gpio_nr,
@@ -538,6 +589,8 @@ static void __init grouper_gpio_init_configure(void)
 int __init grouper_pinmux_init(void)
 {
 	struct board_info board_info;
+	u32 project_info = grouper_get_project_id();
+
 	tegra_get_board_info(&board_info);
 	BUG_ON(board_info.board_id != BOARD_E1565);
 	grouper_gpio_init_configure();
@@ -545,6 +598,11 @@ int __init grouper_pinmux_init(void)
 	tegra_pinmux_config_table(grouper_pinmux_common, ARRAY_SIZE(grouper_pinmux_common));
 	tegra_drive_pinmux_config_table(grouper_drive_pinmux,
 					ARRAY_SIZE(grouper_drive_pinmux));
+
+	if (project_info == GROUPER_PROJECT_NAKASI_3G) {
+		tegra_pinmux_config_table(pinmux_grouper3g,
+				ARRAY_SIZE(pinmux_grouper3g));
+	}
 
 	tegra_pinmux_config_table(unused_pins_lowpower,
 		ARRAY_SIZE(unused_pins_lowpower));
