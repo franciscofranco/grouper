@@ -874,7 +874,7 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	struct clk *div_clk;
 	struct clk *fast_clk = NULL;
 	const unsigned int *prop;
-	void *base;
+	void __iomem *base;
 	int irq;
 	int nbus;
 	int i = 0;
