@@ -140,8 +140,8 @@ struct tegra_i2c_bus {
  * @dev: device reference for power management
  * @hw: Tegra i2c hw feature.
  * @adapter: core i2c layer adapter information
- * @clk: clock reference for i2c controller
- * @i2c_clk: clock reference for i2c bus
+ * @div_clk: clock reference for div clock of i2c controller.
+ * @fast_clk: clock reference for fast clock of i2c controller.
  * @base: ioremapped registers cookie
  * @cont_id: i2c controller id, used for for packet header
  * @irq: irq number of transfer complete interrupt
@@ -441,13 +441,13 @@ static inline int tegra_i2c_clock_enable(struct tegra_i2c_dev *i2c_dev)
 	ret = clk_enable(i2c_dev->fast_clk);
 	if (ret < 0) {
 		dev_err(i2c_dev->dev,
-			"Error in enabling fast clock err %d\n", ret);
+			"Enabling fast clk failed, err %d\n", ret);
 		return ret;
 	}
 	ret = clk_enable(i2c_dev->div_clk);
 	if (ret < 0) {
 		dev_err(i2c_dev->dev,
-			"Error in enabling div clock err %d\n", ret);
+			"Enabling div clk failed, err %d\n", ret);
 		clk_disable(i2c_dev->fast_clk);
 	}
 	return ret;
