@@ -116,6 +116,15 @@
 
 struct tegra_i2c_dev;
 
+/**
+ * struct tegra_i2c_hw_feature : Different HW support on Tegra
+ * @has_continue_xfer_support: Continue transfer supports.
+ */
+
+struct tegra_i2c_hw_feature {
+	bool has_continue_xfer_support;
+};
+
 struct tegra_i2c_bus {
 	struct tegra_i2c_dev *dev;
 	const struct tegra_pingroup_config *mux;
@@ -129,6 +138,7 @@ struct tegra_i2c_bus {
 /**
  * struct tegra_i2c_dev	- per device i2c context
  * @dev: device reference for power management
+ * @hw: Tegra i2c hw feature.
  * @adapter: core i2c layer adapter information
  * @clk: clock reference for i2c controller
  * @i2c_clk: clock reference for i2c bus
@@ -146,6 +156,7 @@ struct tegra_i2c_bus {
  */
 struct tegra_i2c_dev {
 	struct device *dev;
+	struct tegra_i2c_hw_feature *hw;
 	struct clk *div_clk;
 	struct clk *fast_clk;
 	struct rt_mutex dev_lock;
@@ -780,6 +791,17 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		return -EBUSY;
 	}
 
+	/* Support I2C_M_NOSTART only if HW support continue xfer. */
+	for (i = 0; i < num - 1; i++) {
+			if ((msgs[i + 1].flags & I2C_M_NOSTART) &&
+			!i2c_dev->hw->has_continue_xfer_support) {
+			dev_err(i2c_dev->dev,
+				"mesg %d have illegal flag\n", i + 1);
+			rt_mutex_unlock(&i2c_dev->dev_lock);
+			return -EINVAL;
+		}
+	}
+
 	if (i2c_dev->last_mux != i2c_bus->mux) {
 		tegra_pinmux_set_safe_pinmux_table(i2c_dev->last_mux,
 			i2c_dev->last_mux_len);
@@ -826,6 +848,23 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 	.master_xfer	= tegra_i2c_xfer,
 	.functionality	= tegra_i2c_func,
 };
+
+static struct tegra_i2c_hw_feature tegra20_i2c_hw = {
+	.has_continue_xfer_support = false,
+};
+
+static struct tegra_i2c_hw_feature tegra30_i2c_hw = {
+	.has_continue_xfer_support = true,
+};
+
+#if defined(CONFIG_OF)
+/* Match table for of_platform binding */
+static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra20-i2c", .data = &tegra20_i2c_hw, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
+#endif
 
 static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 {
@@ -900,6 +939,13 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->dev = &pdev->dev;
 	i2c_dev->is_clkon_always = plat->is_clkon_always;
 
+
+#ifdef ARCH_TEGRA_2x_SOC
+	i2c_dev->hw = &tegra20_i2c_hw;
+#else
+	i2c_dev->hw = &tegra30_i2c_hw;
+#endif
+
 	i2c_dev->last_bus_clk_rate = 100000; /* default clock rate */
 	if (plat) {
 		i2c_dev->last_bus_clk_rate = plat->bus_clk_rate[0];
@@ -910,6 +956,9 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 				"clock-frequency", NULL);
 		if (prop)
 			i2c_dev->last_bus_clk_rate = be32_to_cpup(prop);
+
+		/* FIXME! Populate the Tegra30 and then support M_NOSTART */
+		i2c_dev->hw = &tegra20_i2c_hw;
 	}
 
 	i2c_dev->is_high_speed_enable = plat->is_high_speed_enable;
@@ -1052,15 +1101,6 @@ static const struct dev_pm_ops tegra_i2c_pm = {
 #define TEGRA_I2C_PM	(&tegra_i2c_pm)
 #else
 #define TEGRA_I2C_PM	NULL
-#endif
-
-#if defined(CONFIG_OF)
-/* Match table for of_platform binding */
-static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
-	{ .compatible = "nvidia,tegra20-i2c", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 #endif
 
 static struct platform_driver tegra_i2c_driver = {
