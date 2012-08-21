@@ -914,7 +914,7 @@ static void tps6591x_regulator_shutdown(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Error in clearing external control\n");
 	}
 #endif
-	if (ri->shutdown_state_off) {
+	if (ri->shutdown_state_off && system_state != SYSTEM_RESTART) {
 		dev_info(&pdev->dev, "Shutting down %s\n",ri->desc.name);
 		tps6591x_regulator_disable(rdev);
 	}
