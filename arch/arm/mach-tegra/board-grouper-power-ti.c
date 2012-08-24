@@ -44,8 +44,8 @@
 #include "pm.h"
 //#include "wakeups-t3.h"
 #include "tegra3_tsensor.h"
+#include <mach/board-grouper-misc.h>
 
-extern int pmu_detection(void);
 static void grouper_ti_get_board_info(struct board_info *bi)
 {
 	bi->board_id = 0x0245;
@@ -1019,7 +1019,7 @@ int __init grouper_ti_fixed_regulator_init(void)
 	struct platform_device **fixed_reg_devs;
 	int    nfixreg_devs;
 
-	if(!pmu_detection())
+	if(!grouper_query_pmic_id())
 		return 0;
 
 	grouper_ti_get_board_info(&board_info);
