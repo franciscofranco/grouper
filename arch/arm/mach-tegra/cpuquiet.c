@@ -311,23 +311,32 @@ static void delay_callback(struct cpuquiet_attribute *attr)
 
 static void enable_callback(struct cpuquiet_attribute *attr)
 {
+	int disabled = -1;
+
 	mutex_lock(tegra3_cpu_lock);
 
 	if (!enable && cpq_state != TEGRA_CPQ_DISABLED) {
+		disabled = 1;
 		cpq_state = TEGRA_CPQ_DISABLED;
-		mutex_unlock(tegra3_cpu_lock);
-		cancel_delayed_work_sync(&cpuquiet_work);
-		pr_info("Tegra cpuquiet clusterswitch disabled\n");
-		cpuquiet_device_busy();
-		mutex_lock(tegra3_cpu_lock);
 	} else if (enable && cpq_state == TEGRA_CPQ_DISABLED) {
+		disabled = 0;
 		cpq_state = TEGRA_CPQ_IDLE;
-		pr_info("Tegra cpuquiet clusterswitch enabled\n");
 		tegra_cpu_set_speed_cap(NULL);
-		cpuquiet_device_free();
 	}
 
 	mutex_unlock(tegra3_cpu_lock);
+
+	if (disabled == -1)
+		return;
+
+	if (disabled == 1) {
+		cancel_delayed_work_sync(&cpuquiet_work);
+		pr_info("Tegra cpuquiet clusterswitch disabled\n");
+		cpuquiet_device_busy();
+	} else if (!disabled) {
+		pr_info("Tegra cpuquiet clusterswitch enabled\n");
+		cpuquiet_device_free();
+	}
 }
 
 CPQ_BASIC_ATTRIBUTE(no_lp, 0644, bool);
