@@ -587,7 +587,6 @@ static struct regulator_consumer_supply fixed_reg_en_3v3_sys_supply[] = {
 	REGULATOR_SUPPLY("vdd_3v3_cam", NULL),
 	REGULATOR_SUPPLY("vdd_3v3_als", NULL),
 	REGULATOR_SUPPLY("debug_cons", NULL),
-	REGULATOR_SUPPLY("vdd", "4-004c"),
 };
 
 /* DIS_5V_SWITCH from AP SPI2_SCK X02 */
