@@ -81,6 +81,7 @@
 #define TPS6591X_GPIO_PDEN	3
 #define TPS6591X_GPIO_DIR	2
 
+#define GPIO4_F_IT_MSK (1 << 1)
 enum irq_type {
 	EVENT,
 	GPIO,
@@ -1108,6 +1109,16 @@ static int tps6591x_i2c_resume(struct i2c_client *client)
 }
 #endif
 
+static int tps6591x_i2c_shutdown(struct i2c_client *client)
+{
+	int ret;
+
+	ret = tps6591x_set_bits(&client->dev, TPS6591X_INT_MSK3, GPIO4_F_IT_MSK);
+	if (ret < 0)
+		pr_err("%s(): Setting GPIO4_F_IT_MSK fail.\n", __func__);
+	return ret;
+}
+
 
 static const struct i2c_device_id tps6591x_id_table[] = {
 	{ "tps6591x", 0 },
@@ -1126,6 +1137,7 @@ static struct i2c_driver tps6591x_driver = {
 	.suspend	= tps6591x_i2c_suspend,
 	.resume		= tps6591x_i2c_resume,
 #endif
+	.shutdown = tps6591x_i2c_shutdown,
 	.id_table	= tps6591x_id_table,
 };
 
