@@ -52,7 +52,7 @@ enum {
 
 struct clk;
 
-int tegra_init_emc(const struct tegra_emc_table *table, int table_size);
+void tegra_init_emc(const struct tegra_emc_table *table, int table_size);
 
 void tegra_init_dram_bit_map(const u32 *bit_map, int map_size);
 void tegra_emc_dram_type_init(struct clk *c);
