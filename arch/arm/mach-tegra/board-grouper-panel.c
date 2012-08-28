@@ -37,6 +37,7 @@
 #include "board-grouper.h"
 #include "devices.h"
 #include "gpio-names.h"
+#include <mach/board-grouper-misc.h>
 
 /* grouper default display board pins */
 #define grouper_lvds_avdd_en		TEGRA_GPIO_PH6
@@ -218,6 +219,11 @@ static int grouper_panel_enable(void)
 			regulator_enable(grouper_lvds_vdd_panel);
 	}
 
+	if( grouper_get_project_id() == GROUPER_PROJECT_BACH )
+	{
+		gpio_direction_output(TEGRA_GPIO_PV6, 1);
+	}
+
 	return 0;
 }
 
@@ -236,6 +242,11 @@ static int grouper_panel_disable(void)
 		regulator_disable(grouper_lvds_reg);
 		regulator_put(grouper_lvds_reg);
 		grouper_lvds_reg = NULL;
+	}
+
+	if( grouper_get_project_id() == GROUPER_PROJECT_BACH)
+	{
+		gpio_direction_output(TEGRA_GPIO_PV6, 0);
 	}
 
 	if (grouper_lvds_vdd_panel) {
@@ -718,6 +729,20 @@ int __init grouper_panel_init(void)
 	gpio_direction_output(grouper_lvds_shutdown, 1);
 	tegra_gpio_enable(grouper_lvds_shutdown);
 */
+
+	if( grouper_get_project_id() == GROUPER_PROJECT_BACH)
+	{
+		grouper_disp1_out.parent_clk = "pll_d_out0";
+		grouper_disp1_out.modes->pclk = 81750000;
+		grouper_disp1_out.modes->h_sync_width= 64;
+		grouper_disp1_out.modes->h_back_porch= 128;
+		grouper_disp1_out.modes->h_front_porch = 64;
+		printk("Bach: Set LCD pclk as %d Hz\n", grouper_disp1_out.modes->pclk);
+
+		gpio_request(TEGRA_GPIO_PV6, "gpio_v6");
+		tegra_gpio_enable(TEGRA_GPIO_PV6);
+	}
+
 	tegra_gpio_enable(grouper_hdmi_hpd);
 	gpio_request(grouper_hdmi_hpd, "hdmi_hpd");
 	gpio_direction_input(grouper_hdmi_hpd);
