@@ -38,15 +38,15 @@ static struct kobj_attribute module##_attr = { \
 static unsigned int grouper_pcbid;
 
 static const struct pins grouper_pcbid_pins[] = {
-	{TEGRA_GPIO_PR4, TEGRA_PINGROUP_KB_ROW4, "PCB_ID0", true},
-	{TEGRA_GPIO_PR5, TEGRA_PINGROUP_KB_ROW5, "PCB_ID1", true},
-	{TEGRA_GPIO_PQ4, TEGRA_PINGROUP_KB_COL4, "PCB_ID2", true},
+	{TEGRA_GPIO_PR4, TEGRA_PINGROUP_KB_ROW4, "PCB_ID0", false},
+	{TEGRA_GPIO_PR5, TEGRA_PINGROUP_KB_ROW5, "PCB_ID1", false},
+	{TEGRA_GPIO_PQ4, TEGRA_PINGROUP_KB_COL4, "PCB_ID2", false},
 	{TEGRA_GPIO_PQ7, TEGRA_PINGROUP_KB_COL7, "PCB_ID3", false},
 	{TEGRA_GPIO_PR2, TEGRA_PINGROUP_KB_ROW2, "PCB_ID4", false},
 	{TEGRA_GPIO_PQ5, TEGRA_PINGROUP_KB_COL5, "PCB_ID5", false},
-	{TEGRA_GPIO_PJ0, TEGRA_PINGROUP_GMI_CS0_N, "PCB_ID6", true},
-	{TEGRA_GPIO_PJ2, TEGRA_PINGROUP_GMI_CS1_N, "PCB_ID7", true},
-	{TEGRA_GPIO_PI7, TEGRA_PINGROUP_GMI_WAIT, "PCB_ID8", true},
+	{TEGRA_GPIO_PJ0, TEGRA_PINGROUP_GMI_CS0_N, "PCB_ID6", false},
+	{TEGRA_GPIO_PJ2, TEGRA_PINGROUP_GMI_CS1_N, "PCB_ID7", false},
+	{TEGRA_GPIO_PK3, TEGRA_PINGROUP_GMI_CS2_N, "PCB_ID8", false},
 	{TEGRA_GPIO_PC7, TEGRA_PINGROUP_GMI_WP_N, "PCB_ID9", true},
 };
 
@@ -56,7 +56,7 @@ static unsigned int grouper_projectid;
 static const struct pins grouper_projectid_pins[] = {
 	{TEGRA_GPIO_PK2, TEGRA_PINGROUP_GMI_CS4_N, "PROJECT_ID0", true},
 	{TEGRA_GPIO_PI3, TEGRA_PINGROUP_GMI_CS6_N, "PROJECT_ID1", true},
-	{TEGRA_GPIO_PK3, TEGRA_PINGROUP_GMI_CS2_N, "PROJECT_ID2", true},
+	{TEGRA_GPIO_PI7, TEGRA_PINGROUP_GMI_WAIT, "PROJECT_ID2", true},
 	{TEGRA_GPIO_PK4, TEGRA_PINGROUP_GMI_CS3_N, "PROJECT_ID3", true},
 };
 
@@ -90,11 +90,21 @@ EXPORT_SYMBOL(grouper_query_audio_codec);
 unsigned int grouper_query_gps_module(void)
 {
 	unsigned int value = 0;
-	value = (grouper_pcbid & 0x300) >> 8;
+	value = ((grouper_pcbid & 0x004) >> 2) +
+		(((grouper_pcbid & 0x200) >> 9) << 1);
 
 	return value;
 }
 EXPORT_SYMBOL(grouper_query_gps_module);
+
+unsigned int grouper_query_pmic_id(void)
+{
+	unsigned int value = 0;
+	value = (grouper_pcbid & 0x100) >> 8;
+
+	return value;
+}
+EXPORT_SYMBOL(grouper_query_pmic_id);
 
 unsigned int grouper_get_project_id(void)
 {
