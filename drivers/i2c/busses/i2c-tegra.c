@@ -908,13 +908,13 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	div_clk = devm_clk_get(&pdev->dev, "i2c-div");
+	div_clk = devm_clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(div_clk)) {
 		dev_err(&pdev->dev, "missing controller clock");
 		return PTR_ERR(div_clk);
 	}
 
-	fast_clk = devm_clk_get(&pdev->dev, "i2c-fast");
+	fast_clk = devm_clk_get(&pdev->dev, "fast-clk");
 	if (IS_ERR(fast_clk)) {
 		dev_err(&pdev->dev, "missing controller fast clock");
 		return PTR_ERR(fast_clk);
