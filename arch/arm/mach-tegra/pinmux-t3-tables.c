@@ -485,40 +485,41 @@ static __initdata struct tegra_drive_pingroup_config t30_def_drive_pinmux[] = {
 
 
 static __initdata struct tegra_pingroup_config grouper_pcbid_pinmux[] = {
-	//PCB_ID3
+	/* PCB_ID0 */
+	DEFAULT_PINMUX(KB_ROW4, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID1 */
+	DEFAULT_PINMUX(KB_ROW5, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID2 */
+	DEFAULT_PINMUX(KB_COL4, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID3 */
 	DEFAULT_PINMUX(KB_COL7, KBC, NORMAL, TRISTATE, INPUT),
-	//PCB_ID4
+	/* PCB_ID4 */
 	DEFAULT_PINMUX(KB_ROW2, KBC, NORMAL, TRISTATE, INPUT),
-	//PCB_ID5
+	/* PCB_ID5 */
 	DEFAULT_PINMUX(KB_COL5, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID6 */
+	DEFAULT_PINMUX(GMI_CS0_N, RSVD1, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID7 */
+	DEFAULT_PINMUX(GMI_CS1_N, RSVD1, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID8 */
+	DEFAULT_PINMUX(GMI_CS2_N, RSVD1, NORMAL, TRISTATE, INPUT),
 
-	// Need to reset the following pins after reading for power saving
-	// On nakasi device, pin should be restored with no-pull and
-	// input/output buffer disabled.
-	// On other devices, pin is set to no-pull and output buffer disabled
-	// because it should be configured with desired state externally.
+	/* Need to reset the following pins after reading for power saving
+	 * On nakasi device, pin should be restored with no-pull and
+	 * input/output buffer disabled.
+	 * On other devices, pin is set to no-pull and output buffer disabled
+	 * because it should be configured with desired state externally.
+	 */
 
-	//PCB_ID0
-	DEFAULT_PINMUX(KB_ROW4, KBC, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID1
-	DEFAULT_PINMUX(KB_ROW5, KBC, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID2
-	DEFAULT_PINMUX(KB_COL4, KBC, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID6
-	DEFAULT_PINMUX(GMI_CS0_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID7
-	DEFAULT_PINMUX(GMI_CS1_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID8
-	DEFAULT_PINMUX(GMI_WAIT, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PCB_ID9
+	/* PCB_ID9 */
 	DEFAULT_PINMUX(GMI_WP_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PROJECT_ID0 (aka PCB_ID10)
+	/* PROJECT_ID0 (aka PCB_ID10) */
 	DEFAULT_PINMUX(GMI_CS4_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PROJECT_ID1 (aka PCB_ID11)
+	/* PROJECT_ID1 (aka PCB_ID11) */
 	DEFAULT_PINMUX(GMI_CS6_N, GMI, PULL_DOWN, TRISTATE, INPUT),
-	//PROJECT_ID2 (aka PCB_ID12)
-	DEFAULT_PINMUX(GMI_CS2_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
-	//PROJECT_ID3 (aka PCB_ID13)
+	/* PROJECT_ID2 (aka PCB_ID12) */
+	DEFAULT_PINMUX(GMI_WAIT, RSVD1, PULL_DOWN, TRISTATE, INPUT),
+	/* PROJECT_ID3 (aka PCB_ID13) */
 	DEFAULT_PINMUX(GMI_CS3_N, RSVD1, PULL_DOWN, TRISTATE, INPUT),
 };
 
