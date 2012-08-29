@@ -29,6 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
+#include <linux/mfd/tps6591x.h>
 #include <asm/mach-types.h>
 #include <mach/board-grouper-misc.h>
 #include <mach/usb_phy.h>
@@ -37,6 +38,9 @@
 #include "fuse.h"
 #include "board-grouper.h"
 
+
+#define TPS6591X_GPIO_BASE	TEGRA_NR_GPIOS
+#define AC_PRESENT_GPIO		(TPS6591X_GPIO_BASE + TPS6591X_GPIO_GP4)
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 #define USB_USBCMD		0x140
@@ -610,8 +614,6 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 #define AHB_MEM_PREFETCH_CFG1		0xec
 #define AHB_MEM_PREFETCH_CFG2		0xf0
 #define PREFETCH_ENB			(1 << 31)
-
-extern u8 g_cid4;
 
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
@@ -2511,6 +2513,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	int reset_gpio, enable_gpio;
 #endif
 	unsigned int pcb_id_version;
+	int pmu_hw = grouper_query_pmic_id();
 
 	phy = kzalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
 	if (!phy)
@@ -2643,34 +2646,46 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		phy->reg_vdd = NULL;
 	}
 
-	if (instance == 0 && g_cid4 == 0x23) {
+	if (instance == 0 && pmu_hw == GROUPER_PMIC_MAXIM) {
 		usb_phy_data[0].vbus_irq = MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_RISING;
-		printk(KERN_INFO "%s instance %d g_cid4 %#X MAX77663_IRQ_ACOK_RISING\n", __func__, instance, g_cid4);
-	}
-	else if(instance == 0 && g_cid4 == 0x20) {
-		usb_phy_data[0].vbus_irq = MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_FALLING;
-		printk(KERN_INFO "%s instance %d g_cid4 %#X MAX77663_IRQ_ACOK_FALLING\n", __func__, instance, g_cid4);
+		printk(KERN_INFO "%s instance %d MAX77663_IRQ_ACOK_RISING\n", __func__, instance);
+	} else if (instance == 0 && pmu_hw == GROUPER_PMIC_TI) {
+		tegra_gpio_enable(AC_PRESENT_GPIO);
+		err = gpio_request(AC_PRESENT_GPIO, "PMU_ACOK");
+		if (err < 0)
+			printk(KERN_ERR "Failed to request the GPIO%d: %d\n", AC_PRESENT_GPIO, err);
+
+		err = gpio_direction_input(AC_PRESENT_GPIO);
+		if (err)
+			printk(KERN_ERR "gpio_direction_input failed for input %d\n", AC_PRESENT_GPIO);
+
+		usb_phy_data[0].vbus_irq = gpio_to_irq(AC_PRESENT_GPIO);
+		printk(KERN_INFO "%s instance %d TI AC_PRESENT_GPIO = %d \n", __func__, instance, AC_PRESENT_GPIO);
 	}
 
 	if (instance == 0 && usb_phy_data[0].vbus_irq) {
-		err = request_threaded_irq(usb_phy_data[0].vbus_irq, NULL, usb_phy_vbus_irq_thr, IRQF_SHARED,
-			"usb_phy_vbus", phy);
-		if (err) {
-			pr_err("Failed to register IRQ\n");
-			goto err1;
-		}
+		if (pmu_hw == GROUPER_PMIC_MAXIM) {
+			err = request_threaded_irq(usb_phy_data[0].vbus_irq, NULL, usb_phy_vbus_irq_thr, IRQF_SHARED,
+				"usb_phy_vbus", phy);
+			if (err) {
+				pr_err("Failed to register IRQ\n");
+				goto err1;
+			}
 
-		if (g_cid4 == 0x23) {
 			err = request_threaded_irq(MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_FALLING , NULL,
 				usb_cable_remove_irq_thr, IRQF_SHARED, "usb_cable_remove", phy);
-		} else if (g_cid4 == 0x20) {
-			err = request_threaded_irq(MAX77663_IRQ_BASE + MAX77663_IRQ_ACOK_RISING , NULL,
-				usb_cable_remove_irq_thr, IRQF_SHARED, "usb_cable_remove", phy);
-		}
 
-		if (err) {
-			pr_err("Failed to register IRQ for removing the USB cable.\n");
-			goto err1;
+			if (err) {
+				pr_err("Failed to register IRQ for removing the USB cable.\n");
+				goto err1;
+			}
+		} else if (pmu_hw == GROUPER_PMIC_TI) {
+			err = request_threaded_irq(usb_phy_data[0].vbus_irq, NULL, usb_phy_vbus_irq_thr,
+					IRQF_SHARED |IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING , "usb_phy_vbus", phy);
+			if (err) {
+				pr_err("Failed to register IRQ\n");
+				goto err1;
+			}
 		}
 	}
 
