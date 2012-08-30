@@ -36,6 +36,7 @@
 #include <linux/nct1008.h>
 #include <mach/thermal.h>
 #include <linux/slab.h>
+#include <mach/board-grouper-misc.h>
 
 #define CAM1_LDO_EN_GPIO		TEGRA_GPIO_PR6
 #define FRONT_YUV_SENSOR_RST_GPIO	TEGRA_GPIO_PO0
@@ -43,6 +44,8 @@
 static struct regulator *grouper_1v8_ldo5;
 static struct regulator *grouper_1v8_cam3;
 static struct regulator *grouper_vdd_cam3;
+
+static unsigned int pmic_id;
 
 static const struct i2c_board_info cardhu_i2c1_board_info_al3010[] = {
 	{
@@ -53,6 +56,8 @@ static const struct i2c_board_info cardhu_i2c1_board_info_al3010[] = {
 
 static int grouper_camera_init(void)
 {
+	pmic_id = grouper_query_pmic_id();
+	printk("%s: pmic_id= 0x%X", __FUNCTION__, pmic_id);
 #if 0
 	int ret;
 
@@ -168,7 +173,11 @@ static int yuv_front_sensor_power_on(void)
 	msleep(5);
 
 	if (!grouper_1v8_ldo5) {
-		grouper_1v8_ldo5 = regulator_get(NULL, "vdd_sensor_1v8");
+		if(pmic_id == GROUPER_PMIC_MAXIM) {
+			grouper_1v8_ldo5 = regulator_get(NULL, "vdd_sensor_1v8");
+		} else if (pmic_id == GROUPER_PMIC_TI) {
+			grouper_1v8_ldo5 = regulator_get(NULL, "avdd_vdac");
+		}
 		if (IS_ERR_OR_NULL(grouper_1v8_ldo5)) {
 			grouper_1v8_ldo5 = NULL;
 			pr_err("Can't get grouper_1v8_ldo5.\n");
@@ -211,28 +220,33 @@ fail_to_get_reg:
 
 static int yuv_front_sensor_power_off(void)
 {
-	printk("yuv_front_sensor_power_off+\n");
+	printk("%s+\n", __FUNCTION__);
 
-	gpio_set_value(FRONT_YUV_SENSOR_RST_GPIO, 0);
-	gpio_direction_output(FRONT_YUV_SENSOR_RST_GPIO, 0);
-	gpio_free(FRONT_YUV_SENSOR_RST_GPIO);
+	if((pmic_id == GROUPER_PMIC_MAXIM) || (pmic_id == GROUPER_PMIC_TI)) {
+		gpio_set_value(FRONT_YUV_SENSOR_RST_GPIO, 0);
+		gpio_direction_output(FRONT_YUV_SENSOR_RST_GPIO, 0);
+		gpio_free(FRONT_YUV_SENSOR_RST_GPIO);
 
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_CAM_MCLK, TEGRA_TRI_TRISTATE);
+		tegra_pinmux_set_tristate(TEGRA_PINGROUP_CAM_MCLK, TEGRA_TRI_TRISTATE);
 
-	if (grouper_1v8_ldo5) {
-		regulator_disable(grouper_1v8_ldo5);
-		regulator_put(grouper_1v8_ldo5);
-		grouper_1v8_ldo5 = NULL;
+		if (grouper_1v8_ldo5) {
+			regulator_disable(grouper_1v8_ldo5);
+			regulator_put(grouper_1v8_ldo5);
+			grouper_1v8_ldo5 = NULL;
+		}
+
+		msleep(5);
+
+		gpio_set_value(CAM1_LDO_EN_GPIO, 0);
+		gpio_direction_output(CAM1_LDO_EN_GPIO, 0);
+		gpio_free(CAM1_LDO_EN_GPIO);
+
+		printk("%s-\n", __FUNCTION__);
+		return 0;
+	} else {
+		printk("%s- Unknow pmic_id: 0x%X\n", __FUNCTION__, pmic_id);
+		return -ENODEV;
 	}
-
-	msleep(5);
-
-	gpio_set_value(CAM1_LDO_EN_GPIO, 0);
-	gpio_direction_output(CAM1_LDO_EN_GPIO, 0);
-	gpio_free(CAM1_LDO_EN_GPIO);
-
-	printk("yuv_front_sensor_power_off-\n");
-	return 0;
 }
 
 struct yuv_sensor_platform_data yuv_front_sensor_data = {
