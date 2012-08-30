@@ -239,10 +239,16 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	/*  KBC keys */
 	DEFAULT_PINMUX(KB_ROW0,         RSVD,            PULL_UP,   NORMAL,     OUTPUT),
 
-	/* PCBID pins */
-	DEFAULT_PINMUX(KB_COL7,         KBC,             NORMAL,    TRISTATE,   INPUT),
-	DEFAULT_PINMUX(KB_ROW2,         KBC,             NORMAL,    TRISTATE,   INPUT),
-	DEFAULT_PINMUX(KB_COL5,         KBC,             NORMAL,    TRISTATE,   INPUT),
+	/* Start of PCBID pins */
+	/* PCB_ID3 */
+	DEFAULT_PINMUX(KB_COL7, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID4 */
+	DEFAULT_PINMUX(KB_ROW2, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID5 */
+	DEFAULT_PINMUX(KB_COL5, KBC, NORMAL, TRISTATE, INPUT),
+	/* PCB_ID8 */
+	DEFAULT_PINMUX(GMI_CS2_N, RSVD1, NORMAL, TRISTATE, INPUT),
+	/* End of PCBID pins */
 
 	/* PWR Key */
 	DEFAULT_PINMUX(GPIO_PV0,        RSVD,            PULL_UP,   TRISTATE,     INPUT),
@@ -355,7 +361,6 @@ static __initdata struct tegra_pingroup_config grouper_pinmux_common[] = {
 	/* CODEC */
 	DEFAULT_PINMUX(SPI2_SCK,        SPI2,            NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(SPI2_CS1_N,      SPI2,            NORMAL,    NORMAL,     INPUT),
-	DEFAULT_PINMUX(GMI_CS2_N,       RSVD1,           NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(GMI_CS3_N,       RSVD1,           NORMAL,    NORMAL,     INPUT),
 
 	/* HALL SENSOR, LID# */
