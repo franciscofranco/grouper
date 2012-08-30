@@ -42,6 +42,7 @@
 #include "pm.h"
 #include "wakeups-t3.h"
 #include "tegra3_tsensor.h"
+#include <mach/board-grouper-misc.h>
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
@@ -548,7 +549,7 @@ static int __init grouper_fixed_regulator_init(void)
 	struct platform_device **fixed_reg_devs;
 	int nfixreg_devs;
 
-	if(pmu_detection())
+	if (grouper_query_pmic_id())
 		return 0;
 	tegra_get_board_info(&board_info);
 

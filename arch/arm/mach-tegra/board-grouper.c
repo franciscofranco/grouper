@@ -874,33 +874,7 @@ void grouper_booting_info(void )
 		printk("grouper_booting_info-normal\n");
 	}
 }
-int pmu_detection(void)
-{
-	int ret;
-	static int id8 = 0xFF;
-	#define PMU_ID_PIN TEGRA_GPIO_PK3
 
-	if (id8 != 0xFF)
-		goto end;
-	tegra_gpio_enable(PMU_ID_PIN);
-       ret = gpio_request(PMU_ID_PIN, "pmu_detection");
-	if (ret < 0) {
-		printk(KERN_ERR "request PMU_ID_PIN failed\n");
-		WARN_ON(1);
-	}
-
-	ret = gpio_direction_input(PMU_ID_PIN);
-	if (ret < 0) {
-		printk(KERN_ERR "failed to configure PMU_ID_PIN \n");
-		WARN_ON(1);
-		return 1;
-	}
-	id8 = gpio_get_value(PMU_ID_PIN);
-
-end:
-	printk(KERN_INFO "PMU is %s\n", id8 ? "TI" : "Maxim");
-	return id8;
-}
 static void __init tegra_grouper_init(void)
 {
 	tegra_thermal_init(&thermal_data);
@@ -912,7 +886,7 @@ static void __init tegra_grouper_init(void)
 	grouper_spi_init();
 	grouper_usb_init();
 #ifdef CONFIG_TEGRA_EDP_LIMITS
-	if (pmu_detection())
+	if (grouper_query_pmic_id())
 		grouper_ti_edp_init();
 	else
 		grouper_edp_init();
@@ -922,7 +896,7 @@ static void __init tegra_grouper_init(void)
 	platform_add_devices(grouper_devices, ARRAY_SIZE(grouper_devices));
 	tegra_ram_console_debug_init();
 	grouper_sdhci_init();
-	if (pmu_detection()) {
+	if (grouper_query_pmic_id()) {
 		grouper_ti_regulator_init();
 		grouper_ti_suspend_init();
 	} else {
