@@ -19,19 +19,24 @@
  *
  *	PCB_ID[3] is KB_COL[7], and
  *	PCB_ID[4] is KB_ROW[2], and
- *	PCB_ID[5] is KB_COL[5].
+ *	PCB_ID[5] is KB_COL[5], and
+ *	PCB_ID[8] is GMI_CS2_N.
  *
  *		PCBA revision
- *	========================================
+ *	===============================================================
  *	PCB_ID[5] PCB_ID[4] PCB_ID[3]	revision
- *	0	  0	    0		SR3
- *	0	  0	    1		ER1
- *	0	  1	    0		ER2
- *	0	  1	    1		ER3/PR1
- *	1	  0	    0		PR2
- *	1	  0	    1		Reserved
- *	1	  1	    1		Reserved
- *	========================================
+ *	0	  0	    0		nakasi SR3
+ *	0	  0	    1		nakasi ER1
+ *	0	  1	    0		nakasi ER2
+ *	0	  1	    1		nakasi ER3/PR1/PR2
+ *	===============================================================
+ *
+ *		PMIC module
+ *	===============================================================
+ *	PCB_ID[8]	type
+ *	0		Maxim
+ *	1		TI
+ *	===============================================================
  *
  */
 #ifndef GROUPER_TEGRA3_DEVKIT_MISC_HW_H
@@ -49,8 +54,13 @@ enum grouper_pcba_revision {
 	GROUPER_PCBA_ER2 = 2,
 	GROUPER_PCBA_ER3 = 3,
 	GROUPER_PCBA_PR1 = GROUPER_PCBA_ER3,
-	GROUPER_PCBA_PR2 = 4,
-	GROUPER_PCBA_MAX,
+	GROUPER_PCBA_PR2 = GROUPER_PCBA_PR1,
+};
+
+enum grouper_pmic_id {
+	GROUPER_PMIC_MAXIM = 0,
+	GROUPER_PMIC_TI = 1,
+	GROUPER_PMIC_NUM,
 };
 
 int __init grouper_misc_init(void);
@@ -61,6 +71,13 @@ int __init grouper_misc_init(void);
  *      Otherwise -1 (Not supported) will be returned.
  */
 unsigned int grouper_query_pcba_revision(void);
+
+/* Query pin status of equipped pmic defined in PCB pins.
+ *   @ret unsigned int
+ *      Return unsigned integer to reflect the PCB pin status of equipped PCBA.
+ *      Otherwise -1 (Not supported) will be returned.
+ */
+unsigned int grouper_query_pmic_id(void);
 
 #if defined(__cplusplus)
 }

@@ -32,7 +32,7 @@ static struct kobj_attribute module##_attr = { \
 	.show = module##_show, \
 }
 
-//PCBID is composed of three GPIO pins predefined by nakasi HW schematic
+/* PCBID is composed of four GPIO pins */
 static unsigned int grouper_pcbid;
 
 unsigned int grouper_query_pcba_revision(void)
@@ -40,6 +40,12 @@ unsigned int grouper_query_pcba_revision(void)
 	return grouper_pcbid & 0x7;
 }
 EXPORT_SYMBOL(grouper_query_pcba_revision);
+
+unsigned int grouper_query_pmic_id(void)
+{
+	return grouper_pcbid & 0x8;
+}
+EXPORT_SYMBOL(grouper_query_pmic_id);
 
 static ssize_t grouper_chipid_show(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf)
@@ -56,7 +62,7 @@ static ssize_t grouper_pcbid_show(struct kobject *kobj,
 	char *s = buf;
 	int i;
 
-	for (i = 3; i > 0; i--)
+	for (i = 4; i > 0; i--)
 		s += sprintf(s, "%c", grouper_pcbid & (1 << (i - 1)) ? '1' : '0');
 	s += sprintf(s, "b\n");
 	return (s - buf);
@@ -100,17 +106,29 @@ static int pcbid_init(void)
 		gpio_free(TEGRA_GPIO_PR2);
 		gpio_free(TEGRA_GPIO_PQ5);
 		return ret;
+
+        }
+	ret = gpio_request(TEGRA_GPIO_PK3, "PCB_ID8");
+	if (ret) {
+		gpio_free(TEGRA_GPIO_PQ7);
+		gpio_free(TEGRA_GPIO_PR2);
+		gpio_free(TEGRA_GPIO_PQ5);
+		gpio_free(TEGRA_GPIO_PK3);
+		return ret;
         }
 
 	tegra_gpio_enable(TEGRA_GPIO_PQ7);
 	tegra_gpio_enable(TEGRA_GPIO_PR2);
 	tegra_gpio_enable(TEGRA_GPIO_PQ5);
+	tegra_gpio_enable(TEGRA_GPIO_PK3);
 
 	gpio_direction_input(TEGRA_GPIO_PQ7);
 	gpio_direction_input(TEGRA_GPIO_PR2);
 	gpio_direction_input(TEGRA_GPIO_PQ5);
+	gpio_direction_input(TEGRA_GPIO_PK3);
 
-	grouper_pcbid = ((gpio_get_value(TEGRA_GPIO_PQ5) << 2) |
+	grouper_pcbid = ((gpio_get_value(TEGRA_GPIO_PK3) << 3 ) |
+			(gpio_get_value(TEGRA_GPIO_PQ5) << 2) |
 			(gpio_get_value(TEGRA_GPIO_PR2) << 1) |
 			gpio_get_value(TEGRA_GPIO_PQ7));
 	return 0;
