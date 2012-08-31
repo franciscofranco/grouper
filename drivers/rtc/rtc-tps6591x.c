@@ -63,6 +63,7 @@ struct tps6591x_rtc {
 	int			irq;
 	struct rtc_device	*rtc;
 	bool			irq_en;
+	bool shutdown_ongoing;
 };
 
 static int tps6591x_read_regs(struct device *dev, int reg, int len,
@@ -327,6 +328,11 @@ static int tps6591x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int err;
 	struct rtc_time tm;
 
+	if (rtc->shutdown_ongoing) {
+		printk(KERN_WARNING "tps6591x_rtc_set_alarm: Device shutdown on-going, skip alarm setting.\n");
+		return -ESHUTDOWN;
+	}
+
 	if (rtc->irq == -1)
 		return -EIO;
 
@@ -436,6 +442,7 @@ static int __devinit tps6591x_rtc_probe(struct platform_device *pdev)
 	if (!rtc)
 		return -ENOMEM;
 
+	rtc->shutdown_ongoing = false;
 	rtc->irq = -1;
 
 	if (!pdata) {
@@ -539,6 +546,20 @@ static int __devexit tps6591x_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void tps6591x_rtc_shutdown(struct platform_device *pdev)
+{
+	struct tps6591x_rtc *rtc = dev_get_drvdata(&pdev->dev);
+	u8 buff[6] = { 0x0, 0x0, 0x0, 0x1, 0x1, 0x0};
+	int err;
+
+	rtc->shutdown_ongoing = true;
+	printk(KERN_INFO "rtc_shutdown: clean alarm\n");
+	err = tps6591x_write_regs(&pdev->dev, RTC_ALARM, sizeof(buff), buff);
+	if (err)
+		printk(KERN_ERR "\n unable to clean alarm\n");
+	tps6591x_rtc_alarm_irq_enable(&pdev->dev, 0);
+}
+
 static struct platform_driver tps6591x_rtc_driver = {
 	.driver	= {
 		.name	= "rtc_tps6591x",
@@ -546,6 +567,7 @@ static struct platform_driver tps6591x_rtc_driver = {
 	},
 	.probe	= tps6591x_rtc_probe,
 	.remove	= __devexit_p(tps6591x_rtc_remove),
+	.shutdown = tps6591x_rtc_shutdown,
 };
 
 static int __init tps6591x_rtc_init(void)
