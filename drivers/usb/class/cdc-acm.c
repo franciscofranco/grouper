@@ -893,6 +893,20 @@ static int acm_probe(struct usb_interface *intf,
 	quirks = (unsigned long)id->driver_info;
 	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
 
+
+	/* Don't bind network interfaces on IMC XMM6260 */
+	if (usb_dev->descriptor.idVendor == 0x1519 &&
+		usb_dev->descriptor.idProduct == 0x0020 &&
+		usb_dev->actconfig->desc.bNumInterfaces != 5) {
+		if (intf->cur_altsetting->desc.bInterfaceNumber == 0x2 ||
+			intf->cur_altsetting->desc.bInterfaceNumber == 0x3 ||
+			intf->cur_altsetting->desc.bInterfaceNumber == 0x4 ||
+			intf->cur_altsetting->desc.bInterfaceNumber == 0x5) {
+				dev_info(&intf->dev, "Leaving this interface to raw_ip_net\n");
+				return -ENODEV;
+		}
+	}
+
 	/* not a real CDC ACM device */
 	if (quirks & NOT_REAL_ACM)
 		return -ENODEV;
@@ -1566,7 +1580,7 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x1519, 0x0020),
-	.driver_info = NO_UNION_NORMAL | NO_HANGUP_IN_RESET_RESUME, /* has no union descriptor */
+	.driver_info = NO_HANGUP_IN_RESET_RESUME, /* has no union descriptor */
 	},
 
 	/* Nokia S60 phones expose two ACM channels. The first is
