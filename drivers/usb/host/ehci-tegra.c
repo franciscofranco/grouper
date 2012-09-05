@@ -23,6 +23,7 @@
 #include <linux/usb/otg.h>
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
+#include <mach/board-grouper-misc.h>
 
 #define TEGRA_USB_PORTSC_PHCD		(1 << 23)
 
@@ -55,6 +56,8 @@
 #define USB1_PREFETCH_ID               6
 #define USB2_PREFETCH_ID               18
 #define USB3_PREFETCH_ID               17
+
+extern void baseband_xmm_L3_resume_check(void);
 
 struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
@@ -1253,6 +1256,10 @@ static int tegra_ehci_resume(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 	int ret;
+	u32 project_info = grouper_get_project_id();
+
+	if (project_info == GROUPER_PROJECT_NAKASI_3G)
+		baseband_xmm_L3_resume_check();
 
 	mutex_lock(&tegra->tegra_ehci_hcd_mutex);
 	if ((tegra->bus_suspended) && (tegra->power_down_on_bus_suspend)) {

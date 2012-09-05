@@ -324,6 +324,16 @@ static ssize_t baseband_xmm_onoff(struct device *dev,
 static DEVICE_ATTR(xmm_onoff, S_IRUSR | S_IWUSR | S_IRGRP,
 		NULL, baseband_xmm_onoff);
 
+void baseband_xmm_L3_resume_check(void)
+{
+       struct baseband_power_platform_data *data = baseband_power_driver_data;
+       if (modem_sleep_flag) {
+               pr_info("%s Resume from L3 without calling resume"
+                                       "function\n",  __func__);
+               baseband_xmm_power_driver_handle_resume(data);
+       }
+}
+EXPORT_SYMBOL_GPL(baseband_xmm_L3_resume_check);
 
 void baseband_xmm_set_power_status(unsigned int status)
 {
@@ -338,11 +348,11 @@ void baseband_xmm_set_power_status(unsigned int status)
 
 	switch (status) {
 	case BBXMM_PS_L0:
-		if (modem_sleep_flag) {
+		/*if (modem_sleep_flag) {
 			pr_info("%s Resume from L3 without calling resume"
 						"function\n",  __func__);
 			baseband_xmm_power_driver_handle_resume(data);
-		}
+		}*/
 		pr_info("L0\n");
 		value = gpio_get_value(data->modem.xmm.ipc_hsic_active);
 		pr_debug("before L0 ipc_hsic_active=%d\n", value);
