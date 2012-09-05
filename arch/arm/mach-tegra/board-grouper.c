@@ -914,6 +914,7 @@ static struct platform_device tegra_baseband_power_device = {
 static void grouper_usb_init(void)
 {
 	u32 project_info = grouper_get_project_id();
+	unsigned int pcb_id_version = grouper_query_pcba_revision();
 
 	tegra_usb_phy_init(tegra_usb_phy_pdata,
 			ARRAY_SIZE(tegra_usb_phy_pdata));
@@ -922,6 +923,7 @@ static void grouper_usb_init(void)
 	platform_device_register(&tegra_otg_device);
 
 	if (project_info == GROUPER_PROJECT_NAKASI_3G) {
+		printk(KERN_INFO"%s : pcb_id_version = %d \n", __func__, pcb_id_version);
 		/* for baseband devices do not switch off phy during suspend */
 		tegra_ehci_uhsic_pdata.power_down_on_bus_suspend = 0;
 		uhsic_phy_config.postsuspend = grouper_usb_hsic_postsupend;
@@ -930,6 +932,17 @@ static void grouper_usb_init(void)
 		uhsic_phy_config.post_phy_off = grouper_usb_hsic_phy_off;
 		tegra_ehci2_device.dev.platform_data = &tegra_ehci_uhsic_pdata;
 		/* baseband registration happens in baseband-xmm-power  */
+
+		switch (pcb_id_version) {
+			case TILAPIA_PCBA_SR1:
+			case TILAPIA_PCBA_SR2:
+			case TILAPIA_PCBA_SR3:
+				uhsic_phy_config.enable_gpio = TEGRA_GPIO_PR7;
+				break;
+			default:
+				uhsic_phy_config.enable_gpio = TEGRA_GPIO_PU4;
+		}
+
 	} else {
 		tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
 		platform_device_register(&tegra_ehci2_device);
