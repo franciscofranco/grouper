@@ -1619,6 +1619,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
 	WIPHY_FLAG_ENFORCE_COMBINATIONS		= BIT(12),
+    WIPHY_FLAG_HAVE_AP_SME      = BIT(17),
 };
 
 /**
@@ -1850,6 +1851,8 @@ struct wiphy {
 	u16 interface_modes;
 
 	u32 flags;
+    
+    u32 ap_sme_capa;
 
 	enum cfg80211_signal_type signal_type;
 
