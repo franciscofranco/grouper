@@ -367,7 +367,7 @@ void baseband_xmm_set_power_status(unsigned int status)
 		break;
 	case BBXMM_PS_L3:
 		if (baseband_xmm_powerstate == BBXMM_PS_L2TOL0) {
-			if (!data->modem.xmm.ipc_ap_wake) {
+			if (!gpio_get_value(data->modem.xmm.ipc_ap_wake)) {
 				spin_lock_irqsave(&xmm_lock, flags);
 				wakeup_pending = true;
 				spin_unlock_irqrestore(&xmm_lock, flags);
@@ -381,8 +381,10 @@ void baseband_xmm_set_power_status(unsigned int status)
 				__func__);
 			wake_unlock(&wakelock);
 		}
-		gpio_set_value(data->modem.xmm.ipc_hsic_active, 0);
-		pr_debug("gpio host active low->\n");
+		if (wakeup_pending == false) {
+			gpio_set_value(data->modem.xmm.ipc_hsic_active, 0);
+			pr_debug("gpio host active low->\n");
+		}
 		break;
 	case BBXMM_PS_L2TOL0:
 		/* do this only from L2 state */
