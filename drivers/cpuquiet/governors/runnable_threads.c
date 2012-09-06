@@ -122,7 +122,7 @@ static void runnables_work_func(struct work_struct *work)
 	case UP:
 		cpu = cpumask_next_zero(0, cpu_online_mask);
 		up = true;
-		sample = true
+        sample = true;
 		break;
 	case DOWN:
 		cpu = get_lightest_loaded_cpu_n();
