@@ -677,6 +677,9 @@ acm_unbind(struct usb_configuration *c, struct usb_function *f)
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);
 	gs_free_req(acm->notify, acm->notify_req);
+	acm->port.in->desc = NULL;
+	acm->port.out->desc = NULL;
+	acm->notify->desc = NULL;
 	kfree(acm->port.func.name);
 	kfree(acm);
 }
