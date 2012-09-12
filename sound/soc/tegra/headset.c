@@ -462,14 +462,21 @@ static void audio_dock_switch(void)
 		if(snd_soc_dapm_get_pin_status(dapm, "Int Spk")){
                         snd_soc_dapm_disable_pin(dapm, "Int Spk");
                         snd_soc_dapm_enable_pin(dapm, "AUX");
+			snd_soc_update_bits(rt5640_audio_codec,
+				RT5640_DIG_INF_DATA, RT5640_IF1_DAC_SEL_MASK,
+				0x0000);
 			snd_soc_dapm_sync(dapm);
 		}else{
 			snd_soc_dapm_disable_pin(dapm, "AUX");
 			snd_soc_dapm_sync(dapm);
 		}
 	}else{
-		if(!snd_soc_dapm_get_pin_status(dapm, "Headphone Jack"))
+		if(!snd_soc_dapm_get_pin_status(dapm, "Headphone Jack")){
 			snd_soc_dapm_enable_pin(dapm, "Int Spk");
+			snd_soc_update_bits(rt5640_audio_codec,
+                                RT5640_DIG_INF_DATA, RT5640_IF1_DAC_SEL_MASK,
+                                0x4000);
+		}
 		snd_soc_dapm_disable_pin(dapm, "AUX");
 		snd_soc_dapm_sync(dapm);
 	}
