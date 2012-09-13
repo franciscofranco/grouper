@@ -1539,6 +1539,11 @@ static int __init cpufreq_interactive_init(void)
         pcpu->cpu_tune_value = DEFAULT_TUNE;
 	}
 
+	spin_lock_init(&up_cpumask_lock);
+	spin_lock_init(&down_cpumask_lock);
+    spin_lock_init(&tune_cpumask_lock);
+	mutex_init(&set_speed_lock);
+
 	up_task = kthread_create(cpufreq_interactive_up_task, NULL,
 				 "kinteractiveup");
 	if (IS_ERR(up_task))
@@ -1555,16 +1560,14 @@ static int __init cpufreq_interactive_init(void)
 	if (!down_wq)
 		goto err_freeuptask;
 
-	INIT_WORK(&freq_scale_down_work,
-		  cpufreq_interactive_freq_down);
+	INIT_WORK(&freq_scale_down_work, cpufreq_interactive_freq_down);
+	INIT_WORK(&inputopen.inputopen_work, cpufreq_interactive_input_open);
     
     INIT_WORK(&tune_work,
           cpufreq_interactive_tune);
 
-	spin_lock_init(&up_cpumask_lock);
-	spin_lock_init(&down_cpumask_lock);
-    spin_lock_init(&tune_cpumask_lock);
-	mutex_init(&set_speed_lock);
+	/* NB: wake up so the thread does not look hung to the freezer */
+	wake_up_process(up_task);
 
 	pm_qos_add_request(&core_lock.qos_min_req, PM_QOS_MIN_ONLINE_CPUS,
 			PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
@@ -1589,7 +1592,6 @@ static int __init cpufreq_interactive_init(void)
 	sched_setscheduler_nocheck(core_lock.lock_task, SCHED_FIFO, &param);
 	get_task_struct(core_lock.lock_task);
 
-	INIT_WORK(&inputopen.inputopen_work, cpufreq_interactive_input_open);
 	INIT_WORK(&core_lock.unlock_work, cpufreq_interactive_unlock_cores);
 	return cpufreq_register_governor(&cpufreq_gov_interactive);
 
