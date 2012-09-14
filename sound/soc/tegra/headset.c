@@ -84,7 +84,6 @@ static void		audio_dock_switch(void);
 #define LINEOUT_GPIO	(TEGRA_GPIO_PW3)
 #define HOOK_GPIO		(TEGRA_GPIO_PX2)
 #define UART_HEADPHONE_SWITCH (TEGRA_GPIO_PS2)
-#define DOCK_IN_GPIO (TEGRA_GPIO_PU4)
 #define ON	(1)
 #define OFF	(0)
 
@@ -116,13 +115,13 @@ struct work_struct headset_work;
 struct work_struct lineout_work;
 struct work_struct dock_work;
 static unsigned int revision;
-
+static int gpio_dock_in = 0;
 
 static ssize_t dock_status_show(struct device *dev,struct device_attribute *attr, char *buf)
 {
 	int dock_status = 0;
 	
-	if(gpio_get_value(DOCK_IN_GPIO))
+	if(gpio_get_value(gpio_dock_in))
 		dock_status = 0;
 	else
 		dock_status = 1;
@@ -441,7 +440,7 @@ static int dockin_config_gpio()
 	int ret = 0;
 	int irq_num = 0;
 
-	irq_num = gpio_to_irq(DOCK_IN_GPIO);
+	irq_num = gpio_to_irq(gpio_dock_in);
 	ret = request_irq(irq_num, dockin_irq_handler,
 		IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_SHARED, "dock_detect", hs_data);
 	if(ret < 0)
@@ -457,7 +456,7 @@ static void audio_dock_switch(void)
 
 	dapm = &rt5640_audio_codec->dapm;
 
-	if(!gpio_get_value(DOCK_IN_GPIO)){
+	if(!gpio_get_value(gpio_dock_in)){
 		/* Change route to dock if current output device is spk */
 		if(snd_soc_dapm_get_pin_status(dapm, "Int Spk")){
                         snd_soc_dapm_disable_pin(dapm, "Int Spk");
@@ -581,10 +580,16 @@ EXPORT_SYMBOL(hs_micbias_power);
 ************************************************************/
 static int __init headset_init(void)
 {
+	u32 project_info = grouper_get_project_id();
 	printk(KERN_INFO "%s+ #####\n", __func__);
 	int ret;
 
 	printk("HEADSET: Headset detection init\n");
+
+	if (project_info == GROUPER_PROJECT_NAKASI_3G)
+		gpio_dock_in = TEGRA_GPIO_PO5;
+	else
+		gpio_dock_in = TEGRA_GPIO_PU4;
 
 	revision = grouper_query_pcba_revision();
 

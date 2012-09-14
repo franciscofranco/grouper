@@ -38,6 +38,7 @@
 #include <linux/usb/otg.h>
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
+#include <mach/board-grouper-misc.h>
 #include "../../arch/arm/mach-tegra/gpio-names.h"
 
 #define smb347_CHARGE		0x00
@@ -107,7 +108,6 @@
 #define DELAY_FOR_CURR_LIMIT_RECONF (60)
 #define ADAPTER_PROTECT_DELAY (4*HZ)
 #define GPIO_AC_OK		TEGRA_GPIO_PV1
-#define GPIO_DOCK_IN		TEGRA_GPIO_PU4
 
 /* Functions declaration */
 static int smb347_configure_charger(struct i2c_client *client, int value);
@@ -126,6 +126,7 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 static struct smb347_charger *charger;
 static struct workqueue_struct *smb347_wq;
 struct wake_lock charger_wakelock;
+static int gpio_dock_in = 0;
 
 /* Sysfs interface */
 static DEVICE_ATTR(reg_status, S_IWUSR | S_IRUGO, smb347_reg_show, NULL);
@@ -579,7 +580,7 @@ err1:
 static int smb347_dockin_irq(struct smb347_charger *smb)
 {
 	int err = 0 ;
-	unsigned gpio = GPIO_DOCK_IN;
+	unsigned gpio = gpio_dock_in;
 	unsigned irq_num = gpio_to_irq(gpio);
 
 	err = gpio_request(gpio, "smb347_dockin");
@@ -854,7 +855,7 @@ static int cable_type_detect(void)
 	u8 retval;
 	int  success = 0;
 	int ac_ok = GPIO_AC_OK;
-	int dock_in = GPIO_DOCK_IN;
+	int dock_in = gpio_dock_in;
 
 	/*
 	printk("cable_type_detect %d %lu %d %x jiffies=%lu %lu+\n",
@@ -984,7 +985,7 @@ static void dockin_isr_work_function(struct work_struct *dat)
 {
 	struct i2c_client *client = charger->client;
 
-	int dock_in = GPIO_DOCK_IN;
+	int dock_in = gpio_dock_in;
 	int ac_ok = GPIO_AC_OK;
 
 	wake_lock(&charger->wake_lock_dockin);
@@ -1223,6 +1224,13 @@ static struct i2c_driver smb347_i2c_driver = {
 
 static int __init smb347_init(void)
 {
+	u32 project_info = grouper_get_project_id();
+
+	if (project_info == GROUPER_PROJECT_NAKASI_3G)
+		gpio_dock_in = TEGRA_GPIO_PO5;
+	else
+		gpio_dock_in = TEGRA_GPIO_PU4;
+
 	return i2c_add_driver(&smb347_i2c_driver);
 }
 module_init(smb347_init);
