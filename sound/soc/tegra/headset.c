@@ -45,8 +45,6 @@
 MODULE_DESCRIPTION("Headset detection driver");
 MODULE_LICENSE("GPL");
 
-#define UART_DETECTION (false)
-
 #define DEFAULT_PINMUX(_pingroup, _mux, _pupd, _tri, _io)       \
         {                                                       \
                 .pingroup       = TEGRA_PINGROUP_##_pingroup,   \
@@ -70,7 +68,7 @@ static int               	jack_config_gpio(void);
 static irqreturn_t   	lineout_irq_handler(int irq, void *dev_id);
 static void 		lineout_work_queue(struct work_struct *work);
 static void		dock_work_queue(struct work_struct *work);
-static int               	lineout_config_gpio(void);
+static int               	lineout_config_gpio(u32 project_info);
 static void 		detection_work(struct work_struct *work);
 static int               	btn_config_gpio(void);
 static int                      switch_config_gpio(void);
@@ -81,7 +79,8 @@ static void		audio_dock_switch(void);
 ** GLOBAL VARIABLES
 **----------------------------------------------------------------------------*/
 #define JACK_GPIO		(TEGRA_GPIO_PW2)
-#define LINEOUT_GPIO	(TEGRA_GPIO_PW3)
+#define LINEOUT_GPIO_NAKASI	(TEGRA_GPIO_PW3)
+#define LINEOUT_GPIO_BACH	(TEGRA_GPIO_PX6)
 #define HOOK_GPIO		(TEGRA_GPIO_PX2)
 #define UART_HEADPHONE_SWITCH (TEGRA_GPIO_PS2)
 #define ON	(1)
@@ -114,7 +113,9 @@ extern struct snd_soc_codec *rt5640_audio_codec;
 struct work_struct headset_work;
 struct work_struct lineout_work;
 struct work_struct dock_work;
+static bool UART_enable = false;
 static unsigned int revision;
+static u32 lineout_gpio;
 static int gpio_dock_in = 0;
 
 static ssize_t dock_status_show(struct device *dev,struct device_attribute *attr, char *buf)
@@ -221,7 +222,7 @@ static void insert_headset(void)
 
         dapm = &rt5640_audio_codec->dapm;
 
-	if(gpio_get_value(LINEOUT_GPIO) == 0 && revision != GROUPER_PCBA_SR3 && UART_DETECTION){
+	if(gpio_get_value(lineout_gpio) == 0 && revision != GROUPER_PCBA_SR3 && UART_enable){
                 printk("%s: debug board\n", __func__);
                 switch_set_state(&hs_data->sdev, NO_DEVICE);
                 hs_micbias_power(OFF);
@@ -382,10 +383,10 @@ static void lineout_work_queue(struct work_struct *work)
 {
 	msleep(300);
 
-	if (gpio_get_value(LINEOUT_GPIO) == 0){
+	if (gpio_get_value(lineout_gpio) == 0){
 		printk("LINEOUT: LineOut inserted\n");
 		lineout_alive = true;
-	}else if(gpio_get_value(LINEOUT_GPIO)){
+	}else if(gpio_get_value(lineout_gpio)){
 		printk("LINEOUT: LineOut removed\n");
 		lineout_alive = false;
 	}
@@ -403,19 +404,22 @@ static void dock_work_queue(struct work_struct *work)
 **  Return value: IRQ_HANDLED
 **
 ************************************************************/
-static int lineout_config_gpio()
+static int lineout_config_gpio(u32 project_info)
 {
 	int ret;
 
 	printk("HEADSET: Config LineOut detection gpio\n");
-
-	tegra_gpio_enable(LINEOUT_GPIO);
-	ret = gpio_request(LINEOUT_GPIO, "lineout_int");
-	ret = gpio_direction_input(LINEOUT_GPIO);
+	if(project_info == GROUPER_PROJECT_BACH)
+		lineout_gpio = LINEOUT_GPIO_BACH;
+	else if(project_info == GROUPER_PROJECT_NAKASI)
+		lineout_gpio = LINEOUT_GPIO_NAKASI;
+	tegra_gpio_enable(lineout_gpio);
+	ret = gpio_request(lineout_gpio, "lineout_int");
+	ret = gpio_direction_input(lineout_gpio);
 #if 0
 	ret = request_irq(gpio_to_irq(LINEOUT_GPIO), &lineout_irq_handler, IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING, "lineout_int", 0);
 #endif
-	if (gpio_get_value(LINEOUT_GPIO) == 0)
+	if (gpio_get_value(lineout_gpio) == 0)
 		lineout_alive = true;
 	else
 		lineout_alive = false;
@@ -581,15 +585,21 @@ EXPORT_SYMBOL(hs_micbias_power);
 static int __init headset_init(void)
 {
 	u32 project_info = grouper_get_project_id();
+	u32 pmic_id = grouper_query_pmic_id();
+
 	printk(KERN_INFO "%s+ #####\n", __func__);
 	int ret;
 
 	printk("HEADSET: Headset detection init\n");
 
-	if (project_info == GROUPER_PROJECT_NAKASI_3G)
+	if (project_info == GROUPER_PROJECT_BACH)
 		gpio_dock_in = TEGRA_GPIO_PO5;
 	else
 		gpio_dock_in = TEGRA_GPIO_PU4;
+
+	if(project_info == GROUPER_PROJECT_BACH ||
+		(project_info == GROUPER_PROJECT_NAKASI && pmic_id ==GROUPER_PMIC_TI))
+		UART_enable = true;
 
 	revision = grouper_query_pcba_revision();
 
@@ -625,7 +635,7 @@ static int __init headset_init(void)
 	jack_config_gpio();/*Config jack detection GPIO*/
 	INIT_WORK(&lineout_work, lineout_work_queue);
 	INIT_WORK(&dock_work, dock_work_queue);
-	lineout_config_gpio();
+	lineout_config_gpio(project_info);
 	dockin_config_gpio();
 
 	printk(KERN_INFO "%s- #####\n", __func__);
@@ -650,7 +660,7 @@ static void __exit headset_exit(void)
 		remove_headset();
 	gpio_free(JACK_GPIO);
 	gpio_free(HOOK_GPIO);
-	gpio_free(LINEOUT_GPIO);
+	gpio_free(lineout_gpio);
 
 	free_irq(hs_data->irq, 0);
 	destroy_workqueue(g_detection_work_queue);
