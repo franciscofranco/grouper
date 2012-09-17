@@ -54,6 +54,7 @@ static struct baseband_usb *baseband_usb_chr;
 static bool usb_device_connection;
 
 static atomic_t g_rx_count = ATOMIC_INIT(0);
+static int queue_need = 0;
 
 /* baseband ipc functions */
 
@@ -608,6 +609,12 @@ static void baseband_usb_chr_rx_urb_comp(struct urb *urb)
 
 	pr_debug("baseband_usb_chr_rx_urb_comp { urb %p\n", urb);
 
+	if (urb->status < 0) {
+		pr_err("urb failed, status = %d\n", urb->status);
+		pr_debug("baseband_usb_chr_rx_urb_comp }\n");
+		return;
+	}
+
 	/* queue rx urb completion work */
 	queue_work(usb->ipc->workqueue, &usb->ipc->rx_work);
 
@@ -800,6 +807,12 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 		baseband_usb_chr->usb.pipe.interrupt.out);
 	usb_device_connection = true;
 
+	if (queue_need) {
+		printk("baseband_usb_driver_probe: queue_work\n");
+		queue_work(baseband_usb_chr->ipc->workqueue, &baseband_usb_chr->ipc->work);
+		queue_need = 0;
+	}
+
 	/* start usb rx */
 	err = baseband_usb_chr_rx_urb_submit(baseband_usb_chr);
 	if (err < 0) {
@@ -826,6 +839,10 @@ static void baseband_usb_driver_disconnect(struct usb_interface *intf)
 		usb_device_connection = false;
 	}
 
+	/* init usb struct */
+	memset(&baseband_usb_chr->usb.pipe, 0, sizeof(baseband_usb_chr->usb.pipe));
+	baseband_usb_chr->usb.interface = NULL;
+	baseband_usb_chr->usb.device = NULL;
 }
 
 static char baseband_usb_driver_name[32];
@@ -860,8 +877,9 @@ static void baseband_usb_chr_work(struct work_struct *work)
 	if (!usb->usb.device) {
 		pr_err("baseband_usb_chr_work - "
 			"usb device not probed yet\n");
-		mdelay(10);
-		queue_work(usb->ipc->workqueue, &usb->ipc->work);
+		//mdelay(10);
+		//queue_work(usb->ipc->workqueue, &usb->ipc->work);
+		queue_need = 1;
 		return;
 	}
 
@@ -966,6 +984,9 @@ static long baseband_usb_chr_ioctl(struct file *file, unsigned int cmd,
 			if (put_user(val, p))
 				break;
 		}
+		return 0;
+	case TCGETS:
+		pr_debug("TCGETS\n");
 		return 0;
 	default:
 		pr_err("unsupported ioctl cmd %x\n", cmd);

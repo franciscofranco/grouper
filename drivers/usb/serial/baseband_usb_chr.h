@@ -50,6 +50,15 @@
 #define BASEBAND_IPC_BUFSIZ			65536
 #endif  /* BASEBAND_IPC_BUFSIZ */
 
+#define CHR_DEBUG 0
+
+#if CHR_DEBUG
+#define pr_debug(format, arg...) \
+	printk(KERN_DEBUG "CHR: " format , ## arg)
+#define pr_err(format, arg...) \
+	printk(KERN_ERR "CHR: " format , ## arg)
+#endif
+
 struct baseband_ipc {
 	/* rx / tx data */
 	struct semaphore buf_sem;
