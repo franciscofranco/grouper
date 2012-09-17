@@ -1,0 +1,17 @@
+#
+# Proximity devices
+#
+
+comment "Proximity sensors"
+
+config SENSORS_CAP1106
+	tristate "CAP1106 driver"
+	depends on I2C
+	default y
+	---help---
+	  Say yes if you want proximity CAP1106 driver.
+	  This is for i2c connected version. If unsure, say N here.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called cap1106.
+

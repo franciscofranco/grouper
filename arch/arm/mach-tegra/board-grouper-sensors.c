@@ -54,6 +54,13 @@ static const struct i2c_board_info cardhu_i2c1_board_info_al3010[] = {
 	},
 };
 
+static const struct i2c_board_info cap1106_i2c1_board_info[] = {
+    {
+        I2C_BOARD_INFO("cap1106",0x28),
+        .irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PR3),
+    },
+};
+
 static int grouper_camera_init(void)
 {
 	pmic_id = grouper_query_pmic_id();
@@ -462,6 +469,11 @@ int __init grouper_sensors_init(void)
 
 	i2c_register_board_info(2, cardhu_i2c1_board_info_al3010,
 		ARRAY_SIZE(cardhu_i2c1_board_info_al3010));
+
+    if (GROUPER_PROJECT_BACH == grouper_get_project_id()) {
+        i2c_register_board_info(2, cap1106_i2c1_board_info,
+                ARRAY_SIZE(cap1106_i2c1_board_info));
+    }
 
 	return 0;
 }

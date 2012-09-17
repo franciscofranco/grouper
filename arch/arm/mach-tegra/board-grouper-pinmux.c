@@ -446,6 +446,8 @@ static __initdata struct tegra_pingroup_config pinmux_grouper3g[] = {
 	DEFAULT_PINMUX(KB_ROW15,        KBC,             NORMAL,    NORMAL,     INPUT),
 	DEFAULT_PINMUX(DAP3_FS,         I2S2,            NORMAL,    NORMAL,     OUTPUT),
 	DEFAULT_PINMUX(DAP3_SCLK,       I2S2,            NORMAL,    NORMAL,     OUTPUT),
+	DEFAULT_PINMUX(KB_ROW3,         KBC,             PULL_UP,      NORMAL,     INPUT), // SAR_DET#_3G
+	DEFAULT_PINMUX(KB_ROW13,        KBC,             PULL_UP,      NORMAL,     INPUT), // SAR_DET#_3G
 };
 
 
@@ -572,6 +574,8 @@ static struct gpio_init_pin_info init_gpio_mode_grouper3g[] = {
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN2, false, 0),
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN0, false, 0),
 	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PN3, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PR3, false, 0),
+	GPIO_INIT_PIN_MODE(TEGRA_GPIO_PS5, false, 0),
 };
 
 static void __init grouper_gpio_init_configure(void)
