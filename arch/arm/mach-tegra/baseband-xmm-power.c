@@ -417,6 +417,64 @@ static struct device_attribute xmm_device_attr[] = {
        __ATTR_NULL,
 };
 
+/* baseband_usb_utmip_host_register functions
+	1 -> register utmip host controller
+	0 -> unregister utmip host controller
+*/
+int baseband_usb_utmip_host_register(int enable)
+{
+	struct baseband_power_platform_data *data = baseband_power_driver_data;
+
+	if (!data) {
+		pr_err("%s: !data\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!(data->hsic_unregister && data->hsic_register && data->utmip_unregister && data->utmip_register)) {
+		pr_err("%s: utmip_unregister or utmip_register missing\n", __func__);
+		return -EINVAL;
+	}
+
+	if(!enable) {
+		if (!register_hsic_device) {
+			register_hsic_device = true;
+			data->utmip_unregister(data->modem.xmm.hsic_device);
+		}
+	} else if (enable)
+		data->modem.xmm.hsic_device = data->utmip_register();
+
+	return 0;
+ }
+
+/* baseband_usb_hsic_host_register functions
+	1 -> register hsic host controller
+	0 -> unregister hsic host controller
+*/
+int baseband_usb_hsic_host_register(int enable)
+{
+	struct baseband_power_platform_data *data = baseband_power_driver_data;
+
+	if (!data) {
+		pr_err("%s: !data\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!(data->hsic_unregister && data->hsic_register && data->utmip_unregister && data->utmip_register)) {
+		pr_err("%s: hsic_unregister or hsic_register missing\n", __func__);
+		return -EINVAL;
+	}
+
+	if(!enable) {
+		if (!register_hsic_device) {
+			register_hsic_device = true;
+			data->hsic_unregister(data->modem.xmm.hsic_device);
+		}
+	} else if (enable)
+		data->modem.xmm.hsic_device = data->hsic_register();
+
+	return 0;
+}
+
 void baseband_xmm_L3_resume_check(void)
 {
        struct baseband_power_platform_data *data = baseband_power_driver_data;

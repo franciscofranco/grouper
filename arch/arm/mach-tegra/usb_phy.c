@@ -2454,6 +2454,10 @@ static int uhsic_phy_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 	writel(val, base + USB_SUSP_CTRL);
 	udelay(30);
 
+	val = readl(base + USB_SUSP_CTRL);
+	val &= ~UHSIC_PHY_ENABLE;
+	writel(val, base + USB_SUSP_CTRL);
+
 	if (uhsic_config->enable_gpio != -1) {
 		gpio_set_value_cansleep(uhsic_config->enable_gpio, 0);
 		/* keep hsic reset de-asserted for 1 ms */
