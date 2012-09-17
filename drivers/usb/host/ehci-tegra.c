@@ -58,6 +58,7 @@
 #define USB3_PREFETCH_ID               17
 
 extern void baseband_xmm_L3_resume_check(void);
+static struct usb_hcd *modem_ehci_handle;
 
 struct tegra_ehci_hcd {
 	struct ehci_hcd *ehci;
@@ -768,6 +769,18 @@ static void tegra_ehci_disable_phy_interrupt(struct usb_hcd *hcd) {
 	}
 }
 
+void tegra_usb_suspend_hsic(void)
+{
+	tegra_usb_suspend(modem_ehci_handle ,false);
+}
+EXPORT_SYMBOL(tegra_usb_suspend_hsic);
+
+void tegra_usb_resume_hsic(void)
+{
+	tegra_usb_resume(modem_ehci_handle ,false);
+}
+EXPORT_SYMBOL(tegra_usb_resume_hsic);
+
 static void tegra_ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
@@ -1221,6 +1234,10 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		tegra->irq = 0;
 	}
 
+	if (instance == 1) {
+		modem_ehci_handle = hcd;
+	}
+
 	return err;
 
 fail:
@@ -1335,6 +1352,9 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 		otg_put_transceiver(tegra->transceiver);
 	}
 #endif
+	if (tegra->phy->instance == 1) {
+		modem_ehci_handle = NULL;
+	}
 
 	/* Turn Off Interrupts */
 	ehci_writel(tegra->ehci, 0, &tegra->ehci->regs->intr_enable);
