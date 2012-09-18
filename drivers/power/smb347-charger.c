@@ -112,7 +112,6 @@
 /* Functions declaration */
 static int smb347_configure_charger(struct i2c_client *client, int value);
 static int smb347_configure_interrupts(struct i2c_client *client);
-extern unsigned int grouper_query_pcba_revision();
 extern int battery_callback(unsigned usb_cable_state);
 /* Enable or disable the callback for the battery driver. */
 #define TOUCH_CALLBACK_ENABLED 1
@@ -126,6 +125,8 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 static struct smb347_charger *charger;
 static struct workqueue_struct *smb347_wq;
 struct wake_lock charger_wakelock;
+static unsigned int project_id;
+static unsigned int pcba_ver;
 static int gpio_dock_in = 0;
 
 /* Sysfs interface */
@@ -633,10 +634,13 @@ int smb347_hc_mode_callback(bool enable, int cur)
 	struct i2c_client *client = charger->client;
 	u8 ret = 0;
 
-	printk("smb347_hc_mode_callback+\n");
+	if((pcba_ver > GROUPER_PCBA_ER2) && (project_id == GROUPER_PROJECT_NAKASI))
+		return 0;
 
 	if (charger->suspend_ongoing)
 		return 0;
+
+	printk("smb347_hc_mode_callback+\n");
 
 	/* Enable volatile writes to registers */
 	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
@@ -867,7 +871,7 @@ static int cable_type_detect(void)
 	charger->time_of_1800mA_limit+(ADAPTER_PROTECT_DELAY*HZ));
 	*/
 
-	if(grouper_query_pcba_revision() <= 0x02)
+	if((pcba_ver <= GROUPER_PCBA_ER2) && (project_id == GROUPER_PROJECT_NAKASI))
 		return 0;
 
 	mutex_lock(&charger->cable_lock);
@@ -1053,30 +1057,25 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 static void smb347_default_setback(void)
 {
 	struct i2c_client *client = charger->client;
-	int err, pcba_ver;
+	int err;
 
-	pcba_ver = grouper_query_pcba_revision();
-
-	if(pcba_ver > 0x02) {
-		/* Enable volatile writes to registers */
-		err = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
-		if (err < 0) {
-			dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
-		}
-		err = smb347_update_reg(client, smb347_PIN_CTRL, PIN_CTRL);
-		if (err < 0) {
-			dev_err(&client->dev, "%s: err %d\n", __func__, err);
-		}
-		err = smb347_update_reg(client, smb347_CHRG_CTRL, ENABLE_APSD);
-		if (err < 0) {
-			dev_err(&client->dev, "%s: err %d\n", __func__, err);
-		}
-		 /* Disable volatile writes to registers */
-		err = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
-		if (err < 0) {
-			dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
-		}
-		SMB_NOTICE("PCBA ver=0x%02x\n", pcba_ver);
+	/* Enable volatile writes to registers */
+	err = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
+	if (err < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
+	}
+	err = smb347_update_reg(client, smb347_PIN_CTRL, PIN_CTRL);
+	if (err < 0) {
+		dev_err(&client->dev, "%s: err %d\n", __func__, err);
+	}
+	err = smb347_update_reg(client, smb347_CHRG_CTRL, ENABLE_APSD);
+	if (err < 0) {
+		dev_err(&client->dev, "%s: err %d\n", __func__, err);
+	}
+	 /* Disable volatile writes to registers */
+	err = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
+	if (err < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n", __func__);
 	}
 }
 
@@ -1224,12 +1223,17 @@ static struct i2c_driver smb347_i2c_driver = {
 
 static int __init smb347_init(void)
 {
+	project_id = grouper_get_project_id();
+	pcba_ver = grouper_query_pcba_revision();
 	u32 project_info = grouper_get_project_id();
 
 	if (project_info == GROUPER_PROJECT_NAKASI_3G)
 		gpio_dock_in = TEGRA_GPIO_PO5;
 	else
 		gpio_dock_in = TEGRA_GPIO_PU4;
+
+	SMB_NOTICE("project_id=%x, pcba_ver=%d, dock_in_gpio=%d\n",
+		project_id, pcba_ver, gpio_dock_in);
 
 	return i2c_add_driver(&smb347_i2c_driver);
 }
