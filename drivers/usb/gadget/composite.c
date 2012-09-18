@@ -39,7 +39,6 @@
 
 /* big enough to hold our biggest descriptor */
 #define USB_BUFSIZ	1024
-extern unsigned int pcb_id_version;
 
 static struct usb_composite_driver *composite;
 static int (*composite_gadget_bind)(struct usb_composite_dev *cdev);

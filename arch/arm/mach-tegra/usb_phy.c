@@ -2518,7 +2518,8 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	struct tegra_ulpi_config *uhsic_config;
 	int reset_gpio, enable_gpio;
 #endif
-	unsigned int pcb_id_version;
+	unsigned int pcb_id_version = grouper_query_pcba_revision();
+	unsigned int project_id = grouper_get_project_id();
 	int pmu_hw = grouper_query_pmic_id();
 
 	phy = kzalloc(sizeof(struct tegra_usb_phy), GFP_KERNEL);
@@ -2582,11 +2583,15 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		err = utmip_pad_open(phy);
 		phy->xcvr_setup_value = tegra_phy_xcvr_setup_value(phy->config);
 		if (phy->instance == 0) {
-			pcb_id_version = grouper_query_pcba_revision();
-			if (pcb_id_version > 0x2)
+			if (project_id == GROUPER_PROJECT_NAKASI) {
+				if (pcb_id_version > 0x2)
+					phy->xcvr_setup_value = phy->xcvr_setup_value + 4;
+				else
+					phy->xcvr_setup_value = phy->xcvr_setup_value + 2;
+			}
+			else if (project_id == GROUPER_PROJECT_BACH) {
 				phy->xcvr_setup_value = phy->xcvr_setup_value + 4;
-			else
-				phy->xcvr_setup_value = phy->xcvr_setup_value + 2;
+			}
 
 			if (phy->xcvr_setup_value > 63)
 				phy->xcvr_setup_value = 63;

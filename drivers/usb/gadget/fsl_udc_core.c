@@ -55,6 +55,7 @@
 #include <linux/gpio.h>
 #include <../gpio-names.h>
 #include "fsl_usb2_udc.h"
+#include <mach/board-grouper-misc.h>
 
 #ifdef CONFIG_ARCH_TEGRA
 #define	DRIVER_DESC	"NVidia Tegra High-Speed USB SOC Device Controller driver"
@@ -88,9 +89,8 @@ static struct usb_sys_interface *usb_sys_regs;
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
 
-extern unsigned int grouper_query_pcba_revision();
-unsigned int pcb_id_version = 0;
-EXPORT_SYMBOL(pcb_id_version);
+static unsigned int pcb_id_version = 0;
+static unsigned int  project_id = 0;
 
 struct cable_info {
 	/*
@@ -111,8 +111,9 @@ static struct cable_info s_cable_info;
 
 void read_hw_version(void)
 {
+	project_id = grouper_get_project_id();
 	pcb_id_version = grouper_query_pcba_revision();
-	printk(KERN_INFO "%s %#X\n", __func__, pcb_id_version);
+	printk(KERN_INFO "%s project_id = %#X, pcb_id = %#X\n", __func__, project_id, pcb_id_version);
 }
 
 /* Enable or disable the callback for the battery driver. */
@@ -284,7 +285,7 @@ static void cable_detection_work_handler(struct work_struct *w)
 
 		s_cable_info.ac_connected = 0;
 
-		if (pcb_id_version <= 0x2) {
+		if ((pcb_id_version <= 0x2) && (project_id == GROUPER_PROJECT_NAKASI)) {
 #if BATTERY_CALLBACK_ENABLED
 			battery_callback(s_cable_info.cable_status);
 #endif
@@ -314,7 +315,7 @@ static void cable_detection_work_handler(struct work_struct *w)
 			s_cable_info.cable_status = 0x03; //0011
 		}
 
-		if (pcb_id_version <= 0x2) {
+		if ((pcb_id_version <= 0x2) && (project_id == GROUPER_PROJECT_NAKASI)) {
 			fsl_smb347_hc_mode_callback_work(1,1);
 #if BATTERY_CALLBACK_ENABLED
 			battery_callback(s_cable_info.cable_status);
