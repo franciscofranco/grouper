@@ -4542,96 +4542,107 @@ void tegra_edp_throttle_cpu_now(u8 factor)
  */
 
 static struct cpufreq_frequency_table freq_table_300MHz[] = {
-	{ 0, 204000 },
+	{ 0, 200000 },
 	{ 1, 300000 },
 	{ 2, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
-	{ 0, 102000 },
-	{ 1, 204000 },
-	{ 2, 312000 },
-	{ 3, 456000 },
-	{ 4, 608000 },
-	{ 5, 760000 },
-	{ 6, 816000 },
-	{ 7, 912000 },
-	{ 8, 1000000 },
-	{ 9, CPUFREQ_TABLE_END },
+	{ 0, 100000 },
+	{ 1, 200000 },
+	{ 2, 300000 },
+	{ 3, 400000 },
+	{ 4, 500000 },
+	{ 5, 600000 },
+	{ 6, 700000 },
+	{ 7, 800000 },
+	{ 8, 900000 },
+	{ 9, 1000000 },
+	{10, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table freq_table_1p3GHz[] = {
-	{ 0,  102000 },
-	{ 1,  204000 },
-	{ 2,  340000 },
-	{ 3,  475000 },
-	{ 4,  640000 },
-	{ 5,  760000 },
-	{ 6,  860000 },
-	{ 7, 1000000 },
-	{ 8, 1100000 },
-	{ 9, 1200000 },
-	{10, 1300000 },
-	{11, CPUFREQ_TABLE_END },
+	{ 0, 100000 },
+	{ 1, 200000 },
+	{ 2, 300000 },
+	{ 3, 400000 },
+	{ 4, 500000 },
+	{ 5, 600000 },
+	{ 6, 700000 },
+	{ 7, 800000 },
+	{ 8, 900000 },
+	{ 9, 1000000 },
+	{10, 1100000 },
+	{11, 1200000 },
+	{12, 1300000 },
+	{13, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
-	{ 0,  102000 },
-	{ 1,  204000 },
-	{ 2,  370000 },
-	{ 3,  475000 },
-	{ 4,  620000 },
-	{ 5,  760000 },
-	{ 6,  860000 },
-	{ 7, 1000000 },
-	{ 8, 1100000 },
-	{ 9, 1200000 },
-	{10, 1300000 },
-	{11, 1400000 },
-	{12, CPUFREQ_TABLE_END },
+	{ 0, 100000 },
+	{ 1, 200000 },
+	{ 2, 300000 },
+	{ 3, 400000 },
+	{ 4, 500000 },
+	{ 5, 600000 },
+	{ 6, 700000 },
+	{ 7, 800000 },
+	{ 8, 900000 },
+	{ 9, 1000000 },
+	{10, 1100000 },
+	{11, 1200000 },
+	{12, 1300000 },
+	{13, 1400000 },
+	{14, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
-	{ 0,  102000 },
-	{ 1,  204000 },
-	{ 2,  340000 },
-	{ 3,  475000 },
-	{ 4,  640000 },
-	{ 5,  760000 },
-	{ 6,  860000 },
-	{ 7, 1000000 },
-	{ 8, 1100000 },
-	{ 9, 1200000 },
-	{10, 1300000 },
-	{11, 1400000 },
-	{12, 1500000 },
-	{13, CPUFREQ_TABLE_END },
+	{ 0, 100000 },
+	{ 1, 200000 },
+	{ 2, 300000 },
+	{ 3, 400000 },
+	{ 4, 500000 },
+	{ 5, 600000 },
+	{ 6, 700000 },
+	{ 7, 800000 },
+	{ 8, 900000 },
+	{ 9, 1000000 },
+	{10, 1100000 },
+	{11, 1200000 },
+	{12, 1300000 },
+	{13, 1400000 },
+	{14, 1500000 },
+	{15, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
-	{ 0,  102000 },
-	{ 1,  204000 },
-	{ 2,  370000 },
-	{ 3,  475000 },
-	{ 4,  620000 },
-	{ 5,  760000 },
-	{ 6,  910000 },
-	{ 7, 1150000 },
-	{ 8, 1300000 },
-	{ 9, 1400000 },
-	{10, 1500000 },
-	{11, 1600000 },
-	{12, 1700000 },
-	{13, CPUFREQ_TABLE_END },
+	{ 0, 100000 },
+	{ 1, 200000 },
+	{ 2, 300000 },
+	{ 3, 400000 },
+	{ 4, 500000 },
+	{ 5, 600000 },
+	{ 6, 700000 },
+	{ 7, 800000 },
+	{ 8, 900000 },
+	{ 9, 1000000 },
+	{10, 1100000 },
+	{11, 1200000 },
+	{12, 1300000 },
+	{13, 1400000 },
+	{14, 1500000 },
+	{15, 1600000 },
+	{16, 1700000 },
+	{17, CPUFREQ_TABLE_END },
 };
 
 static struct tegra_cpufreq_table_data cpufreq_tables[] = {
 	{ freq_table_300MHz, 0,  1 },
-	{ freq_table_1p0GHz, 2,  8 },
-	{ freq_table_1p3GHz, 2, 10 },
-	{ freq_table_1p4GHz, 2, 11 },
-	{ freq_table_1p5GHz, 2, 12 },
-	{ freq_table_1p7GHz, 2, 12 },
+	{ freq_table_1p0GHz, 2, 11 },
+	{ freq_table_1p3GHz, 2, 14 },
+	{ freq_table_1p4GHz, 2, 15 },
+	{ freq_table_1p5GHz, 2, 16 },
+	{ freq_table_1p7GHz, 2, 18 },
 };
 
 static int clip_cpu_rate_limits(
@@ -4723,12 +4734,12 @@ unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate)
 
 	/* Vote on memory bus frequency based on cpu frequency;
 	   cpu rate is in kHz, emc rate is in Hz */
-	if (cpu_rate >= 750000)
-		return emc_max_rate;	/* cpu >= 750 MHz, emc max */
-	else if (cpu_rate >= 450000)
-		return emc_max_rate/2;	/* cpu >= 500 MHz, emc max/2 */
-	else if (cpu_rate >= 250000)
-		return 100000000;	/* cpu >= 250 MHz, emc 100 MHz */
+	if (cpu_rate >= 900000)
+		return emc_max_rate;	/* cpu >= 900 MHz, emc max */
+	else if (cpu_rate >= 400000)
+		return emc_max_rate/2;	/* cpu >= 400 MHz, emc max/2 */
+	else if (cpu_rate >= 200000)
+		return 100000000;	/* cpu >= 200 MHz, emc 100 MHz */
 	else
 		return 0;		/* emc min */
 }
