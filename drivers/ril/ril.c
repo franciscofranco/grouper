@@ -14,6 +14,7 @@
 #include "pm-irq.h"
 #include "ril.h"
 #include "ril_sim.h"
+#include "ril_modem_crash.h"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -40,6 +41,7 @@ static struct gpio ril_gpios_nakasi3g[] = {
 	{ MOD_VBUS_ON,    GPIOF_OUT_INIT_LOW,  "BB_VBUS"    },
 	{ USB_SW_SEL,     GPIOF_OUT_INIT_LOW,  "BB_SW_SEL"  },
 	{ SIM_CARD_DET,   GPIOF_IN,            "BB_SIM_DET" },
+    { MOD_HANG,       GPIOF_IN,            "BB_MOD_HANG"   },
 };
 
 //**** IRQ event handler
@@ -206,9 +208,19 @@ static int __init ril_init(void)
 		goto failed4;
 	}
 
+	/* init modem crash dump functions */
+	err = ril_modem_crash_init(dev, workqueue);
+	if (err < 0) {
+		pr_err("%s - init modem crash handler failed\n",
+			__func__);
+		goto failed5;
+	}
+
 	RIL_INFO("RIL init successfully\n");
 	return 0;
 
+failed5:
+    sim_hot_plug_exit();
 failed4:
 	destroy_workqueue(workqueue);
 failed3:
@@ -239,6 +251,9 @@ static void __exit ril_exit(void)
 
 	/* delete device file(s) */
 	remove_ril_files();
+
+	/* unregister modem crash handler */
+	ril_modem_crash_exit();
 
 	/* unregister SIM hot plug */
 	sim_hot_plug_exit();

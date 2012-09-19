@@ -20,5 +20,6 @@
 #define MOD_VBUS_ON     TEGRA_GPIO_PD2
 #define USB_SW_SEL      TEGRA_GPIO_PP1
 #define SIM_CARD_DET    TEGRA_GPIO_PW3
+#define MOD_HANG        TEGRA_GPIO_PN2
 
 #endif
