@@ -2457,6 +2457,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	u32 max_current_caps;
 	unsigned int ocr_avail;
 	int ret;
+	int rc;
 
 	WARN_ON(host == NULL);
 	if (host == NULL)
@@ -2854,7 +2855,13 @@ int sdhci_add_host(struct sdhci_host *host)
 		printk(KERN_INFO "%s: no vmmc regulator found\n", mmc_hostname(mmc));
 		host->vmmc = NULL;
 	} else {
-		regulator_enable(host->vmmc);
+		rc = regulator_set_voltage(host->vmmc, 3000000, 3100000);
+		if(rc) {
+			dev_err(mmc_dev(host->mmc), "%s regulator_set_voltage failed: %d", "vmmc", rc);
+		}
+		else {
+			regulator_enable(host->vmmc);
+		}
 	}
 
 	sdhci_init(host, 0);
