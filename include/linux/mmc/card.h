@@ -85,6 +85,9 @@ struct mmc_ext_csd {
 	bool			bk_ops;			/* BK ops support bit */
 	bool			bk_ops_en;		/* BK ops enable bit */
 	unsigned int		sec_count;
+
+	unsigned int		feature_support;
+#define MMC_DISCARD_FEATURE	BIT(0)
 };
 
 struct sd_scr {
