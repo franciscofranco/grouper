@@ -938,6 +938,7 @@ static struct baseband_power_platform_data tegra_baseband_power_data = {
 			.ipc_ap_wake = XMM_GPIO_IPC_AP_WAKE,
 			.ipc_hsic_active = XMM_GPIO_IPC_HSIC_ACTIVE,
 			.ipc_hsic_sus_req = XMM_GPIO_IPC_HSIC_SUS_REQ,
+			.ipc_bb_force_crash = XMM_GPIO_IPC_BB_FORCE_CRASH,
 			.hsic_device = &tegra_ehci2_device,
 		},
 	},
@@ -1019,6 +1020,8 @@ static void grouper_modem_init(void)
 			tegra_baseband_power_data.modem.xmm.ipc_hsic_active);
 		tegra_gpio_enable(
 			tegra_baseband_power_data.modem.xmm.ipc_hsic_sus_req);
+		tegra_gpio_enable(
+			tegra_baseband_power_data.modem.xmm.ipc_bb_force_crash);
 		tegra_baseband_power_data.hsic_register =
 			&tegra_usb_hsic_host_register;
 		tegra_baseband_power_data.hsic_unregister =

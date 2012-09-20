@@ -78,6 +78,7 @@ static struct gpio tegra_baseband_gpios[] = {
 	{ -1, GPIOF_IN,            "IPC_HSIC_SUS_REQ" },
 	{ -1, GPIOF_OUT_INIT_LOW,  "BB_VBAT" },
 	{ -1, GPIOF_IN,            "IPC_BB_RST_IND" },
+	{ -1, GPIOF_OUT_INIT_LOW,  "IPC_BB_FORCE_CRASH" },
 };
 
 static enum {
@@ -406,6 +407,40 @@ static ssize_t store_nml_reset_modem(struct device *dev,
        pr_info("-- nml_reset_modem --\n");
        return count;
 }
+
+static ssize_t store_force_crash_modem(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int state;
+	struct platform_device *device = to_platform_device(dev);
+	struct baseband_power_platform_data *data;
+
+	sscanf(buf, "%d", &state);
+
+	pr_info("++ force_crash_modem ++\n");
+	/* check for device / platform data */
+	if (!device) {
+		pr_err("%s: !device\n", __func__);
+		return -EINVAL;
+	}
+	data = (struct baseband_power_platform_data *)
+		device->dev.platform_data;
+	if (!data) {
+		pr_err("%s: !data\n", __func__);
+		return -EINVAL;
+	}
+
+	if (state > 0) {
+		gpio_set_value(data->modem.xmm.ipc_bb_force_crash, 1);
+		msleep(50);
+		gpio_set_value(data->modem.xmm.ipc_hsic_active, 0);
+	}
+	pr_info("-- force_crash_modem --\n");
+
+	return count;
+}
+
 /*
 static DEVICE_ATTR(xmm_onoff, S_IRUSR | S_IWUSR | S_IRGRP,
 		NULL, baseband_xmm_onoff);
@@ -414,6 +449,7 @@ static struct device_attribute xmm_device_attr[] = {
        __ATTR(xmm_onoff, S_IRUSR | S_IWUSR | S_IRGRP, NULL, baseband_xmm_onoff),
        __ATTR(xmm_dwd_reset, S_IRUSR | S_IWUSR | S_IRGRP, NULL, store_dwd_reset_modem),
        __ATTR(xmm_nml_reset, S_IRUSR | S_IWUSR | S_IRGRP, NULL, store_nml_reset_modem),
+       __ATTR(xmm_force_crash, S_IRUSR | S_IWUSR | S_IRGRP, NULL, store_force_crash_modem),
        __ATTR_NULL,
 };
 
@@ -1044,6 +1080,8 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 		->modem.xmm.bb_vbat;
 	tegra_baseband_gpios[7].gpio = baseband_power_driver_data
 		->modem.xmm.ipc_bb_rst_ind;
+	tegra_baseband_gpios[8].gpio = baseband_power_driver_data
+		->modem.xmm.ipc_bb_force_crash;
 	err = gpio_request_array(tegra_baseband_gpios,
 		ARRAY_SIZE(tegra_baseband_gpios));
 	if (err < 0) {

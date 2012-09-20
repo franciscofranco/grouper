@@ -136,5 +136,6 @@ int __init touch_init_synaptics_grouper(void);
 #define XMM_GPIO_BB_SW_SEL			TEGRA_GPIO_PP1
 #define XMM_GPIO_IPC_BB_RST_IND		TEGRA_GPIO_PEE1
 #define XMM_GPIO_SIM_CARD_DET			TEGRA_GPIO_PW3
+#define XMM_GPIO_IPC_BB_FORCE_CRASH            TEGRA_GPIO_PN1
 
 #endif
