@@ -222,7 +222,7 @@ static void insert_headset(void)
 
         dapm = &rt5640_audio_codec->dapm;
 
-	if(gpio_get_value(lineout_gpio) == 0 && revision != GROUPER_PCBA_SR3 && UART_enable){
+	if(gpio_get_value(lineout_gpio) == 0 && UART_enable){
                 printk("%s: debug board\n", __func__);
                 switch_set_state(&hs_data->sdev, NO_DEVICE);
                 hs_micbias_power(OFF);
@@ -233,10 +233,6 @@ static void insert_headset(void)
 		printk("%s: headphone\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(OFF);
-		if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
-			disable_uart();
-			printk("%s: SR3 or ER1\n", __func__);
-		}
 		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = false;
@@ -247,10 +243,6 @@ static void insert_headset(void)
 		printk("%s: headset\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
 		hs_micbias_power(ON);
-		if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
-			disable_uart();
-			printk("%s: SR3 or ER1\n", __func__);
-		}
 		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = true;
@@ -265,10 +257,6 @@ static void remove_headset(void)
 	switch_set_state(&hs_data->sdev, NO_DEVICE);
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
 	headset_alive = false;
-	if((revision == GROUPER_PCBA_SR3) || (revision == GROUPER_PCBA_ER1)){
-		printk("%s: SR3 or ER1\n", __func__);
-		enable_uart();
-	}
 	tristate_uart();
 	gpio_direction_output(UART_HEADPHONE_SWITCH, 0);
 }
