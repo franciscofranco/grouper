@@ -97,6 +97,7 @@ static struct work_struct init2_work;
 static struct work_struct L2_resume_work;
 static struct baseband_power_platform_data *baseband_power_driver_data;
 static struct regulator *reg_grouper_hsic = NULL;    /* LDO7 */
+static int waiting_falling_flag = 0;
 static bool register_hsic_device;
 static struct wake_lock wakelock;
 static struct wake_lock modem_recovery_wakelock;
@@ -222,6 +223,7 @@ static int baseband_xmm_power_on(struct platform_device *device)
 		modem_power_on = false;
 		ipc_ap_wake_state = IPC_AP_WAKE_INIT1;
 		gpio_set_value(data->modem.xmm.ipc_hsic_active, 0);
+		waiting_falling_flag = 0;
 
 		baseband_xmm_power_reset_on();
 	}
@@ -635,10 +637,15 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 			pr_debug("%s - IPC_AP_WAKE_INIT2"
 				" - wait for falling edge\n",
 				__func__);
+			waiting_falling_flag = 1;
 		} else {
 			pr_debug("%s - IPC_AP_WAKE_INIT2"
 				" - got falling edge\n",
 				__func__);
+			if (waiting_falling_flag == 0) {
+				pr_debug("%s return because irq must get the rising event at first\n", __func__);
+				return IRQ_HANDLED;
+			}
 			/* go to IPC_AP_WAKE_INIT2 state */
 			ipc_ap_wake_state = IPC_AP_WAKE_INIT2;
 			/* queue work */
