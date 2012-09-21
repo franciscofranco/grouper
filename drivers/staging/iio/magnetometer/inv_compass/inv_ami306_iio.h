@@ -71,6 +71,15 @@ struct ami_sensor_parametor {
 	struct ami_interference m_interference;
 };
 
+struct cali_data_check {
+	short ori[3];
+	short post[3];
+	int gain[3];
+	bool load_cali;
+	bool fexist;
+	bool status;
+};
+
 /**
  *  struct inv_ami306_state_s - Driver state variables.
  *  @i2c:		i2c client handle.
@@ -90,7 +99,9 @@ struct inv_ami306_state_s {
 	char fine[3];
 	short compass_data[3];
 	s64 timestamp;
+	struct cali_data_check data_chk;
 };
+
 /* scan element definition */
 enum inv_mpu_scan {
 	INV_AMI306_SCAN_MAGN_X,
