@@ -363,9 +363,9 @@ void __init tegra_init_cpu_edp_limits(unsigned int regulator_mA)
 	for (j = 0; j < edp_limits_size; j++) {
 		e[j].temperature = (int)t[i+j].temperature;
 		e[j].freq_limits[0] = (unsigned int)t[i+j].freq_limits[0] * 10000;
-		e[j].freq_limits[1] = (unsigned int)t[i+j].freq_limits[1] * 10000;
-		e[j].freq_limits[2] = (unsigned int)t[i+j].freq_limits[2] * 10000;
-		e[j].freq_limits[3] = (unsigned int)t[i+j].freq_limits[3] * 10000;
+		e[j].freq_limits[1] = (unsigned int)(t[i+j].freq_limits[1]+10) * 10000;
+		e[j].freq_limits[2] = (unsigned int)(t[i+j].freq_limits[2]+10) * 10000;
+		e[j].freq_limits[3] = (unsigned int)(t[i+j].freq_limits[3]+10) * 10000;
 	}
 
 	if (edp_limits != edp_default_limits)
