@@ -17,8 +17,9 @@
  *  @brief      Hardware drivers.
  *
  *  @{
- *      @file  inv_gyro.h
- *      @brief Struct definitions for the Invensense gyro driver.
+ *      @file  inv_ami306_iio.h
+ *      @brief Struct definitions for the Invensense implementation
+ *              of ami306 driver.
  */
 
 #ifndef _INV_GYRO_H_
@@ -30,9 +31,11 @@
 #include <linux/input.h>
 #include <linux/spinlock.h>
 #include <linux/mpu.h>
-#include "../iio.h"
-#include "../buffer.h"
-#include "../trigger.h"
+
+#include "iio.h"
+#include "buffer.h"
+#include "trigger.h"
+
 /** axis sensitivity(gain) calibration parameter information  */
 struct ami_vector3d {
 	signed short x;                 /**< X-axis  */
@@ -68,13 +71,6 @@ struct ami_sensor_parametor {
 	struct ami_interference m_interference;
 };
 
-struct cali_data_check {
-	short ori[3];
-	short post[3];
-	short gain[3];
-	bool load_cali;
-};
-
 /**
  *  struct inv_ami306_state_s - Driver state variables.
  *  @i2c:		i2c client handle.
@@ -94,9 +90,7 @@ struct inv_ami306_state_s {
 	char fine[3];
 	short compass_data[3];
 	s64 timestamp;
-	struct cali_data_check data_chk;
 };
-
 /* scan element definition */
 enum inv_mpu_scan {
 	INV_AMI306_SCAN_MAGN_X,

@@ -36,10 +36,27 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
+
 #include "inv_ami306_iio.h"
-#include "../sysfs.h"
+#include "sysfs.h"
+#include "inv_test/inv_counters.h"
 
 static unsigned char late_initialize = true;
+
+s32 i2c_write(const struct i2c_client *client,
+		u8 command, u8 length, const u8 *values)
+{
+	INV_I2C_INC_COMPASSWRITE(3);
+	return i2c_smbus_write_i2c_block_data(client, command, length, values);
+}
+
+s32 i2c_read(const struct i2c_client *client,
+		u8 command, u8 length, u8 *values)
+{
+	INV_I2C_INC_COMPASSWRITE(3);
+	INV_I2C_INC_COMPASSREAD(length);
+	return i2c_smbus_read_i2c_block_data(client, command, length, values);
+}
 
 static int ami306_read_param(struct inv_ami306_state_s *st)
 {
@@ -47,8 +64,8 @@ static int ami306_read_param(struct inv_ami306_state_s *st)
 	unsigned char regs[AMI_PARAM_LEN];
 	struct ami_sensor_parametor *param = &st->param;
 
-	result = i2c_smbus_read_i2c_block_data(st->i2c, REG_AMI_SENX,
-					AMI_PARAM_LEN, regs);
+	result = i2c_read(st->i2c, REG_AMI_SENX,
+			AMI_PARAM_LEN, regs);
 	if (result < 0)
 		return result;
 
@@ -82,13 +99,13 @@ static int ami306_write_offset(const struct i2c_client *client,
 	unsigned char dat[3];
 	dat[0] = (0x7f & fine[0]);
 	dat[1] = 0;
-	result = i2c_smbus_write_i2c_block_data(client, REG_AMI_OFFX, 2, dat);
+	result = i2c_write(client, REG_AMI_OFFX, 2, dat);
 	dat[0] = (0x7f & fine[1]);
 	dat[1] = 0;
-	result = i2c_smbus_write_i2c_block_data(client, REG_AMI_OFFY, 2, dat);
+	result = i2c_write(client, REG_AMI_OFFY, 2, dat);
 	dat[0] = (0x7f & fine[2]);
 	dat[1] = 0;
-	result = i2c_smbus_write_i2c_block_data(client, REG_AMI_OFFZ, 2, dat);
+	result = i2c_write(client, REG_AMI_OFFZ, 2, dat);
 
 	return result;
 }
@@ -101,8 +118,7 @@ static int ami306_wait_data_ready(struct inv_ami306_state_s *st,
 
 	for (; 0 < times; --times) {
 		udelay(usecs);
-		result = i2c_smbus_read_i2c_block_data(st->i2c,
-				REG_AMI_STA1, 1, &buf);
+		result = i2c_read(st->i2c, REG_AMI_STA1, 1, &buf);
 		if (result < 0)
 			return INV_ERROR_COMPASS_DATA_NOT_READY;
 		if (buf & AMI_STA1_DRDY_BIT)
@@ -117,8 +133,7 @@ int ami306_read_raw_data(struct inv_ami306_state_s *st,
 {
 	int result;
 	unsigned char buf[6];
-	result = i2c_smbus_read_i2c_block_data(st->i2c, REG_AMI_DATAX,
-				sizeof(buf), buf);
+	result = i2c_read(st->i2c, REG_AMI_DATAX, sizeof(buf), buf);
 	if (result < 0)
 		return result;
 	dat[0] = le16_to_cpup((__le16 *)(&buf[0]));
@@ -136,13 +151,12 @@ static int ami306_force_measurement(struct inv_ami306_state_s *st,
 	int status;
 	char buf;
 	buf = AMI_CTRL3_FORCE_BIT;
-	result = i2c_smbus_write_i2c_block_data(st->i2c,
-				REG_AMI_CTRL3, 1, &buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL3, 1, &buf);
 	if (result < 0)
 		return result;
 
-		result = ami306_wait_data_ready(st,
-				AMI_DRDYWAIT, AMI_WAIT_DATAREADY_RETRY);
+	result = ami306_wait_data_ready(st,
+			AMI_DRDYWAIT, AMI_WAIT_DATAREADY_RETRY);
 	if (result && result != INV_ERROR_COMPASS_DATA_OVERFLOW)
 		return result;
 	/*  READ DATA X,Y,Z */
@@ -163,15 +177,13 @@ static int ami306_initial_b0_adjust(struct inv_ami306_state_s *st)
 	unsigned char buf[3];
 
 	buf[0] = AMI_CTRL2_DREN;
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL2,
-					1, buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL2, 1, buf);
 	if (result)
 		return result;
 
 	buf[0] = AMI_CTRL4_HS & 0xFF;
 	buf[1] = (AMI_CTRL4_HS >> 8) & 0xFF;
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL4,
-					2, buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL4, 2, buf);
 	if (result < 0)
 		return result;
 
@@ -199,8 +211,7 @@ static int ami306_initial_b0_adjust(struct inv_ami306_state_s *st)
 
 	/* Software Reset */
 	buf[0] = AMI_CTRL3_SRST_BIT;
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL3, 1,
-					buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL3, 1, buf);
 	if (result < 0)
 		return result;
 	else
@@ -214,22 +225,19 @@ static int ami306_start_sensor(struct inv_ami306_state_s *st)
 
 	/* Step 1 */
 	buf[0] = (AMI_CTRL1_PC1 | AMI_CTRL1_FS1_FORCE);
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL1, 1,
-				buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL1, 1, buf);
 	if (result < 0)
 		return result;
 	/* Step 2 */
 	buf[0] = AMI_CTRL2_DREN;
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL2, 1,
-				buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL2, 1, buf);
 	if (result < 0)
 		return result;
 	/* Step 3 */
 	buf[0] = (AMI_CTRL4_HS & 0xFF);
 	buf[1] = (AMI_CTRL4_HS >> 8) & 0xFF;
 
-	result = i2c_smbus_write_i2c_block_data(st->i2c, REG_AMI_CTRL4, 2,
-			buf);
+	result = i2c_write(st->i2c, REG_AMI_CTRL4, 2, buf);
 	if (result < 0)
 		return result;
 
@@ -245,8 +253,7 @@ int set_ami306_enable(struct iio_dev *indio_dev, int state)
 	char buf;
 	if (state) {
 		buf = (AMI_CTRL1_PC1 | AMI_CTRL1_FS1_FORCE);
-		result = i2c_smbus_write_i2c_block_data(st->i2c,
-			REG_AMI_CTRL1, 1, &buf);
+		result = i2c_write(st->i2c, REG_AMI_CTRL1, 1, &buf);
 		if (result < 0)
 			return result;
 
@@ -264,8 +271,7 @@ int set_ami306_enable(struct iio_dev *indio_dev, int state)
 			return result;
 		buf = AMI_CTRL3_FORCE_BIT;
 		st->timestamp = iio_get_time_ns();
-		result = i2c_smbus_write_i2c_block_data(st->i2c,
-				REG_AMI_CTRL3, 1, &buf);
+		result = i2c_write(st->i2c, REG_AMI_CTRL3, 1, &buf);
 		if (result)
 			return result;
 	}
@@ -367,23 +373,6 @@ static ssize_t ami306_rate_show(struct device *dev,
 	return sprintf(buf, "%d\n", 1000 / st->delay);
 }
 
-static ssize_t compass_cali_test(struct device *dev,
-		struct device_attribute *devattr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct inv_ami306_state_s *st = iio_priv(indio_dev);
-	int bufcnt = 0;
-
-	bufcnt = sprintf(buf,
-		"gain: %d, %d, %d\nori:(%d, %d, %d); post:(%d, %d, %d)\n",
-		st->data_chk.gain[0], st->data_chk.gain[1],
-		st->data_chk.gain[2], st->data_chk.ori[0],
-		st->data_chk.ori[1], st->data_chk.ori[2],
-		st->data_chk.post[0], st->data_chk.post[1],
-		st->data_chk.post[2]);
-
-	return bufcnt;
-}
 
 static void ami306_work_func(struct work_struct *work)
 {
@@ -396,6 +385,7 @@ static void ami306_work_func(struct work_struct *work)
 	inv_read_ami306_fifo(indio_dev);
 	st->timestamp = iio_get_time_ns();
 	schedule_delayed_work(&st->work, delay);
+	INV_I2C_INC_COMPASSIRQ();
 }
 
 static const struct iio_chan_spec compass_channels[] = {
@@ -427,12 +417,10 @@ static const struct iio_chan_spec compass_channels[] = {
 static DEVICE_ATTR(compass_matrix, S_IRUGO, inv_compass_matrix_show, NULL);
 static DEVICE_ATTR(sampling_frequency, S_IRUGO | S_IWUSR, ami306_rate_show,
 		ami306_rate_store);
-static DEVICE_ATTR(compass_cali_test, S_IRUGO, compass_cali_test, NULL);
 
 static struct attribute *inv_ami306_attributes[] = {
 	&dev_attr_compass_matrix.attr,
 	&dev_attr_sampling_frequency.attr,
-	&dev_attr_compass_cali_test.attr,
 	NULL,
 };
 static const struct attribute_group inv_attribute_group = {
@@ -458,8 +446,6 @@ static int inv_ami306_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int result;
 	char data;
-	int ii;
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;
 		goto out_no_free;
@@ -476,14 +462,9 @@ static int inv_ami306_probe(struct i2c_client *client,
 		*(struct mpu_platform_data *)dev_get_platdata(&client->dev);
 	st->delay = 10;
 
-	/* init for loading factory file*/
-	st->data_chk.load_cali = false;
-	for (ii = 0; ii < 3; ii++)
-		st->data_chk.gain[ii] = 100;
-
 	/* Make state variables available to all _show and _store functions. */
 	i2c_set_clientdata(client, indio_dev);
-	result = i2c_smbus_read_i2c_block_data(st->i2c, REG_AMI_WIA, 1, &data);
+	result = i2c_read(st->i2c, REG_AMI_WIA, 1, &data);
 	if (result < 0)
 		goto out_free;
 	if (data != DATA_WIA)
