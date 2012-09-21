@@ -76,6 +76,7 @@ static int usb_on ;
 static unsigned int 	battery_current;
 static unsigned int  battery_remaining_capacity;
 static atomic_t device_count;
+static unsigned int bat_check_interval = BATTERY_POLLING_RATE;
 struct workqueue_struct *battery_work_queue = NULL;
 
 /* Functions declaration */
@@ -228,6 +229,7 @@ static struct bq27541_device_info {
 	struct delayed_work battery_stress_test;
 	struct delayed_work status_poll_work;
 	struct delayed_work low_low_bat_work;
+	struct delayed_work shutdown_en_work;
 	struct miscdevice battery_misc;
 	struct wake_lock low_battery_wake_lock;
 	int smbus_status;
@@ -242,6 +244,8 @@ static struct bq27541_device_info {
 	int bat_vol;
 	int bat_current;
 	int bat_capacity;
+	int cap_zero_count;
+	int shutdown_disable;
 	unsigned int old_capacity;
 	unsigned int cap_err;
 	unsigned int old_temperature;
@@ -320,6 +324,7 @@ static ssize_t show_battery_smbus_status(struct device *dev, struct device_attri
 	int status=!bq27541_device->smbus_status;
 	return sprintf(buf, "%d\n", status);
 }
+
 static DEVICE_ATTR(battery_smbus, S_IWUSR | S_IRUGO, show_battery_smbus_status,NULL);
 
 static struct attribute *battery_smbus_attributes[] = {
@@ -342,7 +347,7 @@ static void battery_status_poll(struct work_struct *work)
 	power_supply_changed(&bq27541_supply[Charger_Type_Battery]);
 
 	/* Schedule next polling */
-	queue_delayed_work(battery_work_queue, &batt_dev->status_poll_work, BATTERY_POLLING_RATE*HZ);
+	queue_delayed_work(battery_work_queue, &batt_dev->status_poll_work, bat_check_interval*HZ);
 }
 
 static void low_low_battery_check(struct work_struct *work)
@@ -353,6 +358,12 @@ static void low_low_battery_check(struct work_struct *work)
 	enable_irq(bq27541_device->irq_low_battery_detect);
 }
 
+static void shutdown_enable_set(struct work_struct *work)
+{
+	bq27541_device->shutdown_disable = 0;
+	BAT_NOTICE("bq27541_device->shutdown_disable = 0\n");
+}
+
 static irqreturn_t low_battery_detect_isr(int irq, void *dev_id)
 {
 	disable_irq_nosync(bq27541_device->irq_low_battery_detect);
@@ -360,6 +371,7 @@ static irqreturn_t low_battery_detect_isr(int irq, void *dev_id)
 	BAT_NOTICE("gpio LL_BAT_T30=%d\n", bq27541_device->low_battery_present);
 	wake_lock_timeout(&bq27541_device->low_battery_wake_lock, 10*HZ);
 	queue_delayed_work(battery_work_queue, &bq27541_device->low_low_bat_work, 0.1*HZ);
+
 	return IRQ_HANDLED;
 }
 
@@ -528,6 +540,7 @@ static int bq27541_get_capacity(union power_supply_propval *val)
 	s32 ret;
 	s32 temp_capacity;
 	int smb_retry=0;
+	int cap = 0;
 
 	do {
 		bq27541_device->smbus_status = bq27541_smbus_read_data(REG_CAPACITY, 0 ,&bq27541_device->bat_capacity);
@@ -572,12 +585,51 @@ static int bq27541_get_capacity(union power_supply_propval *val)
 
 	/*Re-check capacity to avoid  that temp_capacity <0*/
 	temp_capacity = ((temp_capacity <0) ? 0 : temp_capacity);
+
+	if ((temp_capacity == 0) && (bq27541_device->shutdown_disable == 0) && battery_cable_status) {
+		bq27541_device->cap_zero_count++;
+		if (bq27541_device->cap_zero_count < 2) {
+			msleep(1);
+			bq27541_read_i2c(bq27541_data[REG_CAPACITY].addr, &cap, 0);
+			BAT_NOTICE("temp_capacity=%d, cap=%d, report capacity use: %d \n",
+				temp_capacity, cap, (cap>5) ? bq27541_device->old_capacity : temp_capacity);
+			if (cap > 5) {
+				temp_capacity = bq27541_device->old_capacity;
+			}
+		} else { // >=2
+			//if (bq27541_device->cap_zero_count >=3) {
+				bq27541_device->cap_zero_count = 0;
+				bq27541_device->shutdown_disable = 1;
+				BAT_NOTICE("cheat cable out to shutdown system !!!\n");
+				battery_callback(0);
+			//}
+		}
+	} else {
+		bq27541_device->cap_zero_count = 0;
+	}
+
+	if (temp_capacity <= 4 && bq27541_device->old_capacity > 4) {
+		bat_check_interval = 1;
+		BAT_NOTICE("bat_check_interval=%d \n", bat_check_interval);
+	} else if (temp_capacity <= 15 && bq27541_device->old_capacity > 15) {
+		bat_check_interval = 30;
+		BAT_NOTICE("bat_check_interval=%d \n", bat_check_interval);
+	} else {
+		if ((temp_capacity > 5) && (bat_check_interval == 1)) {
+			bat_check_interval = 30;
+			BAT_NOTICE("bat_check_interval=%d \n", bat_check_interval);
+		} else if (temp_capacity > 16 && bat_check_interval != 60) {
+			bat_check_interval = 60;
+			BAT_NOTICE("bat_check_interval=%d \n", bat_check_interval);
+		}
+	}
+
 	val->intval = temp_capacity;
 
 	bq27541_device->old_capacity = val->intval;
 	bq27541_device->cap_err=0;
 
-	BAT_NOTICE("= %u%% ret= %u\n", val->intval, ret);
+	BAT_NOTICE("= %u%% ret= %u\n", val->intval, bq27541_device->bat_capacity);
 	return 0;
 }
 
@@ -652,6 +704,8 @@ static int bq27541_probe(struct i2c_client *client,
 	bq27541_device->old_capacity = 0xFF;
        bq27541_device->old_temperature = 0xFF;
 	bq27541_device->gpio_low_battery_detect = GPIOPIN_LOW_BATTERY_DETECT;
+	bq27541_device->shutdown_disable = 1;
+	bq27541_device->cap_zero_count = 0;
 
 	for (i = 0; i < ARRAY_SIZE(bq27541_supply); i++) {
 		ret = power_supply_register(&client->dev, &bq27541_supply[i]);
@@ -668,6 +722,7 @@ static int bq27541_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&bq27541_device->status_poll_work, battery_status_poll);
 	INIT_DELAYED_WORK(&bq27541_device->low_low_bat_work, low_low_battery_check);
        INIT_DELAYED_WORK(&bq27541_device->battery_stress_test, battery_strees_test);
+	INIT_DELAYED_WORK(&bq27541_device->shutdown_en_work, shutdown_enable_set);
 	cancel_delayed_work(&bq27541_device->status_poll_work);
 
 	spin_lock_init(&bq27541_device->lock);
@@ -693,6 +748,7 @@ static int bq27541_probe(struct i2c_client *client,
 	battery_driver_ready = 1;
 
 	battery_cable_status = get_usb_cable_status();
+	queue_delayed_work(battery_work_queue, &bq27541_device->shutdown_en_work, 40*HZ);
 	queue_delayed_work(battery_work_queue, &bq27541_device->status_poll_work, 15*HZ);
 
 	BAT_NOTICE("- %s driver registered\n", client->name);
@@ -729,9 +785,18 @@ static int bq27541_resume(struct i2c_client *client)
 {
 	cancel_delayed_work(&bq27541_device->status_poll_work);
 	queue_delayed_work(battery_work_queue,&bq27541_device->status_poll_work, 5*HZ);
+
 	return 0;
 }
 #endif
+
+static int bq27541_shutdown(struct i2c_client *client)
+{
+	BAT_NOTICE("+\n");
+	bq27541_device->shutdown_disable = 0;
+	BAT_NOTICE("-\n");
+	return 0;
+}
 
 static const struct i2c_device_id bq27541_id[] = {
 	{ "bq27541-battery", 0 },
@@ -744,6 +809,7 @@ static struct i2c_driver bq27541_battery_driver = {
 #if defined (CONFIG_PM)
 	.suspend	= bq27541_suspend,
 	.resume 	= bq27541_resume,
+	.shutdown = bq27541_shutdown,
 #endif
 	.id_table	= bq27541_id,
 	.driver = {

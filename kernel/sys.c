@@ -46,6 +46,9 @@
 #include <linux/user_namespace.h>
 
 #include <linux/kmsg_dump.h>
+#include <linux/gpio.h>
+#include "../arch/arm/mach-tegra/gpio-names.h"
+
 /* Move somewhere else to avoid recompiling? */
 #include <generated/utsrelease.h>
 
@@ -408,7 +411,7 @@ EXPORT_SYMBOL_GPL(kernel_halt);
 extern unsigned battery_cable_status;
 void kernel_power_off(void)
 {
-	 if (battery_cable_status) {
+	 if ((battery_cable_status)||(!gpio_get_value(TEGRA_GPIO_PV1))) {
 		char cmd[] = "chrager-mode";
 
 		printk(KERN_EMERG "kernel_power_off: go to charger mode!");
