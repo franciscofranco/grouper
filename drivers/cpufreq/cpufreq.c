@@ -35,7 +35,6 @@
 
 /* includes for the undervolt interface */
 #include "../../arch/arm/mach-tegra/dvfs.h"
-#include "../../arch/arm/mach-tegra/clock.h"
 
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
