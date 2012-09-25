@@ -41,7 +41,6 @@
 #include <linux/smb347-charger.h>
 #include <linux/max17048_battery.h>
 #include <linux/leds.h>
-#include <linux/i2c/at24.h>
 
 #include <mach/clk.h>
 #include <mach/iomap.h>
@@ -276,24 +275,11 @@ struct max17048_battery_model max17048_mdata = {
 	.ocvtest        = 55600,
 };
 
-
-static struct at24_platform_data eeprom_info = {
-	.byte_len	= (256*1024)/8,
-	.page_size	= 64,
-	.flags		= AT24_FLAG_ADDR16,
-	.setup		= get_mac_addr,
-};
-
 static struct i2c_board_info grouper_i2c4_max17048_board_info[] = {
 	{
 		I2C_BOARD_INFO("max17048", 0x36),
 		.platform_data = &max17048_mdata,
 	},
-};
-
-static struct i2c_board_info grouper_eeprom_mac_add = {
-	I2C_BOARD_INFO("at24", 0x56),
-	.platform_data = &eeprom_info,
 };
 
 static struct i2c_board_info cardhu_i2c4_bq27541_board_info[] = {
@@ -341,8 +327,6 @@ static void grouper_i2c_init(void)
 		ARRAY_SIZE(grouper_i2c4_smb347_board_info));
 
 	i2c_register_board_info(4, &rt5640_board_info, 1);
-
-	i2c_register_board_info(4, &grouper_eeprom_mac_add, 1);
 
 	i2c_register_board_info(4, cardhu_i2c4_bq27541_board_info,
 		ARRAY_SIZE(cardhu_i2c4_bq27541_board_info));

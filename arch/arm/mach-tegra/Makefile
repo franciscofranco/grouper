@@ -202,7 +202,6 @@ obj-${CONFIG_MACH_GROUPER}              += board-grouper-power.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-power-ti.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-sdhci.o
 obj-${CONFIG_MACH_GROUPER}              += board-grouper-sensors.o
-obj-y                                   += eeprom-wifi-mac.o
 
 obj-${CONFIG_TEGRA_BB_XMM_POWER}        += baseband-xmm-power.o
 obj-${CONFIG_TEGRA_BB_XMM_POWER2}       += baseband-xmm-power2.o
