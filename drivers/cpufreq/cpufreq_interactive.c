@@ -81,6 +81,8 @@ static struct cpufreq_interactive_core_lock core_lock;
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static u64 hispeed_freq;
 
+static u64 input_boost_freq = 1000000;
+
 /* Boost frequency by boost_factor when CPU load at or above this value. */
 #define DEFAULT_GO_MAXSPEED_LOAD 85
 static unsigned long go_maxspeed_load;
@@ -556,8 +558,8 @@ static void cpufreq_interactive_boost(void)
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
 
-		if (pcpu->target_freq < hispeed_freq) {
-			pcpu->target_freq = hispeed_freq;
+		if (pcpu->target_freq < input_boost_freq) {
+			pcpu->target_freq = input_boost_freq;
 			cpumask_set_cpu(i, &speedchange_cpumask);
 			anyboost = 1;
 		}
@@ -640,6 +642,29 @@ static int cpufreq_interactive_lock_cores_task(void *data)
 	}
 	return 0;
 }
+
+static ssize_t show_input_boost_freq(struct kobject *kobj,
+				 struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%llu\n", input_boost_freq);
+}
+
+static ssize_t store_input_boost_freq(struct kobject *kobj,
+				  struct attribute *attr, const char *buf,
+				  size_t count)
+{
+	int ret;
+	u64 val;
+
+	ret = strict_strtoull(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	input_boost_freq = val;
+	return count;
+}
+
+static struct global_attr input_boost_freq_attr = __ATTR(input_boost_freq, 0644,
+		show_input_boost_freq, store_input_boost_freq);
 
 static ssize_t show_go_maxspeed_load(struct kobject *kobj,
 				     struct attribute *attr, char *buf)
@@ -888,6 +913,7 @@ static ssize_t store_boost(struct kobject *kobj, struct attribute *attr,
 define_one_global_rw(boost);
 
 static struct attribute *interactive_attributes[] = {
+	&input_boost_freq_attr.attr,
 	&go_maxspeed_load_attr.attr,
 	&boost_factor_attr.attr,
 	&max_boost_attr.attr,
