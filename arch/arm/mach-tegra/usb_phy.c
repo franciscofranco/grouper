@@ -1134,6 +1134,7 @@ static unsigned int tegra_phy_xcvr_setup_value(struct tegra_utmip_config *cfg)
 	return (unsigned int)val;
 }
 
+static void utmip_phy_disable_pmc_bus_ctrl(struct tegra_usb_phy *phy);
 static int utmi_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 {
 	unsigned long val;
@@ -1302,6 +1303,8 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 
 	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE)
 		utmip_powerup_pmc_wake_detect(phy);
+	else
+		utmip_phy_disable_pmc_bus_ctrl(phy);
 #endif
 
 	return 0;
