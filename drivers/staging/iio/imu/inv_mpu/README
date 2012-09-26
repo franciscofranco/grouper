@@ -26,7 +26,9 @@ Table of Contents:
     > MPU-9150
     > MPU-3050 + BMA250 on the secondary I2C interface
 - Low Power Accelerometer Mode
+- Suspend and Resume
 - DMP Event
+- Motion Event
 - Streaming Data to an Userspace Application
 - Recommended Sysfs Entry Setup Sequence
     > With DMP Firmware
@@ -409,6 +411,19 @@ Set lpa_freq to 0~3, which correspond to 1.25Hz, 5Hz, 20Hz, 40Hz.
 For MPU6500:
 Set lpa_freq to 0~11, which correspond to 0.3125Hz to 640Hz.
 
+Suspend and Resume
+===================================================
+The suspend and resume functions are call backs registered to the system
+and executed when the system goes in suspend and resumes.
+It is enabled when CONFIG_PM is defined.
+The current behavior is simple:
+- suspend will turn off the chip
+- resume will turn on the chip
+
+However, it is possible for the driver to do more complex things;
+for example, leaving pedometers running when system is off. This can save whole
+system power while letting pedometer working. Other behaviors are possible
+too.
 
 DMP Event
 =========
@@ -417,7 +432,7 @@ device (MPU).
 Only the MPU-6050, MPU-6500, and MPU-9150 feature the DMP.
 
 
-There are four sysfs entries for DMP events:
+There are three sysfs entries for DMP events:
 
 - event_tap
 - event_orientation
@@ -432,6 +447,48 @@ The proper method to poll sysfs is as follows:
 4. once the poll passed, use fopen and fread to read the sysfs entry.
 5. interpret the data.
 
+Motion Event
+============
+Motion event are accelerometer enabled event. They don't need dmp nor data output.
+Only accelerometer engine needs to be on.
+For MPU6050, there are eight sysfs entries for motion events.
+----------------------------------
+zero_motion_threshold:
+threshold for zero motion detection.
+
+zero_motion_dur:
+duration for zero motion to trigger.
+
+zero_motion_on:
+turn on/off of zero motion function.
+
+motion_threshold:
+threshold for motion detection.
+
+motion_dur:
+duration for motion to trigger.
+
+motion_on:
+turn on/off of motion function.
+
+event_accel_motion:
+pollable event sysfs entry for motion.
+
+event_accel_no_motion:
+pollable event sysfs entry for zero motion.
+-------------------------------------------------------
+
+For MPU6500, there are three sysfs entries for motion events.
+------------------------------------------------------------
+accel_wom_on:
+turn "wake on motion" function on/off.
+
+accel_wom_threshold:
+set "wake on motion" threshold.
+
+event_accel_wom:
+set event accel_wake on motion.
+--------------------------------------------------------
 
 Streaming Data to an Userspace Application
 ==========================================

@@ -102,8 +102,8 @@ enum inv_mpu_scan {
 #define YAS530_REGADDR_CAL                0x90
 #define YAS530_REGADDR_MEASURE_DATA       0xb0
 
-#define YAS530_MAX_DELAY                  100
-#define YAS530_MIN_DELAY                  10
+#define YAS530_MAX_DELAY                  200
+#define YAS530_MIN_DELAY                  5
 #define YAS530_SCALE                      107374182L
 
 #define YAS_YAS530_VERSION_A		0	/* YAS530  (MS-3E Aver) */

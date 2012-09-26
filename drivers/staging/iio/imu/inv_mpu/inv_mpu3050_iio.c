@@ -52,7 +52,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 {
 	struct inv_reg_map_s *reg;
 	int result;
-	unsigned char b;
+	u8 b;
 
 	reg = &st->reg;
 	result = inv_i2c_read(st, reg->user_ctrl, 1, &b);
@@ -127,7 +127,7 @@ void inv_setup_reg_mpu3050(struct inv_reg_map_s *reg)
 int inv_switch_3050_gyro_engine(struct inv_mpu_iio_s *st, bool en)
 {
 	struct inv_reg_map_s *reg;
-	unsigned char data, p;
+	u8 data, p;
 	int result;
 	reg = &st->reg;
 	if (en) {
@@ -177,7 +177,7 @@ int inv_init_config_mpu3050(struct iio_dev *indio_dev)
 {
 	struct inv_reg_map_s *reg;
 	int result;
-	unsigned char data;
+	u8 data;
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
 
 	if (st->chip_config.is_asleep)
@@ -240,7 +240,7 @@ int inv_init_config_mpu3050(struct iio_dev *indio_dev)
 int set_power_mpu3050(struct inv_mpu_iio_s *st, bool power_on)
 {
 	struct inv_reg_map_s *reg;
-	unsigned char data, p;
+	u8 data, p;
 	int result;
 	reg = &st->reg;
 	if (power_on) {

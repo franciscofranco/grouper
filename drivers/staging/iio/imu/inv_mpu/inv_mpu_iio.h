@@ -144,6 +144,7 @@ struct inv_hw_s {
  *  @flick_int_on:	flick interrupt on/off.
  *  @quaternion_on:	send quaternion data on/off.
  *  @display_orient_on:	display orientation on/off.
+ *  @normal_compass_measure: discard first compass data after reset.
  *  @lpa_freq:		low power frequency
  *  @prog_start_addr:	firmware program start address.
  *  @dmp_output_rate:   dmp output rate.
@@ -175,6 +176,7 @@ struct inv_chip_config_s {
 	u32 flick_int_on:1;
 	u32 quaternion_on:1;
 	u32 display_orient_on:1;
+	u32 normal_compass_measure:1;
 	u16 lpa_freq;
 	u16  prog_start_addr;
 	u16 fifo_rate;
@@ -199,8 +201,8 @@ struct inv_chip_info_s {
 	u8 software_revision;
 	u8 multi;
 	u8 compass_sens[3];
-	unsigned long gyro_sens_trim;
-	unsigned long accl_sens_trim;
+	u32 gyro_sens_trim;
+	u32 accl_sens_trim;
 };
 
 /**
@@ -237,6 +239,27 @@ struct inv_tap_s {
 	u16 thresh;
 	u16 time;
 };
+
+/**
+ *  struct accel_mot_int_s structure to store motion interrupt data
+ *  @zrmot_thr:  zero motion threshold.
+ *  @zrmot_dur:  zero motion duration.
+ *  @mot_thr:    motion threshold, also used for MPU6500 WOM thr.
+ *  @mot_dur:    motion duration.
+ *  @zrmot_on:   flag to indicate zero motion detection on;
+ *  @zrmot_status: flag to indicate zero motion status;
+ *  @mot_on:     flag to indicate motion detection on, also used for 6500 wom;
+ */
+struct accel_mot_int_s {
+	u8 zrmot_thr;
+	u8 zrmot_dur;
+	u8 mot_thr;
+	u8 mot_dur;
+	u8 zrmot_on:1;
+	u8 zrmot_status:1;
+	u8 mot_on:1;
+};
+
 struct inv_mpu_slave;
 /**
  *  struct inv_mpu_iio_s - Driver state variables.
@@ -296,12 +319,13 @@ struct inv_mpu_iio_s {
 	struct i2c_client *client;
 	struct mpu_platform_data plat_data;
 	struct inv_mpu_slave *mpu_slave;
+	struct accel_mot_int_s mot_int;
 	int (*set_power_state)(struct inv_mpu_iio_s *, bool on);
 	int (*switch_gyro_engine)(struct inv_mpu_iio_s *, bool on);
 	int (*switch_accl_engine)(struct inv_mpu_iio_s *, bool on);
 	int (*init_config)(struct iio_dev *indio_dev);
 	void (*setup_reg)(struct inv_reg_map_s *reg);
-	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
+	DECLARE_KFIFO(timestamps, u64, TIMESTAMP_FIFO_SIZE);
 	const short *compass_st_upper;
 	const short *compass_st_lower;
 	short irq;
@@ -311,6 +335,7 @@ struct inv_mpu_iio_s {
 	short raw_accel[3];
 	short raw_compass[3];
 	int raw_quaternion[4];
+	int input_accel_bias[3];
 	u8 compass_scale;
 	u8 i2c_addr;
 	u8 compass_divider;
@@ -326,8 +351,8 @@ struct inv_mpu_iio_s {
 	u32 irq_dur_ns;
 	u64 last_isr_time;
 #ifdef CONFIG_INV_TESTING
-	unsigned long i2c_readcount;
-	unsigned long i2c_writecount;
+	u32 i2c_readcount;
+	u32 i2c_writecount;
 #endif
 };
 
@@ -429,6 +454,10 @@ struct inv_mpu_slave {
 #define BITS_SELF_TEST_EN		0xE0
 
 #define REG_ACCEL_CONFIG	0x1C
+#define REG_ACCEL_MOT_THR       0x1F
+#define REG_ACCEL_MOT_DUR       0x20
+#define REG_ACCEL_ZRMOT_THR     0x21
+#define REG_ACCEL_ZRMOT_DUR     0x22
 
 #define REG_FIFO_EN             0x23
 #define BIT_ACCEL_OUT			0x08
@@ -457,13 +486,24 @@ struct inv_mpu_slave {
 #define REG_INT_ENABLE          0x38
 #define BIT_DATA_RDY_EN                 0x01
 #define BIT_DMP_INT_EN                  0x02
+#define BIT_ZMOT_EN                     0x20
+#define BIT_MOT_EN                      0x40
+#define BIT_6500_WOM_EN                 0x40
 
 #define REG_DMP_INT_STATUS      0x39
+
 #define REG_INT_STATUS          0x3A
+#define BIT_MOT_INT                     0x40
+#define BIT_ZMOT_INT                    0x20
+
 #define REG_RAW_ACCEL           0x3B
 #define REG_TEMPERATURE         0x41
 #define REG_RAW_GYRO            0x43
 #define REG_EXT_SENS_DATA_00    0x49
+
+#define REG_ACCEL_INTEL_STATUS  0x61
+#define ZRMOT_STATUS                    0x1
+
 #define REG_I2C_SLV1_DO         0x64
 
 #define REG_I2C_MST_DELAY_CTRL  0x67
@@ -499,6 +539,10 @@ struct inv_mpu_slave {
 #define BIT_ACCEL_FCHOCIE_B              0x08
 
 #define REG_6500_LP_ACCEL_ODR   0x1E
+#define REG_6500_ACCEL_WOM_THR  0x1F
+
+#define REG_6500_ACCEL_INTEL_CTRL 0x69
+#define BIT_INTEL_ENABLE                 0x80
 
 /* data definitions */
 #define DMP_START_ADDR           0x400
@@ -525,6 +569,11 @@ struct inv_mpu_slave {
 #define MAX_GYRO_FS_PARAM        3
 #define MAX_ACCL_FS_PARAM        3
 #define MAX_LPA_FREQ_PARAM       3
+
+#define INIT_MOT_DUR             128
+#define INIT_MOT_THR             128
+#define INIT_ZMOT_DUR            128
+#define INIT_ZMOT_THR            128
 
 /*---- MPU6500 ----*/
 #define MAX_6500_LPA_FREQ_PARAM  11
@@ -713,6 +762,14 @@ enum MPU_IIO_ATTR_ADDR {
 	ATTR_COMPASS_ENABLE,
 	ATTR_POWER_STATE,
 	ATTR_FIRMWARE_LOADED,
+	ATTR_ZERO_MOTION_ON,
+	ATTR_ZERO_MOTION_DURATION,
+	ATTR_ZERO_MOTION_THRESHOLD,
+	ATTR_MOTION_ON,
+	ATTR_MOTION_DURATION,
+	ATTR_MOTION_THRESHOLD,
+	ATTR_ACCEL_WOM_ON,
+	ATTR_ACCEL_WOM_THRESHOLD,
 #ifdef CONFIG_INV_TESTING
 	ATTR_I2C_COUNTERS,
 	ATTR_REG_WRITE,
@@ -792,6 +849,9 @@ int inv_hw_self_test(struct inv_mpu_iio_s *st);
 int inv_hw_self_test_6500(struct inv_mpu_iio_s *st);
 void inv_recover_setting(struct inv_mpu_iio_s *st);
 s64 get_time_ns(void);
+int write_be32_key_to_mem(struct inv_mpu_iio_s *st,
+					u32 data, int key);
+int inv_set_accel_bias_dmp(struct inv_mpu_iio_s *st);
 
 #define mem_w(a, b, c) mpu_memory_write(st->sl_handle,\
 			st->i2c_addr, a, b, c)

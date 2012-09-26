@@ -167,6 +167,7 @@
 #define D_PEDSTD_DECI          (768 + 0xA0)
 
 #define D_HOST_NO_MOT          (976)
+#define D_ACCEL_BIAS           (660)
 
 static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_CFG_27,                    CFG_27},
@@ -273,7 +274,8 @@ static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_D_PEDSTD_STEPCTR,   D_PEDSTD_STEPCTR},
 	{KEY_D_PEDSTD_TIMECTR,  D_PEDSTD_TIMECTR},
 	{KEY_D_PEDSTD_DECI,  D_PEDSTD_DECI},
-	{KEY_D_HOST_NO_MOT,  D_HOST_NO_MOT}
+	{KEY_D_HOST_NO_MOT,  D_HOST_NO_MOT},
+	{KEY_D_ACCEL_BIAS,  D_ACCEL_BIAS},
 };
 #define NUM_LOCAL_KEYS (sizeof(dmpTConfig)/sizeof(dmpTConfig[0]))
 
