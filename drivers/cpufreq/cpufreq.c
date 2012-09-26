@@ -49,7 +49,8 @@ static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
-int user_mv_table[MAX_DVFS_FREQS] = { 800, 825, 850, 875, 900, 912, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1212, 1237 };
+static unsigned int user_mv_table[MAX_DVFS_FREQS] = { 775, 800, 825, 850, 875, 900, 950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1175, 1200 };
+static unsigned int freq_table[13] = { 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300 };
 
 /*
  * cpu_policy_rwsem is a per CPU reader-writer semaphore designed to cure
@@ -607,7 +608,7 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 	char *c = buf;
 	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
 
-	i = cpu_clk_g->dvfs->num_freqs;
+	i = cpu_clk_g->dvfs->num_freqs-5;
 	
 	if (i == 0) {
 		pr_info("[franciscofranco] %s - error fetching the number of entries so we break earlier.", __func__);
@@ -615,7 +616,7 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 	}
 	
 	for (i--; i >= 0; i--)
-		c += sprintf(c, "%ld %d\n", cpu_clk_g->dvfs->freqs[i]/1000000, cpu_clk_g->dvfs->millivolts[i]);
+		c += sprintf(c, "%u %d\n", freq_table[i], cpu_clk_g->dvfs->millivolts[i]);
 	
 	return c - buf;
 }
@@ -629,7 +630,7 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	
 	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
 	
-	i = cpu_clk_g->dvfs->num_freqs;
+	i = cpu_clk_g->dvfs->num_freqs-5;
 	
 	if (i == 0) {
 		pr_info("[franciscofranco] %s - error fetching the number of entries, so we break earlier.", __func__);
@@ -637,7 +638,7 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	}
 	
 	for (i--; i >= 0; i--) {
-		if (cpu_clk_g->dvfs->freqs[i]/1000000 != 0) {
+		if (freq_table[i] != 0) {
 			ret = sscanf(buf, "%lu", &cur_volt);
 			if (ret != 1)
 				return -EINVAL;
