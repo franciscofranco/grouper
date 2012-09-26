@@ -82,6 +82,7 @@ static struct cpufreq_interactive_core_lock core_lock;
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static u64 hispeed_freq;
 
+/* CPU will be boosted to this freq - default 1000Mhz - when an input event is detected */ 
 static u64 input_boost_freq = 1000000;
 
 /* Boost frequency by boost_factor when CPU load at or above this value. */
