@@ -632,7 +632,7 @@ static void cap1106_work_function(struct delayed_work *work)
     disable_irq(data->client->irq);
     cap1106_write_reg(data->client, 0x00, 0x80); // Clear INT and Set Gain to MAX
     status = cap1106_read_reg(data->client, 0x03);
-    data->obj_detect = ((status == 0x2) || (status == 0x20));
+    data->obj_detect = ((status == 0x2) || (status == 0x20) || (status == 0x22));
     switch_set_state(&prox_sdev, data->obj_detect);
     value_delta_2 = cap1106_read_reg(prox_data->client, 0x11);
     value_delta_6 = cap1106_read_reg(prox_data->client, 0x15);
