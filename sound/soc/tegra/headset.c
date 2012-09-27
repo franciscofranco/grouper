@@ -618,12 +618,12 @@ static int __init headset_init(void)
 	hs_data->timer.function = detect_event_timer_func;
 
 	printk("HEADSET: Headset detection mode\n");
+	lineout_config_gpio(project_info);
 	btn_config_gpio();/*Config hook detection GPIO*/
 	switch_config_gpio(); /*Config uart and headphone switch*/
 	jack_config_gpio();/*Config jack detection GPIO*/
 	INIT_WORK(&lineout_work, lineout_work_queue);
 	INIT_WORK(&dock_work, dock_work_queue);
-	lineout_config_gpio(project_info);
 	dockin_config_gpio();
 
 	printk(KERN_INFO "%s- #####\n", __func__);
