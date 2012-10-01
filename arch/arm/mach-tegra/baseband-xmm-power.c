@@ -601,7 +601,8 @@ void baseband_xmm_set_power_status(unsigned int status)
 	return;
 
 exit_without_state_change:
-	pr_debug("BB XMM POWER STATE = %d (not changed)\n", status);
+	pr_info("BB XMM POWER STATE = %d (not change to %d)\n",
+			baseband_xmm_powerstate, status);
 	return;
 }
 EXPORT_SYMBOL_GPL(baseband_xmm_set_power_status);
