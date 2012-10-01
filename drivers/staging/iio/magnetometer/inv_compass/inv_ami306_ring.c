@@ -42,77 +42,7 @@
 #include "sysfs.h"
 
 #include "inv_ami306_iio.h"
-enum Compass_cali_File {
-	AMI30X = 0,
-	AMI306,
-	AMICaliMax
-};
 
-#define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
-#define AMI306_CALIBRATION_PATH "/data/sensors/AMI306_Config.ini"
-
-/* function for loading compass calibration file. */
-static int access_cali_file(short *gain, int target)
-{
-	char buf[256];
-	int ret;
-	struct file *fp = NULL;
-	mm_segment_t oldfs;
-	int data[23];
-	int ii;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	memset(buf, 0, sizeof(u8)*256);
-
-	if (target == AMI30X)
-		fp = filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
-	else if (target == AMI306)
-		fp = filp_open(AMI306_CALIBRATION_PATH, O_RDONLY, 0);
-	else
-		goto LoadFileFail;
-
-	if (!IS_ERR(fp)) {
-
-		pr_info("ami306 open calibration file success\n");
-		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
-		pr_info("ami306 calibration content is :\n%s\n", buf);
-		sscanf(buf, "%6d\n%6d %6d %6d\n"
-			"%6d %6d %6d\n%6d %6d %6d\n"
-			"%6d %6d %6d\n%6d %6d %6d\n"
-			"%6d %6d %6d\n%6d %6d %6d\n%6d\n",
-			&data[0],
-			&data[1], &data[2], &data[3],
-			&data[4], &data[5], &data[6],
-			&data[7], &data[8], &data[9],
-			&data[10], &data[11], &data[12],
-			&data[13], &data[14], &data[15],
-			&data[16], &data[17], &data[18],
-			&data[19], &data[20], &data[21],
-			&data[22]);
-
-		if ((data[19] > 150) || (data[19] < 50) ||
-		   (data[20] > 150) || (data[20] < 50) ||
-		   (data[21] > 150) || (data[21] < 50)) {
-			for (ii = 0; ii < 3; ii++)
-				gain[ii] = 100;
-		} else{
-			for (ii = 0; ii < 3; ii++)
-				gain[ii] = data[ii + 19];
-		}
-
-		pr_info("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
-
-		return 0;
-	} else{
-		pr_info("Compass compensation: No target File. (%d)\n", target);
-		set_fs(oldfs);
-		return -1;
-	}
-
-LoadFileFail:
-	return -1;
-}
 static int put_scan_to_buf(struct iio_dev *indio_dev, unsigned char *d,
 				short *s, int scan_index) {
 	struct iio_buffer *ring = indio_dev->buffer;
@@ -140,7 +70,6 @@ int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 	char b;
 	char *tmp;
 	s64 tmp_buf[2];
-	int ii;
 
 	result = i2c_smbus_read_i2c_block_data(st->i2c, REG_AMI_STA1, 1, &b);
 	if (result < 0)
@@ -151,27 +80,6 @@ int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 			pr_err("error reading raw\n");
 			goto end_session;
 		}
-
-		if (!st->data_chk.load_cali) {
-			for (ii = 0; ii < AMICaliMax; ii++) {
-				result =
-				access_cali_file(st->data_chk.gain, ii);
-				if (!result) {
-					st->data_chk.fexist = 0;
-					break;
-				}
-			}
-			st->data_chk.load_cali = true;
-		}
-
-		for (ii = 0; ii < 3; ii++) {
-			st->data_chk.ori[ii] = st->compass_data[ii];
-			st->compass_data[ii] =
-				(short)((int)st->compass_data[ii] *
-				st->data_chk.gain[ii] / 100);
-			st->data_chk.post[ii] = st->compass_data[ii];
-		}
-
 		tmp = (unsigned char *)tmp_buf;
 		d_ind = put_scan_to_buf(indio_dev, tmp, st->compass_data,
 						INV_AMI306_SCAN_MAGN_X);
