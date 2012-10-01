@@ -89,10 +89,10 @@ static struct bma_property bma_static_property = {
 	.mode = BMA250_MODE_SUSPEND
 };
 
-static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, u8 bw)
+static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, unsigned char bw)
 {
 	int res;
-	u8 data;
+	unsigned char data;
 	int bandwidth;
 	switch (bw) {
 	case 0:
@@ -131,10 +131,10 @@ static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, u8 bw)
 	return res;
 }
 
-static int bma250_set_range(struct inv_mpu_iio_s *st, u8 range)
+static int bma250_set_range(struct inv_mpu_iio_s *st, unsigned char range)
 {
 	int res;
-	u8 orig, data;
+	unsigned char orig, data;
 	switch (range) {
 	case 0:
 		data  = BMA250_RANGE_2G;
@@ -167,7 +167,7 @@ static int bma250_set_range(struct inv_mpu_iio_s *st, u8 range)
 static int setup_slave_bma250(struct inv_mpu_iio_s *st)
 {
 	int result;
-	u8 data[2];
+	unsigned char data[2];
 	result = set_3050_bypass(st, true);
 	if (result)
 		return result;
@@ -188,10 +188,10 @@ static int setup_slave_bma250(struct inv_mpu_iio_s *st)
 	return result;
 }
 
-static int bma250_set_mode(struct inv_mpu_iio_s *st, u8 mode)
+static int bma250_set_mode(struct inv_mpu_iio_s *st, unsigned char mode)
 {
 	int res;
-	u8 data;
+	unsigned char data;
 
 	res = inv_secondary_read(BMA250_MODE_CTRL_REG, 1, &data);
 	if (res)
@@ -248,7 +248,7 @@ static int resume_slave_bma250(struct inv_mpu_iio_s *st)
 	return result ? (-EINVAL) : 0;
 }
 
-static int combine_data_slave_bma250(u8 *in, short *out)
+static int combine_data_slave_bma250(unsigned char *in, short *out)
 {
 	out[0] = le16_to_cpup((__le16 *)(&in[0]));
 	out[1] = le16_to_cpup((__le16 *)(&in[2]));
@@ -287,7 +287,7 @@ static int set_lpf_bma250(struct inv_mpu_iio_s *st, int rate)
 	result = set_3050_bypass(st, true);
 	if (result)
 		return result;
-	result = bma250_set_bandwidth(st, (u8) data);
+	result = bma250_set_bandwidth(st, (unsigned char) data);
 	result |= set_3050_bypass(st, false);
 
 	return result ? (-EINVAL) : 0;
@@ -302,7 +302,7 @@ static int set_fs_bma250(struct inv_mpu_iio_s *st, int fs)
 	result = set_3050_bypass(st, true);
 	if (result)
 		return result;
-	result = bma250_set_range(st, (u8) fs);
+	result = bma250_set_range(st, (unsigned char) fs);
 	result |= set_3050_bypass(st, false);
 
 	return result ? (-EINVAL) : 0;

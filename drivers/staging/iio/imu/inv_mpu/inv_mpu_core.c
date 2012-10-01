@@ -19,8 +19,7 @@
  *  @{
  *      @file    inv_mpu_core.c
  *      @brief   A sysfs device driver for Invensense devices
- *      @details This driver currently works for the
- *               MPU3050/MPU6050/MPU9150/MPU6500 devices.
+ *      @details This driver currently works for the MPU3050/MPU6050/MPU9150
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -103,8 +102,8 @@ static void inv_setup_reg(struct inv_reg_map_s *reg)
  *       address could be specified in this case. We could have two different
  *       i2c address due to secondary i2c interface.
  */
-int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
-	u8 reg, u16 length, u8 *data)
+int inv_i2c_read_base(struct inv_mpu_iio_s *st, unsigned short i2c_addr,
+	u8 reg, unsigned short length, u8 *data)
 {
 	struct i2c_msg msgs[2];
 	int res;
@@ -146,7 +145,7 @@ int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
  *       i2c address due to secondary i2c interface.
  */
 int inv_i2c_single_write_base(struct inv_mpu_iio_s *st,
-	u16 i2c_addr, u8 reg, u8 data)
+	unsigned short i2c_addr, u8 reg, u8 data)
 {
 	u8 tmp[2];
 	struct i2c_msg msg;
@@ -276,30 +275,6 @@ static int inv_init_config(struct iio_dev *indio_dev)
 		st->tap.time = INIT_TAP_TIME;
 		st->tap.thresh = INIT_TAP_THRESHOLD;
 		st->tap.min_count = INIT_TAP_MIN_COUNT;
-
-		result = inv_i2c_single_write(st, REG_ACCEL_ZRMOT_DUR,
-						INIT_ZMOT_DUR);
-		if (result)
-			return result;
-		st->mot_int.zrmot_dur = INIT_ZMOT_DUR;
-
-		result = inv_i2c_single_write(st, REG_ACCEL_ZRMOT_THR,
-						INIT_ZMOT_THR);
-		if (result)
-			return result;
-		st->mot_int.zrmot_thr = INIT_ZMOT_THR;
-
-		result = inv_i2c_single_write(st, REG_ACCEL_MOT_DUR,
-						INIT_MOT_DUR);
-		if (result)
-			return result;
-		st->mot_int.mot_dur = INIT_MOT_DUR;
-
-		result = inv_i2c_single_write(st, REG_ACCEL_MOT_THR,
-						INIT_MOT_THR);
-		if (result)
-			return result;
-		st->mot_int.mot_thr = INIT_MOT_THR;
 	}
 
 	return 0;
@@ -411,14 +386,6 @@ static int mpu_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case IIO_CHAN_INFO_OFFSET:
-		switch (chan->type) {
-		case IIO_ACCEL:
-			*val = st->input_accel_bias[chan->channel2 - IIO_MOD_X];
-			return IIO_VAL_INT;
-		default:
-			return -EINVAL;
-		}
 	default:
 		return -EINVAL;
 	}
@@ -503,12 +470,6 @@ static inline int check_enable(struct inv_mpu_iio_s  *st)
 	return st->chip_config.is_asleep | st->chip_config.enable;
 }
 
-static inline int check_dmp_on(struct inv_mpu_iio_s  *st)
-{
-	return (!st->chip_config.is_asleep) &&
-		st->chip_config.enable && st->chip_config.dmp_on;
-}
-
 /**
  *  mpu_write_raw() - write raw method.
  */
@@ -518,7 +479,6 @@ static int mpu_write_raw(struct iio_dev *indio_dev,
 			       int val2,
 			       long mask) {
 	struct inv_mpu_iio_s  *st = iio_priv(indio_dev);
-	int result;
 	if (check_enable(st))
 		return -EPERM;
 	switch (mask) {
@@ -533,24 +493,12 @@ static int mpu_write_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case IIO_CHAN_INFO_OFFSET:
-		switch (chan->type) {
-		case IIO_ACCEL:
-			if (!st->chip_config.firmware_loaded)
-				return -EPERM;
-			result = inv_set_accel_bias_dmp(st);
-			if (result)
-				return result;
-			st->input_accel_bias[chan->channel2 - IIO_MOD_X] = val;
-			return 0;
-		default:
-			return -EINVAL;
-		}
 	default:
 		return -EINVAL;
 	}
 
 	INV_INC_TEMPREAD(1);
+
 	return 0;
 }
 
@@ -595,7 +543,7 @@ static int inv_set_lpf(struct inv_mpu_iio_s *st, int rate)
 static ssize_t inv_fifo_rate_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	u32 fifo_rate;
+	unsigned long fifo_rate;
 	u8 data;
 	int result;
 	struct inv_mpu_iio_s *st = iio_priv(dev_get_drvdata(dev));
@@ -604,7 +552,7 @@ static ssize_t inv_fifo_rate_store(struct device *dev,
 
 	if (check_enable(st))
 		return -EPERM;
-	if (kstrtouint(buf, 10, &fifo_rate))
+	if (kstrtoul(buf, 10, &fifo_rate))
 		return -EINVAL;
 	if ((fifo_rate < MIN_FIFO_RATE) || (fifo_rate > MAX_FIFO_RATE))
 		return -EINVAL;
@@ -648,9 +596,9 @@ static ssize_t inv_power_state_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int result;
-	u32 power_state;
+	unsigned long power_state;
 	struct inv_mpu_iio_s *st = iio_priv(dev_get_drvdata(dev));
-	if (kstrtouint(buf, 10, &power_state))
+	if (kstrtoul(buf, 10, &power_state))
 		return -EINVAL;
 	if ((!power_state) == st->chip_config.is_asleep)
 		return count;
@@ -683,11 +631,11 @@ static ssize_t inv_reg_dump_show(struct device *dev,
 	return bytes_printed;
 }
 
-int write_be32_key_to_mem(struct inv_mpu_iio_s *st,
+static inline int write_be32_key_to_mem(struct inv_mpu_iio_s *st,
 					u32 data, int key)
 {
 	cpu_to_be32s(&data);
-	return mem_w_key(key, sizeof(data), (u8 *)&data);
+	return mem_w_key(key, 4, (u8 *)&data);
 }
 
 /**
@@ -700,11 +648,8 @@ static ssize_t inv_dmp_attr_store(struct device *dev,
 	struct inv_mpu_iio_s *st = iio_priv(dev_get_drvdata(dev));
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int result, data;
-#if FLICK_SUPPORTED /* hide flick, not officially supported */
 	char d[4];
-#endif
-	if (st->chip_config.is_asleep | (!st->chip_config.firmware_loaded) |
-				st->chip_config.enable)
+	if (st->chip_config.is_asleep | (!st->chip_config.firmware_loaded))
 			return -EPERM;
 	result = kstrtoint(buf, 10, &data);
 	if (result)
@@ -883,8 +828,6 @@ static ssize_t inv_attr_show(struct device *dev,
 		return sprintf(buf, "%d\n", st->flick.msg_on);
 #endif /* hide flick, not officially supported */
 	case ATTR_DMP_PEDOMETER_STEPS:
-		if (!check_dmp_on(st))
-			return -EPERM;
 		result = mpu_memory_read(st->sl_handle, st->i2c_addr,
 			inv_dmp_get_address(KEY_D_PEDSTD_STEPCTR), 4, d);
 		if (result)
@@ -892,8 +835,6 @@ static ssize_t inv_attr_show(struct device *dev,
 		data = be32_to_cpup((int *)d);
 		return sprintf(buf, "%d\n", data);
 	case ATTR_DMP_PEDOMETER_TIME:
-		if (!check_dmp_on(st))
-			return -EPERM;
 		result = mpu_memory_read(st->sl_handle, st->i2c_addr,
 			inv_dmp_get_address(KEY_D_PEDSTD_TIMECTR), 4, d);
 		if (result)
@@ -989,23 +930,9 @@ static ssize_t inv_attr_show(struct device *dev,
 		return sprintf(buf, "%d\n", !st->chip_config.is_asleep);
 	case ATTR_FIRMWARE_LOADED:
 		return sprintf(buf, "%d\n", st->chip_config.firmware_loaded);
-	case ATTR_ZERO_MOTION_ON:
-		return sprintf(buf, "%d\n", st->mot_int.zrmot_on);
-	case ATTR_ZERO_MOTION_DURATION:
-		return sprintf(buf, "%d\n", st->mot_int.zrmot_dur);
-	case ATTR_ZERO_MOTION_THRESHOLD:
-		return sprintf(buf, "%d\n", st->mot_int.zrmot_thr);
-	case ATTR_MOTION_ON:
-	case ATTR_ACCEL_WOM_ON:
-		return sprintf(buf, "%d\n", st->mot_int.mot_on);
-	case ATTR_MOTION_DURATION:
-		return sprintf(buf, "%d\n", st->mot_int.mot_dur);
-	case ATTR_MOTION_THRESHOLD:
-	case ATTR_ACCEL_WOM_THRESHOLD:
-		return sprintf(buf, "%d\n", st->mot_int.mot_thr);
 #ifdef CONFIG_INV_TESTING
 	case ATTR_I2C_COUNTERS:
-		return scnprintf(buf, PAGE_SIZE, "%ld.%ld %d %d\n",
+		return scnprintf(buf, PAGE_SIZE, "%ld.%ld %ld %ld\n",
 			jiffies / HZ, jiffies % HZ, st->i2c_readcount,
 			st->i2c_writecount);
 	case ATTR_REG_WRITE:
@@ -1048,26 +975,6 @@ static ssize_t inv_dmp_display_orient_show(struct device *dev,
 {
 	struct inv_mpu_iio_s *st = iio_priv(dev_get_drvdata(dev));
 	return sprintf(buf, "%d\n", st->display_orient_data);
-}
-
-/**
- * inv_accel_no_motion_show() -  calling this function shows no motion
- *                               interrupt. This event must use poll.
- */
-static ssize_t inv_accel_no_motion_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct inv_mpu_iio_s *st = iio_priv(dev_get_drvdata(dev));
-	return sprintf(buf, "%d\n", st->mot_int.zrmot_status);
-}
-/**
- * inv_accel_motion_show() -  calling this function showes motion interrupt.
- *                         This event must use poll.
- */
-static ssize_t inv_accel_motion_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "1\n");
 }
 
 /**
@@ -1138,7 +1045,7 @@ static int inv_firmware_loaded(struct inv_mpu_iio_s *st, int data)
 static int inv_quaternion_on(struct inv_mpu_iio_s *st,
 				 struct iio_buffer *ring, bool en)
 {
-	u32 result;
+	unsigned int result;
 	result = inv_send_quaternion(st, en);
 	if (result)
 		return result;
@@ -1158,7 +1065,7 @@ static int inv_quaternion_on(struct inv_mpu_iio_s *st,
  */
 static int inv_lpa_mode(struct inv_mpu_iio_s *st, int lpa_mode)
 {
-	u32 result;
+	unsigned long result;
 	u8 d;
 	struct inv_reg_map_s *reg;
 
@@ -1190,7 +1097,7 @@ static int inv_lpa_mode(struct inv_mpu_iio_s *st, int lpa_mode)
  */
 static int inv_lpa_freq(struct inv_mpu_iio_s *st, int lpa_freq)
 {
-	u32 result;
+	unsigned long result;
 	u8 d;
 	struct inv_reg_map_s *reg;
 
@@ -1334,7 +1241,6 @@ static ssize_t inv_attr_store(struct device *dev,
 	struct iio_buffer *ring = indio_dev->buffer;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int data;
-	u8  d;
 	int result;
 	if (check_enable(st))
 		return -EPERM;
@@ -1366,43 +1272,6 @@ static ssize_t inv_attr_store(struct device *dev,
 	case ATTR_FIRMWARE_LOADED:
 		result = inv_firmware_loaded(st, data);
 		break;
-	case ATTR_ZERO_MOTION_ON:
-		st->mot_int.zrmot_on = !!data;
-		break;
-	case ATTR_ZERO_MOTION_DURATION:
-		result = inv_i2c_single_write(st, REG_ACCEL_ZRMOT_DUR, data);
-		if (!result)
-			st->mot_int.zrmot_dur = data;
-		break;
-	case ATTR_ZERO_MOTION_THRESHOLD:
-		result = inv_i2c_single_write(st, REG_ACCEL_ZRMOT_THR, data);
-		if (!result)
-			st->mot_int.zrmot_thr = data;
-		break;
-	case ATTR_MOTION_ON:
-		st->mot_int.mot_on = !!data;
-		break;
-	case ATTR_ACCEL_WOM_ON:
-		if (data)
-			d = BIT_INTEL_ENABLE;
-		else
-			d = 0;
-		result = inv_i2c_single_write(st, REG_6500_ACCEL_INTEL_CTRL,
-						d);
-		if (!result)
-			st->mot_int.mot_on = !!data;
-		break;
-	case ATTR_MOTION_DURATION:
-		result = inv_i2c_single_write(st, REG_ACCEL_MOT_DUR, data);
-		if (!result)
-			st->mot_int.mot_dur = data;
-		break;
-	case ATTR_MOTION_THRESHOLD:
-	case ATTR_ACCEL_WOM_THRESHOLD:
-		result = inv_i2c_single_write(st, REG_ACCEL_MOT_THR, data);
-		if (!result)
-			st->mot_int.mot_thr = data;
-		break;
 	default:
 		return -EINVAL;
 	};
@@ -1423,7 +1292,7 @@ static ssize_t inv_reg_write_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
-	u32 result;
+	unsigned int result;
 	u8 wreg, wval;
 	int temp;
 	char local_buf[10];
@@ -1465,18 +1334,6 @@ static ssize_t inv_reg_write_store(struct device *dev,
 		.scan_type  = IIO_ST('s', 16, 16, 0)                  \
 	}
 
-#define INV_ACCL_CHAN(_type, _channel2, _index)                \
-	{                                                         \
-		.type = _type,                                        \
-		.modified = 1,                                        \
-		.channel2 = _channel2,                                \
-		.info_mask =  (IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT | \
-				IIO_CHAN_INFO_SCALE_SHARED_BIT |     \
-				IIO_CHAN_INFO_OFFSET_SEPARATE_BIT),  \
-		.scan_index = _index,                                 \
-		.scan_type  = IIO_ST('s', 16, 16, 0)                  \
-	}
-
 #define INV_MPU_QUATERNION_CHAN(_channel2, _index)            \
 	{                                                         \
 		.type = IIO_QUATERNION,                               \
@@ -1503,9 +1360,9 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	INV_MPU_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU_SCAN_GYRO_Y),
 	INV_MPU_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU_SCAN_GYRO_Z),
 
-	INV_ACCL_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU_SCAN_ACCL_X),
-	INV_ACCL_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU_SCAN_ACCL_Y),
-	INV_ACCL_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU_SCAN_ACCL_Z),
+	INV_MPU_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU_SCAN_ACCL_X),
+	INV_MPU_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU_SCAN_ACCL_Y),
+	INV_MPU_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU_SCAN_ACCL_Z),
 
 	INV_MPU_QUATERNION_CHAN(IIO_MOD_R, INV_MPU_SCAN_QUAT_R),
 	INV_MPU_QUATERNION_CHAN(IIO_MOD_X, INV_MPU_SCAN_QUAT_X),
@@ -1532,22 +1389,6 @@ static IIO_DEVICE_ATTR(lpa_mode, S_IRUGO | S_IWUSR, inv_attr_show,
 	inv_attr_store, ATTR_LPA_MODE);
 static IIO_DEVICE_ATTR(lpa_freq, S_IRUGO | S_IWUSR, inv_attr_show,
 	inv_attr_store, ATTR_LPA_FREQ);
-static IIO_DEVICE_ATTR(zero_motion_on, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_ZERO_MOTION_ON);
-static IIO_DEVICE_ATTR(zero_motion_dur, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_ZERO_MOTION_DURATION);
-static IIO_DEVICE_ATTR(zero_motion_threshold, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_ZERO_MOTION_THRESHOLD);
-static IIO_DEVICE_ATTR(motion_on, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_MOTION_ON);
-static IIO_DEVICE_ATTR(motion_dur, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_MOTION_DURATION);
-static IIO_DEVICE_ATTR(motion_threshold, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_MOTION_THRESHOLD);
-static IIO_DEVICE_ATTR(accel_wom_on, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_ACCEL_WOM_ON);
-static IIO_DEVICE_ATTR(accel_wom_threshold, S_IRUGO | S_IWUSR, inv_attr_show,
-	inv_attr_store, ATTR_ACCEL_WOM_THRESHOLD);
 static DEVICE_ATTR(reg_dump, S_IRUGO, inv_reg_dump_show, NULL);
 static IIO_DEVICE_ATTR(self_test, S_IRUGO, inv_attr_show, NULL,
 	ATTR_SELF_TEST);
@@ -1605,10 +1446,6 @@ static DEVICE_ATTR(event_orientation, S_IRUGO, inv_dmp_orient_show, NULL);
 static DEVICE_ATTR(event_tap, S_IRUGO, inv_dmp_tap_show, NULL);
 static DEVICE_ATTR(event_display_orientation, S_IRUGO,
 	inv_dmp_display_orient_show, NULL);
-static DEVICE_ATTR(event_accel_motion, S_IRUGO, inv_accel_motion_show, NULL);
-static DEVICE_ATTR(event_accel_no_motion, S_IRUGO, inv_accel_no_motion_show,
-			NULL);
-static DEVICE_ATTR(event_accel_wom, S_IRUGO, inv_accel_motion_show, NULL);
 static IIO_DEVICE_ATTR(gyro_enable, S_IRUGO | S_IWUSR, inv_attr_show,
 	inv_attr_store, ATTR_GYRO_ENABLE);
 static IIO_DEVICE_ATTR(accl_enable, S_IRUGO | S_IWUSR, inv_attr_show,
@@ -1674,23 +1511,6 @@ static const struct attribute *inv_mpu6050_attributes[] = {
 	&dev_attr_event_tap.attr,
 };
 
-static const struct attribute *inv_mpu6050_motion_attributes[] = {
-	&iio_dev_attr_zero_motion_on.dev_attr.attr,
-	&iio_dev_attr_zero_motion_dur.dev_attr.attr,
-	&iio_dev_attr_zero_motion_threshold.dev_attr.attr,
-	&iio_dev_attr_motion_on.dev_attr.attr,
-	&iio_dev_attr_motion_dur.dev_attr.attr,
-	&iio_dev_attr_motion_threshold.dev_attr.attr,
-	&dev_attr_event_accel_motion.attr,
-	&dev_attr_event_accel_no_motion.attr,
-};
-
-static const struct attribute *inv_mpu6500_motion_attributes[] = {
-	&iio_dev_attr_accel_wom_on.dev_attr.attr,
-	&iio_dev_attr_accel_wom_threshold.dev_attr.attr,
-	&dev_attr_event_accel_wom.attr,
-};
-
 static const struct attribute *inv_compass_attributes[] = {
 	&iio_dev_attr_compass_matrix.dev_attr.attr,
 	&iio_dev_attr_compass_enable.dev_attr.attr,
@@ -1703,7 +1523,6 @@ static const struct attribute *inv_mpu3050_attributes[] = {
 
 static struct attribute *inv_attributes[ARRAY_SIZE(inv_gyro_attributes) +
 				ARRAY_SIZE(inv_mpu6050_attributes) +
-				ARRAY_SIZE(inv_mpu6050_motion_attributes) +
 				ARRAY_SIZE(inv_compass_attributes) + 1];
 
 static const struct attribute_group inv_attribute_group = {
@@ -1969,18 +1788,6 @@ static int inv_check_chip_type(struct inv_mpu_iio_s *st,
 		t_ind += ARRAY_SIZE(inv_mpu6050_attributes);
 	}
 
-	if ((INV_MPU6050 == st->chip_type) || (INV_MPU9150 == st->chip_type)) {
-		memcpy(&inv_attributes[t_ind], inv_mpu6050_motion_attributes,
-		       sizeof(inv_mpu6050_motion_attributes));
-		t_ind += ARRAY_SIZE(inv_mpu6050_motion_attributes);
-	}
-
-	if (INV_MPU6500 == st->chip_type) {
-		memcpy(&inv_attributes[t_ind], inv_mpu6500_motion_attributes,
-		       sizeof(inv_mpu6500_motion_attributes));
-		t_ind += ARRAY_SIZE(inv_mpu6500_motion_attributes);
-	}
-
 	if (st->chip_config.has_compass) {
 		memcpy(&inv_attributes[t_ind], inv_compass_attributes,
 		       sizeof(inv_compass_attributes));
@@ -2170,7 +1977,7 @@ static const struct dev_pm_ops inv_mpu_pmops = {
 #define INV_MPU_PMOPS NULL
 #endif /* CONFIG_PM */
 
-static const u16 normal_i2c[] = { I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 /* device id table is used to identify what device can be
  * supported by this driver
  */

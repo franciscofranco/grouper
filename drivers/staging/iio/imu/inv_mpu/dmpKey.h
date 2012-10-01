@@ -253,9 +253,52 @@
 
 /*Host Based No Motion*/
 #define KEY_D_HOST_NO_MOT           (KEY_D_PEDSTD_DECI + 1)
-#define KEY_D_ACCEL_BIAS            (KEY_D_HOST_NO_MOT + 1)
 
-#define NUM_KEYS                    (KEY_D_ACCEL_BIAS + 1)
+/* EIS keys */
+#define KEY_P_EIS_FIFO_FOOTER       (KEY_D_HOST_NO_MOT + 1)
+#define KEY_P_EIS_FIFO_YSHIFT       (KEY_P_EIS_FIFO_FOOTER + 1)
+#define KEY_P_EIS_DATA_RATE         (KEY_P_EIS_FIFO_YSHIFT + 1)
+#define KEY_P_EIS_FIFO_XSHIFT       (KEY_P_EIS_DATA_RATE + 1)
+#define KEY_P_EIS_FIFO_SYNC         (KEY_P_EIS_FIFO_XSHIFT + 1)
+#define KEY_P_EIS_FIFO_ZSHIFT       (KEY_P_EIS_FIFO_SYNC + 1)
+#define KEY_P_EIS_FIFO_READY        (KEY_P_EIS_FIFO_ZSHIFT + 1)
+#define KEY_DMP_FOOTER              (KEY_P_EIS_FIFO_READY + 1)
+#define KEY_DMP_INTX_HC             (KEY_DMP_FOOTER + 1)
+#define KEY_DMP_INTX_PH             (KEY_DMP_INTX_HC + 1)
+#define KEY_DMP_INTX_SH             (KEY_DMP_INTX_PH + 1)
+#define KEY_DMP_AINV_SH             (KEY_DMP_INTX_SH + 1)
+#define KEY_DMP_A_INV_XH            (KEY_DMP_AINV_SH + 1)
+#define KEY_DMP_AINV_PH             (KEY_DMP_A_INV_XH + 1)
+#define KEY_DMP_CTHX_H              (KEY_DMP_AINV_PH + 1)
+#define KEY_DMP_CTHY_H              (KEY_DMP_CTHX_H + 1)
+#define KEY_DMP_CTHZ_H              (KEY_DMP_CTHY_H + 1)
+#define KEY_DMP_NCTHX_H             (KEY_DMP_CTHZ_H + 1)
+#define KEY_DMP_NCTHY_H             (KEY_DMP_NCTHX_H + 1)
+#define KEY_DMP_NCTHZ_H             (KEY_DMP_NCTHY_H + 1)
+#define KEY_DMP_CTSQ_XH             (KEY_DMP_NCTHZ_H + 1)
+#define KEY_DMP_CTSQ_YH             (KEY_DMP_CTSQ_XH + 1)
+#define KEY_DMP_CTSQ_ZH             (KEY_DMP_CTSQ_YH + 1)
+#define KEY_DMP_INTX_H              (KEY_DMP_CTSQ_ZH + 1)
+#define KEY_DMP_INTY_H              (KEY_DMP_INTX_H + 1)
+#define KEY_DMP_INTZ_H              (KEY_DMP_INTY_H + 1)
+#define KEY_DMP_HPX_H               (KEY_DMP_INTZ_H + 1)
+#define KEY_DMP_HPY_H               (KEY_DMP_HPX_H + 1)
+#define KEY_DMP_HPZ_H               (KEY_DMP_HPY_H + 1)
+
+/* Stream keys */
+#define KEY_STREAM_P_GYRO_Z         (KEY_DMP_HPZ_H + 1)
+#define KEY_STREAM_P_GYRO_Y         (KEY_STREAM_P_GYRO_Z + 1)
+#define KEY_STREAM_P_GYRO_X         (KEY_STREAM_P_GYRO_Y + 1)
+#define KEY_STREAM_P_TEMP           (KEY_STREAM_P_GYRO_X + 1)
+#define KEY_STREAM_P_AUX_Y          (KEY_STREAM_P_TEMP + 1)
+#define KEY_STREAM_P_AUX_X          (KEY_STREAM_P_AUX_Y + 1)
+#define KEY_STREAM_P_AUX_Z          (KEY_STREAM_P_AUX_X + 1)
+#define KEY_STREAM_P_ACCEL_Y        (KEY_STREAM_P_AUX_Z + 1)
+#define KEY_STREAM_P_ACCEL_X        (KEY_STREAM_P_ACCEL_Y + 1)
+#define KEY_STREAM_P_FOOTER         (KEY_STREAM_P_ACCEL_X + 1)
+#define KEY_STREAM_P_ACCEL_Z        (KEY_STREAM_P_FOOTER + 1)
+
+#define NUM_KEYS                    (KEY_STREAM_P_ACCEL_Z + 1)
 
 struct tKeyLabel  {
 	unsigned short key;

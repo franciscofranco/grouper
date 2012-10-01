@@ -450,7 +450,7 @@ int yas53x_resume(struct inv_compass_state *st)
 
 static int inv_check_range(struct inv_compass_state *st, s16 x, s16 y1, s16 y2)
 {
-	int result = 0;
+	int result;
 
 	if (x == 0)
 		result |= 0x01;
@@ -525,7 +525,6 @@ static int yas53x_read_raw(struct iio_dev *indio_dev,
 			*val = st->compass_data[chan->channel2 - IIO_MOD_X];
 			return IIO_VAL_INT;
 		}
-
 		return -EINVAL;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_MAGN) {
@@ -661,10 +660,10 @@ static void yas53x_work_func(struct work_struct *work)
 		container_of((struct delayed_work *)work,
 			struct inv_compass_state, work);
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
-	u32 delay = msecs_to_jiffies(st->delay);
+	unsigned long delay = msecs_to_jiffies(st->delay);
 
-	schedule_delayed_work(&st->work, delay);
 	inv_read_yas53x_fifo(indio_dev);
+	schedule_delayed_work(&st->work, delay);
 	INV_I2C_INC_COMPASSIRQ();
 }
 

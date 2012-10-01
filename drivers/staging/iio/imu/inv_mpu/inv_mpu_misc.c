@@ -40,10 +40,9 @@
 #include <linux/crc32.h>
 
 #include "inv_mpu_iio.h"
-
 /* DMP defines */
-#define DMP_ORIENTATION_TIME            500
-#define DMP_ORIENTATION_ANGLE           60
+#define DMP_ORIENTATION_TIME		500
+#define DMP_ORIENTATION_ANGLE		60
 #define DMP_DEFAULT_FIFO_RATE           200
 #define DMP_TAP_SCALE                   (767603923 / 5)
 #define DMP_MULTI_SHIFT                 30
@@ -55,54 +54,54 @@
 #define DMP_PRECISION                   1000
 #define DMP_MAX_DIVIDER                 4
 #define DMP_MAX_MIN_TAPS                4
-#define DMP_IMAGE_CRC_VALUE             0xd37d4599
+#define DMP_IMAGE_CRC_VALUE             0x6590dad6
 #define DMP_IMAGE_SIZE                  3065
 
 /*--- Test parameters defaults --- */
-#define DEF_OLDEST_SUPP_PROD_REV        8
-#define DEF_OLDEST_SUPP_SW_REV          2
+#define DEF_OLDEST_SUPP_PROD_REV    8
+#define DEF_OLDEST_SUPP_SW_REV      2
 
 /* sample rate */
-#define DEF_SELFTEST_SAMPLE_RATE        0
+#define DEF_SELFTEST_SAMPLE_RATE             0
 /* LPF parameter */
-#define DEF_SELFTEST_LPF_PARA           1
+#define DEF_SELFTEST_LPF_PARA                1
 /* full scale setting dps */
-#define DEF_SELFTEST_GYRO_FULL_SCALE    (0 << 3)
-#define DEF_SELFTEST_ACCL_FULL_SCALE    (2 << 3)
-#define DEF_SELFTEST_GYRO_SENS          (32768 / 250)
+#define DEF_SELFTEST_GYRO_FULL_SCALE         (0 << 3)
+#define DEF_SELFTEST_ACCL_FULL_SCALE         (2 << 3)
+#define DEF_SELFTEST_GYRO_SENS            (32768 / 250)
 /* wait time before collecting data */
-#define DEF_GYRO_WAIT_TIME              50
-#define DEF_ST_STABLE_TIME              200
-#define DEF_GYRO_PACKET_THRESH          DEF_GYRO_WAIT_TIME
-#define DEF_GYRO_THRESH                 10
-#define DEF_GYRO_SCALE                  131
-#define DEF_ST_PRECISION                1000
-#define DEF_ST_ACCL_FULL_SCALE          8000UL
-#define DEF_ST_SCALE                    (1L << 15)
-#define DEF_ST_TRY_TIMES                2
-#define DEF_ST_COMPASS_RESULT_SHIFT     2
-#define DEF_ST_ACCEL_RESULT_SHIFT       1
+#define DEF_GYRO_WAIT_TIME          50
+#define DEF_ST_STABLE_TIME          200
+#define DEF_GYRO_PACKET_THRESH      DEF_GYRO_WAIT_TIME
+#define DEF_GYRO_THRESH             10
+#define DEF_GYRO_SCALE              131
+#define DEF_ST_PRECISION            1000
+#define DEF_ST_ACCL_FULL_SCALE      8000UL
+#define DEF_ST_SCALE                (1L << 15)
+#define DEF_ST_TRY_TIMES            2
+#define DEF_ST_COMPASS_RESULT_SHIFT 2
+#define DEF_ST_ACCEL_RESULT_SHIFT   1
 
-#define DEF_ST_COMPASS_WAIT_MIN         (10 * 1000)
-#define DEF_ST_COMPASS_WAIT_MAX         (15 * 1000)
-#define DEF_ST_COMPASS_TRY_TIMES        10
-#define DEF_ST_COMPASS_8963_SHIFT       2
+#define DEF_ST_COMPASS_WAIT_MIN     (10 * 1000)
+#define DEF_ST_COMPASS_WAIT_MAX     (15 * 1000)
+#define DEF_ST_COMPASS_TRY_TIMES    10
+#define DEF_ST_COMPASS_8963_SHIFT   2
 
-#define X                               0
-#define Y                               1
-#define Z                               2
+#define X                           0
+#define Y                           1
+#define Z                           2
 /*---- MPU6050 notable product revisions ----*/
-#define MPU_PRODUCT_KEY_B1_E1_5         105
-#define MPU_PRODUCT_KEY_B2_F1           431
+#define MPU_PRODUCT_KEY_B1_E1_5      105
+#define MPU_PRODUCT_KEY_B2_F1        431
 /* accelerometer Hw self test min and max bias shift (mg) */
-#define DEF_ACCEL_ST_SHIFT_MIN          300
-#define DEF_ACCEL_ST_SHIFT_MAX          950
+#define DEF_ACCEL_ST_SHIFT_MIN       300
+#define DEF_ACCEL_ST_SHIFT_MAX       950
 
-#define DEF_ACCEL_ST_SHIFT_DELTA        140
-#define DEF_GYRO_CT_SHIFT_DELTA         140
+#define DEF_ACCEL_ST_SHIFT_DELTA     140
+#define DEF_GYRO_CT_SHIFT_DELTA      140
 /* gyroscope Coriolis self test min and max bias shift (dps) */
-#define DEF_GYRO_CT_SHIFT_MIN           10
-#define DEF_GYRO_CT_SHIFT_MAX           105
+#define DEF_GYRO_CT_SHIFT_MIN        10
+#define DEF_GYRO_CT_SHIFT_MAX        105
 
 static struct test_setup_t test_setup = {
 	.gyro_sens     = DEF_SELFTEST_GYRO_SENS,
@@ -371,7 +370,7 @@ int inv_get_silicon_rev_mpu6500(struct inv_mpu_iio_s *st)
 	chip_info->accl_sens_trim = DEFAULT_ACCL_TRIM;
 	chip_info->multi = 1;
 
-	return 0;
+	return result;
 }
 
 int inv_get_silicon_rev_mpu6050(struct inv_mpu_iio_s *st)
@@ -1294,7 +1293,7 @@ int inv_q30_mult(int a, int b)
 	return result;
 }
 
-static u16 inv_row_2_scale(const s8 *row)
+static u16 inv_row_2_scale(const signed char *row)
 {
 	u16 b;
 
@@ -1425,69 +1424,23 @@ static int inv_accel_dmp_cal(struct inv_mpu_iio_s *st)
 	return result;
 }
 
-static u16 inv_orientation_matrix_to_scalar(const s8 *mtx)
-{
-
-	u16 scalar;
-
-	/*
-       XYZ  010_001_000 Identity Matrix
-       XZY  001_010_000
-       YXZ  010_000_001
-       YZX  000_010_001
-       ZXY  001_000_010
-       ZYX  000_001_010
-	*/
-
-	scalar = inv_row_2_scale(mtx);
-	scalar |= inv_row_2_scale(mtx + 3) << 3;
-	scalar |= inv_row_2_scale(mtx + 6) << 6;
-
-	return scalar;
-}
-
-int inv_set_accel_bias_dmp(struct inv_mpu_iio_s *st)
-{
-	int inv_accel_orient, result, i, accel_bias_body[3], out[3];
-	int tmp[] = {1, 1, 1};
-	int mask[] = {4, 0x20, 0x100};
-	int accel_sf = 0x20000000;/* 536870912 */
-	u8 *regs;
-
-	inv_accel_orient =
-		inv_orientation_matrix_to_scalar(st->plat_data.orientation);
-
-	for (i = 0; i < 3; i++)
-		if (inv_accel_orient & mask[i])
-			tmp[i] = -1;
-
-	for (i = 0; i < 3; i++)
-		accel_bias_body[i] = st->input_accel_bias[(inv_accel_orient >>
-					(i * 3)) & 3] * tmp[i];
-	for (i = 0; i < 3; i++)
-		accel_bias_body[i] = inv_q30_mult(accel_sf,
-					accel_bias_body[i]);
-	for (i = 0; i < 3; i++)
-		out[i] = cpu_to_be32p(&accel_bias_body[i]);
-	regs = (u8 *)out;
-	result = mem_w_key(KEY_D_ACCEL_BIAS, sizeof(out), regs);
-
-	return result;
-}
-
 static int inv_set_gyro_sf_dmp(struct inv_mpu_iio_s *st)
 {
 	/*The gyro threshold, in dps, above which taps will be rejected*/
-	int result;
+	int result, out;
 	/* DMP Algorithm */
 	u8 sampleDivider;
+	u8 *regs;
 	u32 gyro_sf;
 	const u32 gyro_sens = 0x03e80000;
 
 	sampleDivider = st->sample_divider;
 	gyro_sf = inv_q30_mult(gyro_sens,
 			(int)(DMP_TAP_SCALE * (sampleDivider + 1)));
-	result = write_be32_key_to_mem(st, gyro_sf, KEY_D_0_104);
+
+	out = cpu_to_be32p(&gyro_sf);
+	regs = (u8 *)&out;
+	result = mem_w_key(KEY_D_0_104, sizeof(out), regs);
 
 	return result;
 }
@@ -1496,10 +1449,11 @@ static int inv_set_shake_reject_thresh_dmp(struct inv_mpu_iio_s *st,
 						int thresh)
 {	/*THIS FUNCTION FAILS MEM_W*/
 	/*The gyro threshold, in dps, above which taps will be rejected */
-	int result;
+	int result, out;
 	/* DMP Algorithm */
 	u8 sampleDivider;
 	int thresh_scaled;
+	u8 *regs;
 	u32 gyro_sf;
 	const u32 gyro_sens = 0x03e80000;
 	sampleDivider = st->sample_divider;
@@ -1510,8 +1464,10 @@ static int inv_set_shake_reject_thresh_dmp(struct inv_mpu_iio_s *st,
 	thresh_scaled = gyro_sens / (1L << 16);
 	thresh_scaled = thresh_scaled / thresh;
 	thresh_scaled = gyro_sf / thresh_scaled;
-	result = write_be32_key_to_mem(st, thresh_scaled, KEY_D_1_92);
+	out = cpu_to_be32p(&thresh_scaled);
+	regs = (u8 *)&out;
 
+	result = mem_w_key(KEY_D_1_92, sizeof(out), regs);
 	return result;
 }
 
@@ -1670,7 +1626,9 @@ static int inv_set_orientation_thresh_dmp(struct inv_mpu_iio_s *st,
 {
 	/*Set an angle threshold in the DMP determining
 		when orientations change*/
+	u8 *regs;
 	u8 result;
+	u32 out;
 	u32 d;
 	const u32 threshold[] = {138952416, 268435455, 379625062,
 					  464943848, 518577479, 536870912};
@@ -1681,8 +1639,10 @@ static int inv_set_orientation_thresh_dmp(struct inv_mpu_iio_s *st,
 	d -= 1;
 	if (d >= ARRAY_SIZE(threshold))
 		return -EPERM;
-	result = write_be32_key_to_mem(st, threshold[d], KEY_D_1_232);
+	out = cpu_to_be32p(&threshold[d]);
+	regs = (u8 *)&out;
 
+	result = mem_w_key(KEY_D_1_232, sizeof(out), regs);
 	return result;
 }
 
@@ -1799,9 +1759,8 @@ ssize_t inv_dmp_firmware_write(struct file *fp, struct kobject *kobj,
 	memcpy(firmware, buf, size);
 	result = crc32(CRC_FIRMWARE_SEED, firmware, size);
 	if (DMP_IMAGE_CRC_VALUE != result) {
-		pr_err("firmware CRC error - 0x%08x vs 0x%08x\n",
-			result, DMP_IMAGE_CRC_VALUE);
 		result = -EINVAL;
+		pr_err("firmware CRC error\n");
 		goto firmware_write_fail;
 	}
 
