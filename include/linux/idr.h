@@ -1,6 +1,6 @@
 /*
  * include/linux/idr.h
- *
+ * 
  * 2002-10-18  written by Jim Houston jim.houston@ccur.com
  *	Copyright (C) 2002 by Concurrent Computer Corporation
  *	Distributed under the GNU GPL license version 2.
@@ -145,8 +145,9 @@ int ida_get_new(struct ida *ida, int *p_id);
 void ida_remove(struct ida *ida, int id);
 void ida_destroy(struct ida *ida);
 void ida_init(struct ida *ida);
-int ida_simple_get(struct ida *ida, unsigned int start,
-	unsigned int end, gfp_t gfp_mask);
+
+int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+		   gfp_t gfp_mask);
 void ida_simple_remove(struct ida *ida, unsigned int id);
 
 void __init idr_init_cache(void);

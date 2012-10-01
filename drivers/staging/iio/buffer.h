@@ -166,13 +166,12 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 ssize_t iio_buffer_show_enable(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf);
-
-#define IIO_BUFFER_LENGTH_ATTR DEVICE_ATTR(length, S_IRUGO | S_IWUGO, \
-					   iio_buffer_read_length, \
+#define IIO_BUFFER_LENGTH_ATTR DEVICE_ATTR(length, S_IRUGO | S_IWUSR,	\
+					   iio_buffer_read_length,	\
 					   iio_buffer_write_length)
 
-#define IIO_BUFFER_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUGO, \
-					   iio_buffer_show_enable, \
+#define IIO_BUFFER_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,	\
+					   iio_buffer_show_enable,	\
 					   iio_buffer_store_enable)
 
 int iio_sw_buffer_preenable(struct iio_dev *indio_dev);

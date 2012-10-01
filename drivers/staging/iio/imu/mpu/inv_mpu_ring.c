@@ -17,12 +17,10 @@
  *  @brief       Hardware drivers.
  *
  *  @{
- *      @file    inv_mpu_ring.c
+ *      @file    inv_gyro_misc.c
  *      @brief   A sysfs device driver for Invensense gyroscopes.
- *      @details This file is part of inv mpu iio driver code
+ *      @details This file is part of inv_gyro driver code
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -37,40 +35,11 @@
 #include <linux/kfifo.h>
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
-
-#include "iio.h"
-#include "kfifo_buf.h"
-#include "trigger_consumer.h"
-#include "sysfs.h"
-
 #include "inv_mpu_iio.h"
-
-static void inv_scan_query(struct iio_dev *indio_dev)
-{
-	struct inv_mpu_iio_s  *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-
-	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Z))
-		st->chip_config.gyro_fifo_enable = 1;
-	else
-		st->chip_config.gyro_fifo_enable = 0;
-
-	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Z))
-		st->chip_config.accl_fifo_enable = 1;
-	else
-		st->chip_config.accl_fifo_enable = 0;
-
-	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_X) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Y) ||
-	    iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Z))
-		st->chip_config.compass_fifo_enable = 1;
-	else
-		st->chip_config.compass_fifo_enable = 0;
-}
+#include "../../iio.h"
+#include "../../kfifo_buf.h"
+#include "../../trigger_consumer.h"
+#include "../../sysfs.h"
 
 /**
  *  reset_fifo_mpu3050() - Reset FIFO related registers
@@ -81,13 +50,26 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	struct inv_reg_map_s *reg;
 	int result;
 	unsigned char val, user_ctrl;
-	struct inv_mpu_iio_s  *st = iio_priv(indio_dev);
-	reg = &st->reg;
+	struct inv_gyro_state_s  *st = iio_priv(indio_dev);
+	struct iio_buffer *ring = indio_dev->buffer;
 
-	inv_scan_query(indio_dev);
+	reg = &st->reg;
+	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_X) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Z))
+		st->chip_config.gyro_fifo_enable = 1;
+	else
+		st->chip_config.gyro_fifo_enable = 0;
+
+	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_X) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Z))
+		st->chip_config.accl_fifo_enable = 1;
+	else
+		st->chip_config.accl_fifo_enable = 0;
+
 	/* disable interrupt */
-	result = inv_i2c_single_write(st, reg->int_enable,
-				st->plat_data.int_config);
+	result = inv_i2c_single_write(st, reg->int_enable, 0);
 	if (result)
 		return result;
 	/* disable the sensor output to FIFO */
@@ -105,11 +87,11 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	result = inv_i2c_single_write(st, reg->user_ctrl, val);
 	if (result)
 		goto reset_fifo_fail;
-	st->last_isr_time = get_time_ns();
+	st->last_isr_time = iio_get_time_ns();
 	if (st->chip_config.dmp_on) {
 		/* enable interrupt when DMP is done */
 		result = inv_i2c_single_write(st, reg->int_enable,
-				st->plat_data.int_config | BIT_DMP_INT_EN);
+					BIT_DMP_INT_EN);
 		if (result)
 			return result;
 
@@ -120,9 +102,9 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	} else {
 		/* enable interrupt */
 		if (st->chip_config.accl_fifo_enable ||
-		    st->chip_config.gyro_fifo_enable) {
+			st->chip_config.gyro_fifo_enable){
 			result = inv_i2c_single_write(st, reg->int_enable,
-				st->plat_data.int_config | BIT_DATA_RDY_EN);
+							BIT_DATA_RDY_EN);
 			if (result)
 				return result;
 		}
@@ -148,13 +130,10 @@ reset_fifo_fail:
 		val = BIT_DMP_INT_EN;
 	else
 		val = BIT_DATA_RDY_EN;
-	inv_i2c_single_write(st, reg->int_enable,
-			     st->plat_data.int_config | val);
-	pr_err("reset fifo failed\n");
-
+	inv_i2c_single_write(st, reg->int_enable, val);
+	pr_err("%s failed\n", __func__);
 	return result;
 }
-
 /**
  *  reset_fifo_itg() - Reset FIFO related registers.
  *  @st:	Device driver instance.
@@ -162,16 +141,37 @@ reset_fifo_fail:
 static int reset_fifo_itg(struct iio_dev *indio_dev)
 {
 	struct inv_reg_map_s *reg;
-	int result, data;
+	int result;
 	unsigned char val;
-	struct inv_mpu_iio_s  *st = iio_priv(indio_dev);
-	reg = &st->reg;
+	struct inv_gyro_state_s  *st = iio_priv(indio_dev);
+	struct iio_buffer *ring = indio_dev->buffer;
 
-	inv_scan_query(indio_dev);
+	reg = &st->reg;
+	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_X) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_GYRO_Z))
+		st->chip_config.gyro_fifo_enable = 1;
+	else
+		st->chip_config.gyro_fifo_enable = 0;
+
+	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_X) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_ACCL_Z))
+		st->chip_config.accl_fifo_enable = 1;
+	else
+		st->chip_config.accl_fifo_enable = 0;
+
+	if (iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_X) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Y) ||
+		iio_scan_mask_query(indio_dev, ring, INV_MPU_SCAN_MAGN_Z))
+		st->chip_config.compass_fifo_enable = 1;
+	else
+		st->chip_config.compass_fifo_enable = 0;
+
 	/* disable interrupt */
 	result = inv_i2c_single_write(st, reg->int_enable, 0);
 	if (result) {
-		pr_err("int_enable write failed\n");
+		pr_err("%s failed\n", __func__);
 		return result;
 	}
 	/* disable the sensor output to FIFO */
@@ -188,7 +188,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		result = inv_i2c_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
-		st->last_isr_time = get_time_ns();
+		st->last_isr_time = iio_get_time_ns();
 		if (st->chip_config.dmp_int_on) {
 			result = inv_i2c_single_write(st, reg->int_enable,
 							BIT_DMP_INT_EN);
@@ -196,36 +196,22 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 				return result;
 		}
 		val = (BIT_DMP_EN | BIT_FIFO_EN);
-		if (st->chip_config.compass_enable &
-			(!st->chip_config.dmp_event_int_on))
+		if (st->chip_config.compass_enable)
 			val |= BIT_I2C_MST_EN;
 		result = inv_i2c_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
-
-		if (st->chip_config.compass_enable) {
-			/* I2C_MST_DLY is set according to sample rate,
-			   slow down the power*/
-			data = st->chip_config.fifo_rate /
-				st->chip_config.dmp_output_rate;
-			if (data > 0)
-				data -= 1;
-			result = inv_i2c_single_write(st, REG_I2C_SLV4_CTRL,
-							data);
-			if (result)
-				return result;
-		}
 	} else {
 		/* reset FIFO and possibly reset I2C*/
 		val = BIT_FIFO_RST;
 		result = inv_i2c_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
-		st->last_isr_time = get_time_ns();
+		st->last_isr_time = iio_get_time_ns();
 		/* enable interrupt */
 		if (st->chip_config.accl_fifo_enable ||
-		    st->chip_config.gyro_fifo_enable ||
-		    st->chip_config.compass_enable) {
+			st->chip_config.gyro_fifo_enable ||
+			st->chip_config.compass_enable){
 			result = inv_i2c_single_write(st, reg->int_enable,
 						BIT_DATA_RDY_EN);
 			if (result)
@@ -238,18 +224,6 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		result = inv_i2c_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
-		if (st->chip_config.compass_enable) {
-			/* I2C_MST_DLY is set according to sample rate,
-			   slow down the power*/
-			data = COMPASS_RATE_SCALE *
-				st->chip_config.fifo_rate / ONE_K_HZ;
-			if (data > 0)
-				data -= 1;
-			result = inv_i2c_single_write(st, REG_I2C_SLV4_CTRL,
-							data);
-			if (result)
-				return result;
-		}
 		/* enable sensor output to FIFO */
 		val = 0;
 		if (st->chip_config.gyro_fifo_enable)
@@ -267,24 +241,21 @@ reset_fifo_fail:
 	else
 		val = BIT_DATA_RDY_EN;
 	inv_i2c_single_write(st, reg->int_enable, val);
-	pr_err("reset fifo failed\n");
-
+	pr_err("%s failed\n", __func__);
 	return result;
 }
-
 /**
  *  inv_reset_fifo() - Reset FIFO related registers.
  *  @st:	Device driver instance.
  */
 static int inv_reset_fifo(struct iio_dev *indio_dev)
 {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 	if (INV_MPU3050 == st->chip_type)
 		return reset_fifo_mpu3050(indio_dev);
 	else
 		return reset_fifo_itg(indio_dev);
 }
-
 /**
  *  set_inv_enable() - Reset FIFO related registers.
  *			This also powers on the chip if needed.
@@ -292,8 +263,8 @@ static int inv_reset_fifo(struct iio_dev *indio_dev)
  *  @fifo_enable: enable/disable
  */
 int set_inv_enable(struct iio_dev *indio_dev,
-			bool enable) {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+			unsigned long enable) {
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 	struct inv_reg_map_s *reg;
 	int result;
 
@@ -304,25 +275,22 @@ int set_inv_enable(struct iio_dev *indio_dev,
 		result = inv_reset_fifo(indio_dev);
 		if (result)
 			return result;
+		st->chip_config.enable = 1;
 	} else {
 		result = inv_i2c_single_write(st, reg->fifo_en, 0);
 		if (result)
 			return result;
-		/* disable fifo reading */
-		if (INV_MPU3050 != st->chip_type) {
-			result = inv_i2c_single_write(st, reg->int_enable, 0);
-			if (result)
-				return result;
-			result = inv_i2c_single_write(st, reg->user_ctrl, 0);
-		} else {
-			result = inv_i2c_single_write(st, reg->int_enable,
-				st->plat_data.int_config);
-		}
+		result = inv_i2c_single_write(st, reg->int_enable, 0);
 		if (result)
 			return result;
+		/* disable fifo reading */
+		if (INV_MPU3050 != st->chip_type) {
+			result = inv_i2c_single_write(st, reg->user_ctrl, 0);
+			if (result)
+				return result;
+		}
+		st->chip_config.enable = 0;
 	}
-	st->chip_config.enable = !!enable;
-
 	return 0;
 }
 
@@ -330,7 +298,7 @@ int set_inv_enable(struct iio_dev *indio_dev,
  *  inv_clear_kfifo() - clear time stamp fifo
  *  @st:	Device driver instance.
  */
-void inv_clear_kfifo(struct inv_mpu_iio_s *st)
+void inv_clear_kfifo(struct inv_gyro_state_s *st)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&st->time_stamp_lock, flags);
@@ -343,33 +311,34 @@ void inv_clear_kfifo(struct inv_mpu_iio_s *st)
  */
 static irqreturn_t inv_irq_handler(int irq, void *dev_id)
 {
-	struct inv_mpu_iio_s *st;
+	struct inv_gyro_state_s *st;
 	long long timestamp;
-	int catch_up;
-	long long time_since_last_irq;
+	int result, catch_up;
+	unsigned int time_since_last_irq;
 
-	st = (struct inv_mpu_iio_s *)dev_id;
-	timestamp = get_time_ns();
-	time_since_last_irq = timestamp - st->last_isr_time;
+	st = (struct inv_gyro_state_s *)dev_id;
+	timestamp = iio_get_time_ns();
+	time_since_last_irq = ((unsigned int)(timestamp
+		- st->last_isr_time))/ONE_K_HZ;
 	spin_lock(&st->time_stamp_lock);
 	catch_up = 0;
-	while ((time_since_last_irq > st->irq_dur_ns * 2) &&
-	       (catch_up < MAX_CATCH_UP) &&
-	       (!st->chip_config.lpa_mode) &&
-	       (!st->chip_config.dmp_on)) {
-		st->last_isr_time += st->irq_dur_ns;
-		kfifo_in(&st->timestamps,
-			 &st->last_isr_time, 1);
-		time_since_last_irq = timestamp - st->last_isr_time;
+	while ((time_since_last_irq > st->irq_dur_us*2)
+		&& (catch_up < MAX_CATCH_UP)
+		&& (0 == st->chip_config.lpa_mode)) {
+
+		st->last_isr_time += st->irq_dur_us*ONE_K_HZ;
+		result = kfifo_in(&st->timestamps,
+			&st->last_isr_time, 1);
+		time_since_last_irq = ((unsigned int)(timestamp
+			- st->last_isr_time))/ONE_K_HZ;
 		catch_up++;
 	}
-	kfifo_in(&st->timestamps, &timestamp, 1);
+	result = kfifo_in(&st->timestamps, &timestamp, 1);
 	st->last_isr_time = timestamp;
 	spin_unlock(&st->time_stamp_lock);
 
 	return IRQ_WAKE_THREAD;
 }
-
 static int put_scan_to_buf(struct iio_dev *indio_dev, unsigned char *d,
 				short *s, int scan_index, int d_ind) {
 	struct iio_buffer *ring = indio_dev->buffer;
@@ -384,7 +353,6 @@ static int put_scan_to_buf(struct iio_dev *indio_dev, unsigned char *d,
 	}
 	return d_ind;
 }
-
 static int put_scan_to_buf_q(struct iio_dev *indio_dev, unsigned char *d,
 				int *s, int scan_index, int d_ind) {
 	struct iio_buffer *ring = indio_dev->buffer;
@@ -403,11 +371,11 @@ static int put_scan_to_buf_q(struct iio_dev *indio_dev, unsigned char *d,
 static void inv_report_data_3050(struct iio_dev *indio_dev, s64 t,
 			int has_footer, unsigned char *data)
 {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 	int ind, i, d_ind;
 	struct inv_chip_config_s *conf;
-	short g[THREE_AXIS], a[THREE_AXIS];
+	short g[3], a[3];
 	s64 buf[8];
 	unsigned char *tmp;
 	int bytes_per_datum, scan_count;
@@ -423,33 +391,32 @@ static void inv_report_data_3050(struct iio_dev *indio_dev, s64 t,
 	tmp = (unsigned char *)buf;
 	d_ind = 0;
 	if (conf->gyro_fifo_enable) {
-		g[0] = be16_to_cpup((__be16 *)(&data[ind]));
-		g[1] = be16_to_cpup((__be16 *)(&data[ind + 2]));
-		g[2] = be16_to_cpup((__be16 *)(&data[ind + 4]));
-		ind += BYTES_PER_SENSOR;
+		g[0] =	be16_to_cpup((__be16 *)(&data[ind]));
+		g[1] =	be16_to_cpup((__be16 *)(&data[ind+2]));
+		g[2] =	be16_to_cpup((__be16 *)(&data[ind+4]));
+		ind += 6;
 		d_ind = put_scan_to_buf(indio_dev, tmp, g,
 			INV_MPU_SCAN_GYRO_X, d_ind);
 	}
 	if (conf->accl_fifo_enable) {
 		st->mpu_slave->combine_data(&data[ind], a);
-		ind += BYTES_PER_SENSOR;
+		ind += 6;
 		d_ind = put_scan_to_buf(indio_dev, tmp, a,
 			INV_MPU_SCAN_ACCL_X, d_ind);
 	}
 
-	i = (bytes_per_datum + 7) / 8;
+	i = (bytes_per_datum + 7)/8;
 	if (ring->scan_timestamp)
 		buf[i] = t;
-	ring->access->store_to(indio_dev->buffer, (u8 *)buf, t);
+	ring->access->store_to(indio_dev->buffer, (u8 *) buf, t);
 }
-
 /**
  *  inv_read_fifo_mpu3050() - Transfer data from FIFO to ring buffer for mpu3050.
  */
 irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 {
 
-	struct inv_mpu_iio_s *st = (struct inv_mpu_iio_s *)dev_id;
+	struct inv_gyro_state_s *st = (struct inv_gyro_state_s *)dev_id;
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	int bytes_per_datum;
 	unsigned char data[64];
@@ -468,7 +435,7 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 		bytes_per_datum = (st->chip_config.accl_fifo_enable +
 			st->chip_config.gyro_fifo_enable)*BYTES_PER_SENSOR;
 	if (st->chip_config.has_footer)
-		byte_read = bytes_per_datum + MPU3050_FOOTER_SIZE;
+		byte_read = bytes_per_datum + 2;
 	else
 		byte_read = bytes_per_datum;
 
@@ -478,10 +445,10 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 				FIFO_COUNT_BYTE, data);
 		if (result)
 			goto end_session;
-		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
+		fifo_count = (data[0] << 8) + data[1];
 		if (fifo_count < byte_read)
 			goto end_session;
-		if (fifo_count & 1)
+		if (fifo_count%2)
 			goto flush_fifo;
 		if (fifo_count > FIFO_THRESHOLD)
 			goto flush_fifo;
@@ -496,9 +463,8 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 				&timestamp, sizeof(timestamp), &copied);
 				if (result)
 					goto flush_fifo;
-			} else {
+			} else
 				goto flush_fifo;
-			}
 		}
 	}
 	while ((bytes_per_datum != 0) && (fifo_count >= byte_read)) {
@@ -511,7 +477,7 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 		if (result)
 			goto flush_fifo;
 		inv_report_data_3050(indio_dev, timestamp,
-				     st->chip_config.has_footer, data);
+				st->chip_config.has_footer, data);
 		fifo_count -= byte_read;
 		if (st->chip_config.has_footer == 0) {
 			st->chip_config.has_footer = 1;
@@ -526,39 +492,38 @@ flush_fifo:
 	inv_clear_kfifo(st);
 	return IRQ_HANDLED;
 }
-
 static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 					unsigned char *data, s64 t)
 {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
-	short g[THREE_AXIS], a[THREE_AXIS], c[THREE_AXIS];
+	short g[3], a[3], c[3];
 	int q[4];
 	int result, ind, d_ind;
 	s64 buf[8];
-	u32 word;
-	u8 d[8], compass_divider;
-	u8 *tmp;
+	unsigned int word;
+	unsigned char d[8];
+	unsigned char *tmp;
 	int source;
 	struct inv_chip_config_s *conf;
+#define INT_SRC_TAP    0x01
+#define INT_SRC_ORIENT 0x02
+#define INT_SRC_DISPLAY_ORIENT  0x08
+#define INT_SRC_SHAKE           0x10
 
 	conf = &st->chip_config;
 	ind = 0;
 	if (conf->quaternion_on & conf->dmp_on) {
-		q[0] = be32_to_cpup((__be32 *)(&data[ind]));
-		q[1] = be32_to_cpup((__be32 *)(&data[ind + 4]));
-		q[2] = be32_to_cpup((__be32 *)(&data[ind + 8]));
-		q[3] = be32_to_cpup((__be32 *)(&data[ind + 12]));
-		st->raw_quaternion[0] = q[0];
-		st->raw_quaternion[1] = q[1];
-		st->raw_quaternion[2] = q[2];
-		st->raw_quaternion[3] = q[3];
-		ind += QUATERNION_BYTES;
+		q[0] =	be32_to_cpup((__be32 *)(&data[ind]));
+		q[1] =	be32_to_cpup((__be32 *)(&data[ind+4]));
+		q[2] =	be32_to_cpup((__be32 *)(&data[ind+8]));
+		q[3] =	be32_to_cpup((__be32 *)(&data[ind+12]));
+		ind += 16;
 	}
 	if (conf->accl_fifo_enable | conf->dmp_on) {
-		a[0] = be16_to_cpup((__be16 *)(&data[ind]));
-		a[1] = be16_to_cpup((__be16 *)(&data[ind + 2]));
-		a[2] = be16_to_cpup((__be16 *)(&data[ind + 4]));
+		a[0] =	be16_to_cpup((__be16 *)(&data[ind]));
+		a[1] =	be16_to_cpup((__be16 *)(&data[ind+2]));
+		a[2] =	be16_to_cpup((__be16 *)(&data[ind+4]));
 
 		a[0] *= st->chip_info.multi;
 		a[1] *= st->chip_info.multi;
@@ -566,27 +531,25 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 		st->raw_accel[0] = a[0];
 		st->raw_accel[1] = a[1];
 		st->raw_accel[2] = a[2];
-		ind += BYTES_PER_SENSOR;
+		ind += 6;
 	}
 	if (conf->gyro_fifo_enable | conf->dmp_on) {
-		g[0] = be16_to_cpup((__be16 *)(&data[ind]));
-		g[1] = be16_to_cpup((__be16 *)(&data[ind + 2]));
-		g[2] = be16_to_cpup((__be16 *)(&data[ind + 4]));
+		g[0] =	be16_to_cpup((__be16 *)(&data[ind]));
+		g[1] =	be16_to_cpup((__be16 *)(&data[ind+2]));
+		g[2] =	be16_to_cpup((__be16 *)(&data[ind+4]));
 
 		st->raw_gyro[0] = g[0];
 		st->raw_gyro[1] = g[1];
 		st->raw_gyro[2] = g[2];
-		ind += BYTES_PER_SENSOR;
+		ind += 6;
 	}
 	if (conf->dmp_on) {
 		word = (unsigned int)(be32_to_cpup((unsigned int *)&data[ind]));
-		source = ((word >> 16) & 0xff);
+		source = (word/65536)%256;
 		if (source) {
-			st->tap_data = (DMP_MASK_TAP & (word & 0xff));
-			st->orient_data = ((word >> 8) & 0xff);
-			st->display_orient_data =
-			((DMP_MASK_DIS_ORIEN & (word & 0xff)) >>
-			  DMP_DIS_ORIEN_SHIFT);
+			st->tap_data = 0x3f & (word%256);
+			st->orient_data = (word/256)%256;
+			st->display_orient_data = ((0xc0 & (word%256))>>6);
 		}
 
 		/* report tap information */
@@ -595,51 +558,40 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 		/* report orientation information */
 		if (source & INT_SRC_ORIENT)
 			sysfs_notify(&indio_dev->dev.kobj, NULL,
-				     "event_orientation");
+			"event_orientation");
 		/* report orientation information */
 		if (source & INT_SRC_DISPLAY_ORIENT)
 			sysfs_notify(&indio_dev->dev.kobj, NULL,
-				     "event_display_orientation");
+			"event_display_orientation");
 	}
 	/*divider and counter is used to decrease the speed of read in
 		high frequency sample rate*/
 	if (conf->compass_fifo_enable) {
-		c[0] = 0;
-		c[1] = 0;
-		c[2] = 0;
-		if (conf->dmp_on)
-			compass_divider = st->compass_dmp_divider;
-		else
-			compass_divider = st->compass_divider;
-		if (compass_divider == st->compass_counter) {
+		c[0] = c[1] = c[2] = 0;
+		if (st->compass_divider == st->compass_counter) {
 			/*read from external sensor data register */
-			result = inv_i2c_read(st, REG_EXT_SENS_DATA_00,
-					      NUM_BYTES_COMPASS_SLAVE, d);
+			result = inv_i2c_read(st, REG_EXT_SENS_DATA_00, 8, d);
 			/* d[7] is status 2 register */
 			/*for AKM8975, bit 2 and 3 should be all be zero*/
 			/* for AMK8963, bit 3 should be zero*/
-			if ((DATA_AKM_DRDY == d[0]) &&
-			    (0 == (d[7] & DATA_AKM_STAT_MASK)) &&
-			    (!result)) {
-				u8 *sens;
+			if ((DATA_AKM_DRDY == d[0])
+			&& (0 == (d[7] & DATA_AKM_STAT_MASK))
+			&& (!result)) {
+				unsigned char *sens;
 				sens = st->chip_info.compass_sens;
 				c[0] = (short)((d[2] << 8) | d[1]);
 				c[1] = (short)((d[4] << 8) | d[3]);
 				c[2] = (short)((d[6] << 8) | d[5]);
-				c[0] = (short)(((int)c[0] *
-					       (sens[0] + 128)) >> 8);
-				c[1] = (short)(((int)c[1] *
-					       (sens[1] + 128)) >> 8);
-				c[2] = (short)(((int)c[2] *
-					       (sens[2] + 128)) >> 8);
+				c[0] = ((c[0] * (sens[0] + 128)) >> 8);
+				c[1] = ((c[1] * (sens[1] + 128)) >> 8);
+				c[2] = ((c[2] * (sens[2] + 128)) >> 8);
 				st->raw_compass[0] = c[0];
 				st->raw_compass[1] = c[1];
 				st->raw_compass[2] = c[2];
 			}
 			st->compass_counter = 0;
-		} else if (compass_divider != 0) {
+		} else if (st->compass_divider != 0)
 			st->compass_counter++;
-		}
 	}
 
 	tmp = (unsigned char *)buf;
@@ -657,8 +609,8 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 		d_ind = put_scan_to_buf(indio_dev, tmp, c,
 				INV_MPU_SCAN_MAGN_X, d_ind);
 	if (ring->scan_timestamp)
-		buf[(d_ind + 7) / 8] = t;
-	ring->access->store_to(indio_dev->buffer, (u8 *)buf, t);
+		buf[(d_ind + 7)/8] = t;
+	ring->access->store_to(indio_dev->buffer, (u8 *) buf, t);
 
 	return 0;
 }
@@ -669,7 +621,7 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 irqreturn_t inv_read_fifo(int irq, void *dev_id)
 {
 
-	struct inv_mpu_iio_s *st = (struct inv_mpu_iio_s *)dev_id;
+	struct inv_gyro_state_s *st = (struct inv_gyro_state_s *)dev_id;
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	size_t bytes_per_datum;
 	int result;
@@ -689,16 +641,15 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	if (st->chip_config.dmp_on && st->chip_config.flick_int_on) {
 		/*dmp interrupt status */
 		inv_i2c_read(st, REG_DMP_INT_STATUS, 1, data);
-		if (data[0] & FLICK_INT_STATUS)
+		if (data[0] & 8)
 			sysfs_notify(&indio_dev->dev.kobj, NULL, "event_flick");
 	}
 	if (st->chip_config.lpa_mode) {
-		result = inv_i2c_read(st, reg->raw_accl,
-				      BYTES_PER_SENSOR, data);
+		result = inv_i2c_read(st, reg->raw_accl, 6, data);
 		if (result)
 			goto end_session;
 		inv_report_gyro_accl_compass(indio_dev, data,
-					     get_time_ns());
+						iio_get_time_ns());
 		goto end_session;
 	}
 
@@ -716,11 +667,10 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 				FIFO_COUNT_BYTE, data);
 		if (result)
 			goto end_session;
-		fifo_count = be16_to_cpup((__be16 *)(&data[0]));
+		fifo_count = (data[0] << 8) + data[1];
 		if (fifo_count < bytes_per_datum)
 			goto end_session;
-		/* fifo count can't be odd number */
-		if (fifo_count & 1)
+		if (fifo_count%2)
 			goto flush_fifo;
 		if (fifo_count >  FIFO_THRESHOLD)
 			goto flush_fifo;
@@ -735,11 +685,11 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 				&timestamp, sizeof(timestamp), &copied);
 				if (result)
 					goto flush_fifo;
-			} else {
+			} else
 				goto flush_fifo;
-			}
 		}
-	} else {
+	}
+	if (bytes_per_datum == 0) {
 		result = kfifo_to_user(&st->timestamps,
 			&timestamp, sizeof(timestamp), &copied);
 		if (result)
@@ -772,20 +722,19 @@ flush_fifo:
 
 void inv_mpu_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
-	free_irq(st->client->irq, st);
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
+	free_irq(st->i2c->irq, st);
 	iio_kfifo_free(indio_dev->buffer);
 };
 
 int inv_postenable(struct iio_dev *indio_dev)
 {
-	return set_inv_enable(indio_dev, true);
+	return set_inv_enable(indio_dev, 1);
 
 }
-
 int inv_predisable(struct iio_dev *indio_dev)
 {
-	return set_inv_enable(indio_dev, false);
+	return set_inv_enable(indio_dev, 0);
 }
 
 static const struct iio_buffer_setup_ops inv_mpu_ring_setup_ops = {
@@ -796,13 +745,15 @@ static const struct iio_buffer_setup_ops inv_mpu_ring_setup_ops = {
 
 int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 {
-	int ret;
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	int ret = 0;
+	struct inv_gyro_state_s *st = iio_priv(indio_dev);
 	struct iio_buffer *ring;
 
 	ring = iio_kfifo_allocate(indio_dev);
-	if (!ring)
-		return -ENOMEM;
+	if (!ring) {
+		ret = -ENOMEM;
+		return ret;
+	}
 	indio_dev->buffer = ring;
 	/* setup ring buffer */
 	ring->scan_timestamp = true;
@@ -810,11 +761,11 @@ int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 	/*scan count double count timestamp. should subtract 1. but
 	number of channels still includes timestamp*/
 	if (INV_MPU3050 == st->chip_type)
-		ret = request_threaded_irq(st->client->irq, inv_irq_handler,
+		ret = request_threaded_irq(st->i2c->irq, inv_irq_handler,
 			inv_read_fifo_mpu3050,
 			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
 	else
-		ret = request_threaded_irq(st->client->irq, inv_irq_handler,
+		ret = request_threaded_irq(st->i2c->irq, inv_irq_handler,
 			inv_read_fifo,
 			IRQF_TRIGGER_RISING | IRQF_SHARED, "inv_irq", st);
 	if (ret)

@@ -11,17 +11,6 @@
  * GNU General Public License for more details.
  *
  */
-/**
- *  @addtogroup  DRIVERS
- *  @brief       Hardware drivers.
- *
- *  @{
- *      @file    dmpKey.h
- *      @brief   dmp Key definition
- *      @details This file is part of invensense mpu driver code
- *
- */
-
 #ifndef DMPKEY_H__
 #define DMPKEY_H__
 

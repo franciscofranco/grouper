@@ -19,7 +19,7 @@
  *  @{
  *      @file    inv_slave_bma250.c
  *      @brief   A sysfs device driver for Invensense devices
- *      @details This file is part of invensense mpu driver code
+ *      @details This file is part of inv_gyro driver code
  *
  */
 
@@ -39,43 +39,44 @@
 #include <linux/spinlock.h>
 
 #include "inv_mpu_iio.h"
-#define BMA250_CHIP_ID			3
-#define BMA250_RANGE_SET		0
-#define BMA250_BW_SET			4
+#define BMA250_CHIP_ID			(3)
+#define BMA250_RANGE_SET		(0)
+#define BMA250_BW_SET			(4)
 
 /* range and bandwidth */
-#define BMA250_RANGE_2G                 3
-#define BMA250_RANGE_4G                 5
-#define BMA250_RANGE_8G                 8
-#define BMA250_RANGE_16G                12
-#define BMA250_RANGE_MAX                4
-#define BMA250_RANGE_MASK               0xF0
 
-#define BMA250_BW_7_81HZ        0x08
-#define BMA250_BW_15_63HZ       0x09
-#define BMA250_BW_31_25HZ       0x0A
-#define BMA250_BW_62_50HZ       0x0B
-#define BMA250_BW_125HZ         0x0C
-#define BMA250_BW_250HZ         0x0D
-#define BMA250_BW_500HZ         0x0E
-#define BMA250_BW_1000HZ        0x0F
-#define BMA250_MAX_BW_SIZE      8
-#define BMA250_BW_REG_MASK      0xE0
+#define BMA250_RANGE_2G                 (3)
+#define BMA250_RANGE_4G                 (5)
+#define BMA250_RANGE_8G                 (8)
+#define BMA250_RANGE_16G                (12)
+#define BMA250_RANGE_MAX                (4)
+#define BMA250_RANGE_MASK               (0xF0)
+
+#define BMA250_BW_7_81HZ        (0x08)
+#define BMA250_BW_15_63HZ       (0x09)
+#define BMA250_BW_31_25HZ       (0x0A)
+#define BMA250_BW_62_50HZ       (0x0B)
+#define BMA250_BW_125HZ         (0x0C)
+#define BMA250_BW_250HZ         (0x0D)
+#define BMA250_BW_500HZ         (0x0E)
+#define BMA250_BW_1000HZ        (0x0F)
+#define BMA250_MAX_BW_SIZE      (8)
+#define BMA250_BW_REG_MASK      (0xE0)
 
 /*      register definitions */
-#define BMA250_X_AXIS_LSB_REG                   0x02
-#define BMA250_RANGE_SEL_REG                    0x0F
-#define BMA250_BW_SEL_REG                       0x10
-#define BMA250_MODE_CTRL_REG                    0x11
+#define BMA250_X_AXIS_LSB_REG                   (0x02)
+#define BMA250_RANGE_SEL_REG                    (0x0F)
+#define BMA250_BW_SEL_REG                       (0x10)
+#define BMA250_MODE_CTRL_REG                    (0x11)
 
 /* mode settings */
-#define BMA250_MODE_NORMAL     0
-#define BMA250_MODE_LOWPOWER   1
-#define BMA250_MODE_SUSPEND    2
-#define BMA250_MODE_MAX        3
-#define BMA250_MODE_MASK       0x3F
-#define BMA250_BIT_SUSPEND     0x80
-#define BMA250_BIT_LP          0x40
+#define BMA250_MODE_NORMAL      (0)
+#define BMA250_MODE_LOWPOWER    (1)
+#define BMA250_MODE_SUSPEND     (2)
+#define BMA250_MODE_MAX         (3)
+#define BMA250_MODE_MASK        (0x3F)
+#define BMA250_BIT_SUSPEND     (0x80)
+#define BMA250_BIT_LP          (0x40)
 
 struct bma_property {
 	int range;
@@ -89,53 +90,57 @@ static struct bma_property bma_static_property = {
 	.mode = BMA250_MODE_SUSPEND
 };
 
-static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, unsigned char bw)
+static int bma250_set_bandwidth(struct inv_gyro_state_s *st, unsigned char BW)
 {
-	int res;
+	int res = 0;
 	unsigned char data;
-	int bandwidth;
-	switch (bw) {
+	int Bandwidth = 0;
+	if (BW >= BMA250_MAX_BW_SIZE)
+		return -1;
+	switch (BW) {
 	case 0:
-		bandwidth = BMA250_BW_7_81HZ;
+		Bandwidth = BMA250_BW_7_81HZ;
 		break;
 	case 1:
-		bandwidth = BMA250_BW_15_63HZ;
+		Bandwidth = BMA250_BW_15_63HZ;
 		break;
 	case 2:
-		bandwidth = BMA250_BW_31_25HZ;
+		Bandwidth = BMA250_BW_31_25HZ;
 		break;
 	case 3:
-		bandwidth = BMA250_BW_62_50HZ;
+		Bandwidth = BMA250_BW_62_50HZ;
 		break;
 	case 4:
-		bandwidth = BMA250_BW_125HZ;
+		Bandwidth = BMA250_BW_125HZ;
 		break;
 	case 5:
-		bandwidth = BMA250_BW_250HZ;
+		Bandwidth = BMA250_BW_250HZ;
 		break;
 	case 6:
-		bandwidth = BMA250_BW_500HZ;
+		Bandwidth = BMA250_BW_500HZ;
 		break;
 	case 7:
-		bandwidth = BMA250_BW_1000HZ;
+		Bandwidth = BMA250_BW_1000HZ;
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 	res = inv_secondary_read(BMA250_BW_SEL_REG, 1, &data);
 	if (res)
 		return res;
 	data &= BMA250_BW_REG_MASK;
-	data |= bandwidth;
+	data |= Bandwidth;
 	res = inv_secondary_write(BMA250_BW_SEL_REG, data);
 	return res;
 }
 
-static int bma250_set_range(struct inv_mpu_iio_s *st, unsigned char range)
+static int bma250_set_range(struct inv_gyro_state_s *st, unsigned char Range)
 {
-	int res;
-	unsigned char orig, data;
-	switch (range) {
+	int res = 0;
+	unsigned char orig, data = 0;
+	if (Range >= BMA250_RANGE_MAX)
+		return -1;
+	switch (Range) {
 	case 0:
 		data  = BMA250_RANGE_2G;
 		break;
@@ -149,7 +154,7 @@ static int bma250_set_range(struct inv_mpu_iio_s *st, unsigned char range)
 		data  = BMA250_RANGE_16G;
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 	res = inv_secondary_read(BMA250_RANGE_SEL_REG, 1, &orig);
 	if (res)
@@ -157,18 +162,15 @@ static int bma250_set_range(struct inv_mpu_iio_s *st, unsigned char range)
 	orig &= BMA250_RANGE_MASK;
 	data |= orig;
 	res = inv_secondary_write(BMA250_RANGE_SEL_REG, data);
-	if (res)
-		return res;
-	bma_static_property.range = range;
-
-	return 0;
+	bma_static_property.range = Range;
+	return res;
 }
 
-static int setup_slave_bma250(struct inv_mpu_iio_s *st)
+static int setup_slave_bma250(struct inv_gyro_state_s *st)
 {
 	int result;
 	unsigned char data[2];
-	result = set_3050_bypass(st, true);
+	result = set_3050_bypass(st, 1);
 	if (result)
 		return result;
 	/*read secondary i2c ID register */
@@ -176,28 +178,29 @@ static int setup_slave_bma250(struct inv_mpu_iio_s *st)
 	if (result)
 		return result;
 	if (BMA250_CHIP_ID != data[0])
-		return -EINVAL;
-	result = set_3050_bypass(st, false);
+		return result;
+	result = set_3050_bypass(st, 0);
 	if (result)
 		return result;
 	/*AUX(accel), slave address is set inside set_3050_bypass*/
 	/* bma250 x axis LSB register address is 2 */
 	result = inv_i2c_single_write(st, REG_3050_AUX_BST_ADDR,
 					BMA250_X_AXIS_LSB_REG);
-
 	return result;
 }
 
-static int bma250_set_mode(struct inv_mpu_iio_s *st, unsigned char mode)
+static int bma250_set_mode(struct inv_gyro_state_s *st, unsigned char Mode)
 {
-	int res;
-	unsigned char data;
+	int res = 0;
+	unsigned char data = 0;
 
+	if (Mode >= BMA250_RANGE_MASK)
+		return -1;
 	res = inv_secondary_read(BMA250_MODE_CTRL_REG, 1, &data);
 	if (res)
 		return res;
 	data &= BMA250_MODE_MASK;
-	switch (mode) {
+	switch (Mode) {
 	case BMA250_MODE_NORMAL:
 		break;
 	case BMA250_MODE_LOWPOWER:
@@ -207,105 +210,94 @@ static int bma250_set_mode(struct inv_mpu_iio_s *st, unsigned char mode)
 		data |= BMA250_BIT_SUSPEND;
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 	res = inv_secondary_write(BMA250_MODE_CTRL_REG, data);
-	if (res)
-		return res;
-	bma_static_property.mode = mode;
-
-	return 0;
+	bma_static_property.mode = Mode;
+	return res;
 }
-
-static int suspend_slave_bma250(struct inv_mpu_iio_s *st)
+static int suspend_slave_bma250(struct inv_gyro_state_s *st)
 {
 	int result;
 	if (bma_static_property.mode == BMA250_MODE_SUSPEND)
 		return 0;
 	/*set to bypass mode */
-	result = set_3050_bypass(st, true);
+	result = set_3050_bypass(st, 1);
 	if (result)
 		return result;
 	bma250_set_mode(st, BMA250_MODE_SUSPEND);
 	/* no need to recover to non-bypass mode because we need it now */
-
-	return 0;
+	return result;
 }
-
-static int resume_slave_bma250(struct inv_mpu_iio_s *st)
+static int resume_slave_bma250(struct inv_gyro_state_s *st)
 {
 	int result;
 	if (bma_static_property.mode == BMA250_MODE_NORMAL)
 		return 0;
 	/*set to bypass mode */
-	result = set_3050_bypass(st, true);
+	result = set_3050_bypass(st, 1);
 	if (result)
 		return result;
-	result = bma250_set_mode(st, BMA250_MODE_NORMAL);
+	bma250_set_mode(st, BMA250_MODE_NORMAL);
 	/* recover bypass mode */
-	result |= set_3050_bypass(st, false);
-
-	return result ? (-EINVAL) : 0;
+	result = set_3050_bypass(st, 0);
+	return result;
 }
-
 static int combine_data_slave_bma250(unsigned char *in, short *out)
 {
 	out[0] = le16_to_cpup((__le16 *)(&in[0]));
 	out[1] = le16_to_cpup((__le16 *)(&in[2]));
 	out[2] = le16_to_cpup((__le16 *)(&in[4]));
-
 	return 0;
 }
-
-static int get_mode_slave_bma250(void)
+static int get_mode_slave_bma250(struct inv_gyro_state_s *st)
 {
-	switch (bma_static_property.mode) {
-	case BMA250_MODE_SUSPEND:
-		return INV_MODE_SUSPEND;
-	case BMA250_MODE_NORMAL:
-		return INV_MODE_NORMAL;
-	default:
-		return -EINVAL;
-	}
-}
-
+	if (bma_static_property.mode == BMA250_MODE_SUSPEND)
+		return 0;
+	else if (bma_static_property.mode == BMA250_MODE_NORMAL)
+		return 1;
+	return -1;
+};
 /**
  *  set_lpf_bma250() - set lpf value
  */
 
-static int set_lpf_bma250(struct inv_mpu_iio_s *st, int rate)
+static int set_lpf_bma250(struct inv_gyro_state_s *st, int rate)
 {
 	const short hz[] = {1000, 500, 250, 125, 62, 31, 15, 7};
 	const int   d[] = {7, 6, 5, 4, 3, 2, 1, 0};
 	int i, h, data, result;
 	h = (rate >> 1);
 	i = 0;
-	while ((h < hz[i]) && (i < ARRAY_SIZE(hz) - 1))
+	while ((h < hz[i]) && (i < ARRAY_SIZE(hz)))
 		i++;
+	if (i == ARRAY_SIZE(hz))
+		i -= 1;
 	data = d[i];
 
-	result = set_3050_bypass(st, true);
+	result = set_3050_bypass(st, 1);
 	if (result)
 		return result;
 	result = bma250_set_bandwidth(st, (unsigned char) data);
-	result |= set_3050_bypass(st, false);
+	result |= set_3050_bypass(st, 0);
 
-	return result ? (-EINVAL) : 0;
+	return result;
 }
 /**
  *  set_fs_bma250() - set range value
  */
 
-static int set_fs_bma250(struct inv_mpu_iio_s *st, int fs)
+static int set_fs_bma250(struct inv_gyro_state_s *st, int fs)
 {
 	int result;
-	result = set_3050_bypass(st, true);
+	result = set_3050_bypass(st, 1);
 	if (result)
 		return result;
 	result = bma250_set_range(st, (unsigned char) fs);
-	result |= set_3050_bypass(st, false);
-
-	return result ? (-EINVAL) : 0;
+	result |= set_3050_bypass(st, 0);
+	if (result)
+		return -EINVAL;
+	return result;
 }
 
 static struct inv_mpu_slave slave_bma250 = {
@@ -318,10 +310,9 @@ static struct inv_mpu_slave slave_bma250 = {
 	.set_fs  = set_fs_bma250
 };
 
-int inv_register_mpu3050_slave(struct inv_mpu_iio_s *st)
+int inv_register_bma250_slave(struct inv_gyro_state_s *st)
 {
 	st->mpu_slave = &slave_bma250;
-
 	return 0;
 }
 /**

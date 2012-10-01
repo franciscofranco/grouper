@@ -11,24 +11,14 @@
  * GNU General Public License for more details.
  *
  */
-/**
- *  @addtogroup  DRIVERS
- *  @brief       Hardware drivers.
- *
- *  @{
- *      @file    dmpDefaultMPU6050.c
- *      @brief   dmp Default data
- *      @details This file is part of invensense mpu driver code
- *
- */
 
 #include "dmpKey.h"
 #include "dmpmap.h"
 
-#define CFG_27                  (2745)
+#define CFG_27                  (2740)
 #define CFG_20                  (2078)
-#define CFG_23                  (2748)
-#define CFG_FIFO_ON_EVENT       (2694)
+#define CFG_23                  (2743)
+#define CFG_FIFO_ON_EVENT       (2689)
 #define CFG_ORIENT_IRQ_1        (2533)
 #define CGNOTICE_INTR           (2636)
 #define X_GRT_Y_TMP             (1318)
@@ -44,14 +34,14 @@
 #define FCFG_7                  (1076)
 #define FCFG_6                  (1128)
 #define NO_ORIENT_INTERRUPT     (1725)
-#define CFG_8                   (2723)
-#define CFG_15                  (2731)
-#define CFG_16                  (2749)
+#define CFG_8                   (2718)
+#define CFG_15                  (2726)
+#define CFG_16                  (2744)
 #define END_COMPARE_Y_X_TMP     (1367)
-#define CFG_6                   (2756)
+#define CFG_6                   (2751)
 #define END_ORIENT_1            (1709)
 #define END_COMPARE_Y_X         (1444)
-#define CFG_LP_QUAT             (2717)
+#define CFG_LP_QUAT             (2712)
 #define END_ORIENT              (1738)
 #define CFG_FLICK_IN            (2589)
 #define CFG_7                   (1221)
