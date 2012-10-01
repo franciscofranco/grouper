@@ -373,14 +373,46 @@ static ssize_t compass_cali_test(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct inv_ami306_state_s *st = iio_priv(indio_dev);
 	int bufcnt = 0;
+	int ii = 0;
+	int val = 0;
+	char tmpbuf[100];
 
-	bufcnt = sprintf(buf,
+	/* Check if compass calibration file exist */
+	if (!st->data_chk.fexist)
+		bufcnt += sprintf(tmpbuf,
+			"\nE-compass calibration file EXIST.\n\n");
+	else
+		bufcnt += sprintf(tmpbuf,
+			"\nE-compass calibration file DO NOT EXIST.\n\n");
+
+	strncat(buf, tmpbuf, strlen(tmpbuf));
+
+	/* Check if raw data match the gain from calibration file */
+	for (ii = 0; ii < 3; ii++) {
+		val = (short)(st->data_chk.ori[ii] *
+				st->data_chk.gain[ii] / 100);
+
+		if (val == st->data_chk.post[ii])
+			bufcnt += sprintf(tmpbuf,
+				"[axis-%d] Compensation is matched to the gain.\n",
+				ii);
+		else
+			bufcnt += sprintf(tmpbuf,
+				"[axis-%d] Compensation FAIL. %d != %d",
+					ii, val, st->data_chk.post[ii]);
+
+		strncat(buf, tmpbuf, strlen(tmpbuf));
+	}
+
+	bufcnt += sprintf(tmpbuf,
 		"gain: %d, %d, %d\nori:(%d, %d, %d); post:(%d, %d, %d)\n",
 		st->data_chk.gain[0], st->data_chk.gain[1],
 		st->data_chk.gain[2], st->data_chk.ori[0],
 		st->data_chk.ori[1], st->data_chk.ori[2],
 		st->data_chk.post[0], st->data_chk.post[1],
 		st->data_chk.post[2]);
+
+	strncat(buf, tmpbuf, strlen(tmpbuf));
 
 	return bufcnt;
 }
@@ -478,6 +510,7 @@ static int inv_ami306_probe(struct i2c_client *client,
 
 	/* init for loading factory file*/
 	st->data_chk.load_cali = false;
+	st->data_chk.fexist = -1;
 	for (ii = 0; ii < 3; ii++)
 		st->data_chk.gain[ii] = 100;
 

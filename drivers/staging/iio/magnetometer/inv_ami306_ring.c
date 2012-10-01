@@ -42,9 +42,15 @@
 #include "../sysfs.h"
 
 #define AMI30X_CALIBRATION_PATH "/data/sensors/AMI304_Config.ini"
+#define AMI306_CALIBRATION_PATH "/data/sensors/AMI306_Config.ini"
+enum Compass_cali_File {
+	AMI30X = 0,
+	AMI306,
+	AMICaliMax
+};
 
 /* function for loading compass calibration file. */
-static int access_cali_file(short *gain)
+static int access_cali_file(short *gain, int target)
 {
 	char buf[256];
 	int ret;
@@ -57,11 +63,18 @@ static int access_cali_file(short *gain)
 	set_fs(get_ds());
 	memset(buf, 0, sizeof(u8)*256);
 
-	fp=filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
+	if (target == AMI30X)
+		fp = filp_open(AMI30X_CALIBRATION_PATH, O_RDONLY, 0);
+	else if (target == AMI306)
+		fp = filp_open(AMI306_CALIBRATION_PATH, O_RDONLY, 0);
+	else
+		goto LoadFileFail;
+
 	if (!IS_ERR(fp)) {
-		printk("ami306 open calibration file success\n");
+
+		pr_info("ami306 open calibration file success\n");
 		ret = fp->f_op->read(fp, buf, sizeof(buf), &fp->f_pos);
-		printk("ami306 calibration content is :\n%s\n", buf);
+		pr_info("ami306 calibration content is :\n%s\n", buf);
 		sscanf(buf, "%6d\n%6d %6d %6d\n"
 			"%6d %6d %6d\n%6d %6d %6d\n"
 			"%6d %6d %6d\n%6d %6d %6d\n"
@@ -76,26 +89,28 @@ static int access_cali_file(short *gain)
 			&data[19], &data[20], &data[21],
 			&data[22]);
 
-		if((data[19] > 150) || (data[19] < 50) ||
-		   (data[20] > 150) || (data[20] < 50) ||
-		   (data[21] > 150) || (data[21] < 50)){
-			for(ii=0; ii<3; ii++)
+		if ((data[19] > 150) || (data[19] < 50) ||
+		    (data[20] > 150) || (data[20] < 50) ||
+		    (data[21] > 150) || (data[21] < 50)) {
+			for(ii = 0; ii < 3; ii++)
 				gain[ii] = 100;
 		}else{
-			for(ii=0; ii<3; ii++)
-				gain[ii] = data[ii+19];
+			for(ii = 0; ii < 3; ii++)
+				gain[ii] = data[ii + 19];
 		}
 
-		printk("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
+		pr_info("gain: %d %d %d\n", gain[0], gain[1], gain[2]);
 
 		return 0;
 	}
 	else
 	{
-		printk("No ami306 calibration file\n");
+		pr_info("Compass compensation: No target File. (%d)\n", target);
 		set_fs(oldfs);
 		return -1;
 	}
+
+LoadFileFail:
 	return -1;
 }
 
@@ -151,7 +166,13 @@ int inv_read_ami306_fifo(struct iio_dev *indio_dev)
 		}
 
 		if (!st->data_chk.load_cali) {
-			result = access_cali_file(st->data_chk.gain);
+			for (ii = 0; ii < AMICaliMax; ii++) {
+				result = access_cali_file(st->data_chk.gain, ii);
+				if (!result) {
+					st->data_chk.fexist = 0;
+					break;
+				}
+			}
 			st->data_chk.load_cali = true;
 		}
 

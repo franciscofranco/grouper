@@ -71,8 +71,10 @@ struct ami_sensor_parametor {
 struct cali_data_check {
 	short ori[3];
 	short post[3];
-	short gain[3];
+	int gain[3];
 	bool load_cali;
+	bool fexist;
+	bool status;
 };
 
 /**
