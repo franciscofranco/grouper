@@ -80,7 +80,7 @@ struct cpufreq_interactive_core_lock {
 static struct cpufreq_interactive_core_lock core_lock;
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
-static u64 hispeed_freq = 700000;
+static unsigned int hispeed_freq = 700000;
 
 /* CPU will be boosted to this freq - default 1000Mhz - when an input event is detected */ 
 static u64 input_boost_freq = 1000000;
@@ -326,8 +326,41 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 *
 	 * This function implements the cpufreq scaling policy
 	 */
+<<<<<<< HEAD
 	new_freq = cpufreq_interactive_get_target(cpu_load, load_since_change,
 						pcpu);
+=======
+	if (load_since_change > cpu_load)
+		cpu_load = load_since_change;
+
+	if (cpu_load >= go_hispeed_load || boost_val) {
+		if (pcpu->target_freq < hispeed_freq &&
+		    hispeed_freq < pcpu->policy->max) {
+			new_freq = hispeed_freq;
+		} else {
+			new_freq = pcpu->policy->max * cpu_load / 100;
+
+			if (new_freq < hispeed_freq)
+				new_freq = hispeed_freq;
+
+			if (pcpu->target_freq == hispeed_freq &&
+			    new_freq > hispeed_freq &&
+			    cputime64_sub(pcpu->timer_run_time,
+					  pcpu->hispeed_validate_time)
+			    < above_hispeed_delay_val) {
+				trace_cpufreq_interactive_notyet(data, cpu_load,
+								 pcpu->target_freq,
+								 new_freq);
+				goto rearm;
+			}
+		}
+	} else {
+		new_freq = hispeed_freq * cpu_load / 100;
+	}
+
+	if (new_freq <= hispeed_freq)
+		pcpu->hispeed_validate_time = pcpu->timer_run_time;
+>>>>>>> 8ec363e... cpufreq: interactive: run at fraction of hispeed_freq when load is low
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
 					   new_freq, CPUFREQ_RELATION_H,
@@ -899,7 +932,7 @@ static struct global_attr max_boost_attr = __ATTR(max_boost, 0644,
 static ssize_t show_hispeed_freq(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%llu\n", hispeed_freq);
+	return sprintf(buf, "%u\n", hispeed_freq);
 }
 
 static ssize_t store_hispeed_freq(struct kobject *kobj,
@@ -907,9 +940,9 @@ static ssize_t store_hispeed_freq(struct kobject *kobj,
 				  size_t count)
 {
 	int ret;
-	u64 val;
+	long unsigned int val;
 
-	ret = strict_strtoull(buf, 0, &val);
+	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
 	hispeed_freq = val;
