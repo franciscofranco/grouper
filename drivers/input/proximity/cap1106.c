@@ -67,6 +67,11 @@ static struct workqueue_struct *prox_wq;
 static struct switch_dev prox_sdev;
 static long checking_work_period = 100; //default (ms)
 static int is_wood_sensitivity = 0;
+static int prev_c2_status = 0;
+static int prev_c6_status = 0;
+static int c2_acc_cnt = 0;
+static int c6_acc_cnt = 0;
+static int acc_limit = 10;
 
 /*----------------------------------------------------------------------------
  ** FUNCTION DECLARATION
@@ -627,28 +632,48 @@ static void cap1106_work_function(struct delayed_work *work)
 {
     int status;
     int value_delta_2,value_delta_6;
+    int bc2, bc6;
     struct cap1106_data *data = container_of(work, struct cap1106_data, work);
 
     disable_irq(data->client->irq);
     cap1106_write_reg(data->client, 0x00, 0x80); // Clear INT and Set Gain to MAX
     status = cap1106_read_reg(data->client, 0x03);
-    data->obj_detect = ((status == 0x2) || (status == 0x20) || (status == 0x22));
-    switch_set_state(&prox_sdev, data->obj_detect);
     value_delta_2 = cap1106_read_reg(prox_data->client, 0x11);
     value_delta_6 = cap1106_read_reg(prox_data->client, 0x15);
-    PROX_DEBUG("Status: 0x%02X, D2=0x%02X, D6=0x%02X\n", status, value_delta_2, value_delta_6);
+    bc2 = cap1106_read_reg(prox_data->client, 0x51);
+    bc6 = cap1106_read_reg(prox_data->client, 0x55);
+    PROX_DEBUG("Status: 0x%02X, BC2=0x%02X, D2=0x%02X, BC6=0x%02X, D6=0x%02X\n", status, bc2, value_delta_2, bc6, value_delta_6);
     if (is_wood_sensitivity == 0) {
+        data->obj_detect = ((status == 0x2) || (status == 0x20) || (status == 0x22));
+        switch_set_state(&prox_sdev, data->obj_detect);
         if ((status == 0x2 && value_delta_2 == 0x7F)
             || (status == 0x20 && value_delta_6 == 0x7F)
             || (status == 0x22 && (value_delta_2 == 0x7F || value_delta_6 == 0x7F))) {
             PROX_DEBUG("set to wood sensitivity------>\n");
-            is_wood_sensitivity = 1;
-            data->overflow_status = status;
             //set sensitivity and threshold for wood touch
             cap1106_write_reg(prox_data->client, 0x1f, 0x4f);
             cap1106_write_reg(prox_data->client, 0x31, 0x50);
             cap1106_write_reg(prox_data->client, 0x35, 0x50);
+            is_wood_sensitivity = 1;
+            data->overflow_status = status;
+            c2_acc_cnt = 0;
+            c6_acc_cnt = 0;
+        } else {
+            if (value_delta_2 >= 0x08 && value_delta_2 <= 0x3F)
+                c2_acc_cnt++;
+            if (value_delta_6 >= 0x0a && value_delta_6 <= 0x3F)
+                c6_acc_cnt++;
+
+            PROX_DEBUG("c2_acc_cnt=%d, c6_acc_cnt=%d\n", c2_acc_cnt, c6_acc_cnt);
+            if (c2_acc_cnt >= acc_limit || c6_acc_cnt >= acc_limit) {
+                PROX_DEBUG("+++ FORCE RECALIBRATION +++\n");
+                cap1106_write_reg(data->client, 0x26, 0x22);
+                c2_acc_cnt = 0;
+                c6_acc_cnt = 0;
+            }
         }
+        prev_c2_status = (status & 0x02);
+        prev_c6_status = (status & 0x20);
     }
     enable_irq(data->client->irq);
 }
@@ -712,7 +737,7 @@ static int cap1106_init_sensor(struct i2c_client *client)
         0x20, 0x20, // MAX duration disable
         0x21, 0x22, // Enable CS2+CS6.
         0x22, 0xff, // MAX duration time to max , repeat period time to max
-        0x24, 0x3b, // digital count update time to 140*64ms
+        0x24, 0x39, // digital count update time to 140*64ms
         0x27, 0x22, // Enable INT. for CS2+CS6.
         0x28, 0x22, // disable repeat irq
         0x2a, 0x00, // all channel run in the same time
@@ -741,27 +766,36 @@ static int cap1106_init_sensor(struct i2c_client *client)
     return rc;
 }
 
-static void cap1106_checking_work_function(struct delayed_work *work){
+static void cap1106_checking_work_function(struct delayed_work *work) {
+    int status;
     int value_delta_2;
     int value_delta_6;
+    int bc2, bc6;
 
     if (is_wood_sensitivity == 1){
         mutex_lock(&prox_mtx);
         if (prox_data->enable) {
+            status = cap1106_read_reg(prox_data->client, 0x03);
             value_delta_2 = cap1106_read_reg(prox_data->client, 0x11);
             value_delta_6 = cap1106_read_reg(prox_data->client, 0x15);
-            PROX_DEBUG("delta 2 = %02X , delta 6 = %02X \n", value_delta_2,value_delta_6);
-            if ((prox_data->overflow_status == 0x2 && (value_delta_2 == 0x00 || value_delta_2 == 0xFF || value_delta_2 > 0x50 ))
-                || (prox_data->overflow_status == 0x20 && (value_delta_6 == 0x00 || value_delta_6 == 0xFF || value_delta_6 > 0x50 ))
-                || (prox_data->overflow_status == 0x22 && ((value_delta_2 == 0x00 || value_delta_2 == 0xFF || value_delta_2 > 0x50 )
-                                                || (value_delta_6 == 0x00 || value_delta_6 == 0xFF || value_delta_6 > 0x50)))) {
+            bc2 = cap1106_read_reg(prox_data->client, 0x51);
+            bc6 = cap1106_read_reg(prox_data->client, 0x55);
+            PROX_DEBUG("Status: 0x%02X, BC2=0x%02X, D2=0x%02X, BC6=0x%02X, D6=0x%02X\n", status, bc2, value_delta_2, bc6, value_delta_6);
+            if ((value_delta_2 == 0x00 && value_delta_6 == 0x00)
+                || (value_delta_2 == 0xFF && value_delta_6 == 0xFF)
+                || (value_delta_2 == 0x00 && value_delta_6 == 0xFF)
+                || (value_delta_2 == 0xFF && value_delta_6 == 0x00)
+                || (prox_data->overflow_status == 0x2 && (value_delta_2 > 0x50) && (value_delta_2 <= 0x7F))
+                || (prox_data->overflow_status == 0x20 && (value_delta_6 > 0x50) && (value_delta_6 <= 0x7F))
+                || (prox_data->overflow_status == 0x22 && (((value_delta_2 > 0x50) && (value_delta_2 <= 0x7F))
+                                                            || ((value_delta_6 > 0x50) && (value_delta_6 <= 0x7F))))) {
                 PROX_DEBUG("unset is_wood_sensitivity to 0\n");
-                is_wood_sensitivity = 0;
-                prox_data->overflow_status = 0;
                 //set sensitivity and threshold for 2cm body distance
                 cap1106_write_reg(prox_data->client, 0x1f, 0x1f);
                 cap1106_write_reg(prox_data->client, 0x31, 0x08);
                 cap1106_write_reg(prox_data->client, 0x35, 0x0a);
+                is_wood_sensitivity = 0;
+                queue_delayed_work(prox_wq, &prox_data->work, 0);
             }
         } else {
             PROX_DEBUG("delta 2 = -1\n");
