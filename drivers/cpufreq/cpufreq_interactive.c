@@ -80,10 +80,10 @@ struct cpufreq_interactive_core_lock {
 static struct cpufreq_interactive_core_lock core_lock;
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
-static u64 hispeed_freq = 700000;
+static unsigned int hispeed_freq = 700000;
 
 /* CPU will be boosted to this freq - default 1000Mhz - when an input event is detected */ 
-static u64 input_boost_freq = 1000000;
+static unsigned int input_boost_freq = 1000000;
 
 /* Boost frequency by boost_factor when CPU load at or above this value. */
 #define DEFAULT_GO_MAXSPEED_LOAD 85
@@ -660,7 +660,7 @@ static int cpufreq_interactive_lock_cores_task(void *data)
 static ssize_t show_input_boost_freq(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%llu\n", input_boost_freq);
+	return sprintf(buf, "%u\n", input_boost_freq);
 }
 
 static ssize_t store_input_boost_freq(struct kobject *kobj,
@@ -668,9 +668,9 @@ static ssize_t store_input_boost_freq(struct kobject *kobj,
 				  size_t count)
 {
 	int ret;
-	u64 val;
+	long unsigned int val;
 
-	ret = strict_strtoull(buf, 0, &val);
+	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
 	input_boost_freq = val;
@@ -899,7 +899,7 @@ static struct global_attr max_boost_attr = __ATTR(max_boost, 0644,
 static ssize_t show_hispeed_freq(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%llu\n", hispeed_freq);
+	return sprintf(buf, "%u\n", hispeed_freq);
 }
 
 static ssize_t store_hispeed_freq(struct kobject *kobj,
@@ -907,9 +907,9 @@ static ssize_t store_hispeed_freq(struct kobject *kobj,
 				  size_t count)
 {
 	int ret;
-	u64 val;
+	long unsigned int val;
 
-	ret = strict_strtoull(buf, 0, &val);
+	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
 	hispeed_freq = val;
@@ -1131,7 +1131,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 				&interactive_attr_group);
 		if (rc)
 			return rc;
-			
+
 		rc = input_register_handler(&cpufreq_interactive_input_handler);
 		if (rc)
 			pr_warn("%s: failed to register input handler\n",
