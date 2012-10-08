@@ -336,11 +336,11 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 	if (freqs == NULL || d->millivolts == NULL)
 		return -ENODEV;
 
-	if (rate > freqs[d->num_freqs - 1]) {
-		pr_warn("tegra_dvfs: rate %lu too high for dvfs on %s\n", rate,
-			d->clk_name);
-		return -EINVAL;
-	}
+	//if (rate > freqs[d->num_freqs - 1]) {
+	//	pr_warn("tegra_dvfs: rate %lu too high for dvfs on %s\n", rate,
+	//		d->clk_name);
+	//	return -EINVAL;
+	//}
 
 	if (rate == 0) {
 		d->cur_millivolts = 0;

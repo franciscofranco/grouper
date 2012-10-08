@@ -123,14 +123,13 @@ static void to_state_running_locked(struct nvhost_device *dev)
 		if (dev->dev.parent)
 			nvhost_module_busy(to_nvhost_device(dev->dev.parent));
 
-		for (i = 0; i < dev->num_clks; i++) {
-			int err = clk_enable(dev->clk[i]);
-			if (err) {
-				dev_err(&dev->dev, "Cannot turn on clock %s",
-					dev->clocks[i].name);
-				return;
-			}
-		}
+		for (i = 0; i < dev->num_clks; i++)
+			clk_enable(dev->clk[i]);
+			//if (err) {
+			//	dev_err(&dev->dev, "Cannot turn on clock %s",
+			//		dev->clocks[i].name);
+			//	return;
+			//}
 
 		if (prev_state == NVHOST_POWER_STATE_POWERGATED
 				&& dev->finalize_poweron)
