@@ -2946,11 +2946,14 @@ static noinline int shared_bus_set_rate(struct clk *bus, unsigned long rate,
 
 	mv = tegra_dvfs_predict_millivolts(bus, rate);
 	old_mv = tegra_dvfs_predict_millivolts(bus, old_rate);
-	if (IS_ERR_VALUE(mv) || IS_ERR_VALUE(old_mv)) {
-		pr_err("%s: Failed to predict %s voltage for %lu => %lu\n",
-		       __func__, bus->name, old_rate, rate);
-		return -EINVAL;
-	}
+	//if (IS_ERR_VALUE(mv) || IS_ERR_VALUE(old_mv)) {
+	//	pr_err("%s: Failed to predict %s voltage for %lu => %lu\n",
+	//	       __func__, bus->name, old_rate, rate);
+	//	return -EINVAL;
+	//}
+	
+	//pr_info("SHARED_BUS_SET_RATE: %dmV\n", mv);
+	//pr_info("SHARED_BUS_SET_RATE: %dold_mV\n", old_mv);
 
 	/* emc bus: set bridge rate as intermediate step when crossing
 	 * bridge threshold in any direction

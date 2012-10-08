@@ -662,6 +662,78 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	return count;
 }
 
+static ssize_t show_gpu_oc(struct cpufreq_policy *policy, char *buf)
+{
+	char *c = buf;
+	struct clk *gpu = tegra_get_clock_by_name("3d");
+	int i = gpu->dvfs->num_freqs;
+	
+	if (i == 0)
+		return -EINVAL;
+	
+	for (i--; i >= 1; i--)
+		c += sprintf(c, "%lu ", gpu->dvfs->freqs[i]/1000000);
+	
+	return c - buf;
+}
+
+static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long gpu_freq;
+	
+	//all the tables that need to be updated with the new frequencies
+	struct clk *vde = tegra_get_clock_by_name("vde");
+	struct clk *mpe = tegra_get_clock_by_name("mpe");
+	struct clk *two_d = tegra_get_clock_by_name("2d");
+	struct clk *epp = tegra_get_clock_by_name("epp");
+	struct clk *three_d = tegra_get_clock_by_name("3d");
+	struct clk *three_d2 = tegra_get_clock_by_name("3d2");
+	struct clk *se = tegra_get_clock_by_name("se");
+	struct clk *cbus = tegra_get_clock_by_name("cbus");
+	
+	const int array_size = vde->dvfs->num_freqs;
+	char cur_size[array_size];
+	int i = array_size;
+	
+	if (i == 0) 
+		return -EINVAL;
+	
+	for (i--; i >= 1; i--) {
+		ret = sscanf(buf, "%lu", &gpu_freq);
+		
+		if (i == array_size-1) {
+			vde->max_rate = gpu_freq*1000000;
+			mpe->max_rate = gpu_freq*1000000;
+			two_d->max_rate = gpu_freq*1000000;
+			epp->max_rate = gpu_freq*1000000;
+			three_d->max_rate = gpu_freq*1000000;
+			three_d2->max_rate = gpu_freq*1000000;
+			se->max_rate = gpu_freq*1000000;
+			cbus->max_rate = gpu_freq*1000000;
+			pr_info("Set clk->max_rate. %d\n", i);
+		}
+		
+		vde->dvfs->freqs[i] = gpu_freq*1000000;
+		mpe->dvfs->freqs[i] = gpu_freq*1000000;
+		two_d->dvfs->freqs[i] = gpu_freq*1000000;
+		epp->dvfs->freqs[i] = gpu_freq*1000000;
+		three_d->dvfs->freqs[i] = gpu_freq*1000000;
+		three_d2->dvfs->freqs[i] = gpu_freq*1000000;
+		se->dvfs->freqs[i] = gpu_freq*1000000;
+		cbus->dvfs->freqs[i] = gpu_freq*1000000;
+			
+		ret = sscanf(buf, "%s", cur_size);
+			
+		if (ret == 0)
+			return 0;
+				
+		buf += (strlen(cur_size) + 1);
+	}
+	
+	return count;
+}
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -680,6 +752,7 @@ cpufreq_freq_attr_rw(dvfs_test);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
 cpufreq_freq_attr_rw(UV_mV_table);
+cpufreq_freq_attr_rw(gpu_oc);
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -697,6 +770,7 @@ static struct attribute *default_attrs[] = {
 	&policy_min_freq.attr,
 	&policy_max_freq.attr,
 	&UV_mV_table.attr,
+	&gpu_oc.attr,
 	NULL
 };
 
