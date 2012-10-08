@@ -36,6 +36,7 @@
 /* includes for the undervolt interface */
 #include "../../arch/arm/mach-tegra/dvfs.h"
 
+static DEFINE_MUTEX(dvfs_lock);
 static DEFINE_MUTEX(cpu_lp_lock);
 
 /**
@@ -705,6 +706,7 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	for (i--; i >= 1; i--) {
 		ret = sscanf(buf, "%lu", &gpu_freq);
 		
+		mutex_lock(&dvfs_lock);
 		if (i == array_size-1) {
 			vde->max_rate = gpu_freq*1000000;
 			mpe->max_rate = gpu_freq*1000000;
@@ -725,6 +727,7 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 		three_d2->dvfs->freqs[i] = gpu_freq*1000000;
 		se->dvfs->freqs[i] = gpu_freq*1000000;
 		cbus->dvfs->freqs[i] = gpu_freq*1000000;
+		mutex_unlock(&dvfs_lock);
 			
 		ret = sscanf(buf, "%s", cur_size);
 			
