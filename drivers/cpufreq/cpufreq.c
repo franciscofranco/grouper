@@ -52,7 +52,7 @@ static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
-static unsigned int user_mv_table[MAX_DVFS_FREQS] = { 775, 800, 825, 850, 875, 900, 950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1175, 1200 };
+static unsigned int user_mv_table[MAX_DVFS_FREQS] = { 800, 825, 850, 875, 900, 925, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225, 1250 };
 static unsigned int freq_table[13] = { 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300 };
 static const int core_millivolts[MAX_DVFS_FREQS] = { 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350 };
 unsigned int extended_core_millivolts[MAX_DVFS_FREQS] = { 950, 1000, 1050, 1100, 1150, 1400, 1400, 1400, 1400 };
