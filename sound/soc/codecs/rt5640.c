@@ -2763,7 +2763,7 @@ static int rt5640_set_bias_level(struct snd_soc_codec *codec,
 			 * wait 10ms to
 			 * make 1st and 2nd reference voltages stable
 			 */
-			usleep_range(5000, 6000);
+			usleep_range(10000, 15000);
 			snd_soc_update_bits(codec, RT5640_PWR_ANLG1,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2,
 				RT5640_PWR_FV1 | RT5640_PWR_FV2);
