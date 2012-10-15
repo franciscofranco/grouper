@@ -1703,12 +1703,12 @@ static int rt5640_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		/* set DAC Digital Volume = 0dB */
+		/* set DAC Digital Volume = -0.375dB */
 		snd_soc_update_bits(codec, RT5640_DAC1_DIG_VOL,
-			0xFFFF, 0xAFAF);
-		/* set Output mixer Volume = 0dB */
+			0xFFFF, 0xAEAE);
+		/* set Output mixer Volume = -1.5dB */
 		snd_soc_update_bits(codec, RT5640_OUTPUT,
-			0x3F3F, 0x0808);
+			0x3F3F, 0x0909);
 		rt5640_pmu_depop(codec);
 		/* unmute Output Volume Channel */
 		snd_soc_update_bits(codec, RT5640_OUTPUT,
