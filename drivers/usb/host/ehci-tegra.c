@@ -82,6 +82,13 @@ struct tegra_ehci_hcd {
 	bool bus_suspended_fail;
 };
 
+int use_hsic_controller(struct usb_hcd *hcd)
+{
+	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
+	return (tegra->phy->usb_phy_type == TEGRA_USB_PHY_TYPE_HSIC);
+}
+EXPORT_SYMBOL(use_hsic_controller);
+
 static void tegra_ehci_power_up(struct usb_hcd *hcd, bool is_dpd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
