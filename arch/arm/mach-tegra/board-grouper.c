@@ -166,9 +166,11 @@ static struct platform_device grouper_bluesleep_device = {
 	.resource       = grouper_bluesleep_resources,
 };
 
+extern void bluesleep_setup_uart_port(struct platform_device *uart_dev);
 static noinline void __init grouper_setup_bluesleep(void)
 {
 	platform_device_register(&grouper_bluesleep_device);
+	bluesleep_setup_uart_port(&tegra_uartc_device);
 	tegra_gpio_enable(TEGRA_GPIO_PU6);
 	tegra_gpio_enable(TEGRA_GPIO_PU1);
 	return;
