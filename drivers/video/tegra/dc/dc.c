@@ -2654,6 +2654,17 @@ void tegra_dc_enable(struct tegra_dc *dc)
 static void _tegra_dc_controller_disable(struct tegra_dc *dc)
 {
 	unsigned i;
+	// ensure prepoweroff called after backlight set to 0
+	if ( dc->ndev->id==0 && dc->out->sd_settings && dc->out->sd_settings->bl_device) {
+		struct platform_device *pdev = dc->out->sd_settings->bl_device;
+		struct backlight_device *bl = platform_get_drvdata(pdev);
+		int count = 0;
+		while(bl->props.brightness!=0 && count<4)
+		{
+			count++;
+			msleep(50);
+		}
+	}
 
 	gpio_set_value(grouper_lvds_shutdown, 0);
 
