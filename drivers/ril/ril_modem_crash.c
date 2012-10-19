@@ -26,6 +26,21 @@ static struct work_struct crash_work;
 static struct wake_lock wakelock;
 static struct switch_dev crash_sdev;
 static int do_crash_dump = 0;
+static int do_crash_dump_work = 0;
+
+void ril_change_modem_crash_mode(void)
+{
+	int value = 0;
+
+	if (do_crash_dump == 1) {
+		value = gpio_get_value(MOD_HANG);
+		if (value) {
+			RIL_INFO("do_crash_dump is on!\n");
+			queue_work(workqueue, &crash_work);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(ril_change_modem_crash_mode);
 
 /* sysfs functions */
 
@@ -40,7 +55,7 @@ static ssize_t store_cdump_state(struct device *class, struct device_attribute *
 {
 	int enable;
 
-	if (sscanf(buf, "%u", &enable) != 1)
+	if (sscanf(buf, "%d", &enable) != 1)
 		return -EINVAL;
 
 	if ((enable != 1) && (enable != 0))
@@ -56,8 +71,35 @@ static ssize_t store_cdump_state(struct device *class, struct device_attribute *
 	return strnlen(buf, count);
 }
 
+static ssize_t show_crash_mode_state(struct device *class,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", do_crash_dump_work);
+}
+
+static ssize_t store_crash_mode_state(struct device *class, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int enable;
+
+	if (sscanf(buf, "%d", &enable) != 1)
+		return -EINVAL;
+
+	if ((enable != 1) && (enable != 0))
+		return -EINVAL;
+
+	RIL_INFO("enable: %d\n", enable);
+
+	if (enable) {
+		ril_change_modem_crash_mode();
+	}
+
+	return strnlen(buf, count);
+}
+
 static struct device_attribute SYSFS_LIST[] = {
 	__ATTR(crash_dump_onoff, _ATTR_MODE, show_cdump_state, store_cdump_state),
+	__ATTR(change_crash_mode, _ATTR_MODE, show_crash_mode_state, store_crash_mode_state),
 	__ATTR_NULL,
 };
 
@@ -105,37 +147,33 @@ static void ril_crash_switch_exit(void)
 
 static void ril_crash_dump_work(struct work_struct *work)
 {
-	disable_irq(gpio_to_irq(MOD_HANG));
+	if (do_crash_dump_work == 0) {
+		disable_irq(gpio_to_irq(MOD_HANG));
 
-	wake_lock(&wakelock);
+		wake_lock(&wakelock);
 
-	baseband_usb_hsic_host_register(0);
-	msleep(200);
-	gpio_set_value(USB_SW_SEL, 1);
-	mdelay(5);
-	gpio_set_value(MOD_VBUS_ON, 1);
-	mdelay(5);
-	baseband_usb_utmip_host_register(1);
+		baseband_usb_hsic_host_register(0);
+		msleep(200);
+		gpio_set_value(USB_SW_SEL, 1);
+		mdelay(5);
+		gpio_set_value(MOD_VBUS_ON, 1);
+		mdelay(5);
+		baseband_usb_utmip_host_register(1);
 
-	switch_set_state(&crash_sdev, 1);
+		switch_set_state(&crash_sdev, 1);
+		do_crash_dump_work = 1;
 
-	wake_unlock(&wakelock);
+		wake_unlock(&wakelock);
+	}
 }
 
 /* IRQ Handlers */
 irqreturn_t ril_ipc_sus_req_irq(int irq, void *dev_id)
 {
-	int value;
-
 	RIL_INFO("The IMC modem crashed!\n");
 
-	if (do_crash_dump) {
-		value = gpio_get_value(MOD_HANG);
-		if (value) {
-			RIL_INFO("do_crash_dump is on!\n");
-			queue_work(workqueue, &crash_work);
-		}
-	}
+	ril_change_modem_crash_mode();
+
 	return IRQ_HANDLED;
 }
 
