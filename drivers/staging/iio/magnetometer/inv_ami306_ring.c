@@ -50,7 +50,7 @@ enum Compass_cali_File {
 };
 
 /* function for loading compass calibration file. */
-static int access_cali_file(short *gain, int target)
+static int access_cali_file(int *gain, int target)
 {
 	char buf[256];
 	int ret;
