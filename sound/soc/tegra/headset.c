@@ -236,9 +236,6 @@ static void insert_headset(void)
 		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = false;
-		snd_soc_dapm_disable_pin(dapm, "Int Spk");
-		snd_soc_dapm_disable_pin(dapm, "AUX");
-		snd_soc_dapm_sync(dapm);
 	}else{
 		printk("%s: headset\n", __func__);
 		switch_set_state(&hs_data->sdev, HEADSET_WITHOUT_MIC);
@@ -246,9 +243,6 @@ static void insert_headset(void)
 		pulldown_uart();
 		gpio_direction_output(UART_HEADPHONE_SWITCH, 1);
 		headset_alive = true;
-		snd_soc_dapm_disable_pin(dapm, "Int Spk");
-		snd_soc_dapm_disable_pin(dapm, "AUX");
-		snd_soc_dapm_sync(dapm);
 	}
 	hs_data->debouncing_time = ktime_set(0, 100000000);  /* 100 ms */
 }
