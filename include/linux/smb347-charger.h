@@ -25,6 +25,7 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/wakelock.h>
+#include <linux/switch.h>
 
 #define SMB_DEBUG			0
 #if SMB_DEBUG
@@ -42,6 +43,17 @@
 
 /* Debug setting */
 #define REG_POLLING_RATE	90
+
+//-----------------------------------------
+#define DOCK_SDEV_NAME			"dock"
+
+enum dock_state{
+	UNDOCKED =0,
+	DESK_DOCK,
+	CAR_DOCK,
+	LE_DESK_DOCK,
+	HE_DESK_DOCK,
+};
 
 enum charging_states {
 	idle,
@@ -68,6 +80,7 @@ enum charger_type chrg_type, void *args);
 struct smb347_charger {
 	struct i2c_client	*client;
 	struct device	*dev;
+	struct switch_dev		dock_sdev;
 	struct delayed_work	inok_isr_work;
 	struct delayed_work	dockin_isr_work;
 	struct delayed_work	cable_det_work;
@@ -86,6 +99,7 @@ struct smb347_charger {
 	unsigned long time_of_1800mA_limit;
 	unsigned char test_1800mA_fail;
 	unsigned int curr_limit;
+	unsigned int docked_in;
 };
 
 int smb347_battery_online(void);
