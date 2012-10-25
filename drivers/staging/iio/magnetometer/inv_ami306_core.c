@@ -389,8 +389,11 @@ static ssize_t compass_cali_test(struct device *dev,
 
 	/* Check if raw data match the gain from calibration file */
 	for (ii = 0; ii < 3; ii++) {
-		val = (short)(st->data_chk.ori[ii] *
-				st->data_chk.gain[ii] / 100);
+		val = (short)(st->data_chk.ori[ii]);
+
+		if (st->data_chk.gain[ii] > 0)
+			val = (short)(st->data_chk.ori[ii] *
+					100 / st->data_chk.gain[ii]);
 
 		if (val == st->data_chk.post[ii])
 			bufcnt += sprintf(tmpbuf,
@@ -398,7 +401,7 @@ static ssize_t compass_cali_test(struct device *dev,
 				ii);
 		else
 			bufcnt += sprintf(tmpbuf,
-				"[axis-%d] Compensation FAIL. %d != %d",
+				"[axis-%d] Compensation FAIL. %d != %d\n",
 					ii, val, st->data_chk.post[ii]);
 
 		strncat(buf, tmpbuf, strlen(tmpbuf));
