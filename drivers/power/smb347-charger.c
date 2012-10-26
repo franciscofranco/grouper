@@ -875,7 +875,6 @@ static int cable_type_detect(void)
 		return 0;
 
 	mutex_lock(&charger->cable_lock);
-	charger->docked_in = gpio_get_value(dock_in) ? 0 : 1;
 
 	if ((charger->old_cable_type == ac_cable) &&
 	charger->time_of_1800mA_limit && gpio_get_value(ac_ok) &&
@@ -903,7 +902,6 @@ static int cable_type_detect(void)
 		if (!(retval & DCIN_OV_UV_STS) && !gpio_get_value(dock_in)) {
 			SMB_NOTICE("DC_IN\n");
 			success = battery_callback(ac_cable);
-			switch_set_state(&charger->dock_sdev, HE_DESK_DOCK);
 		} else {
 
 			/* cable type dection */
@@ -1002,7 +1000,6 @@ static void dockin_isr_work_function(struct work_struct *dat)
 			SMB_NOTICE("dc_in=H & ac_ok=L\n");
 			cable_type_detect();
 		}
-		switch_set_state(&charger->dock_sdev, UNDOCKED);
 	} else {
 		if (!gpio_get_value(ac_ok)) {
 			SMB_NOTICE("dc_in=L & ac_ok=L\n");
@@ -1082,22 +1079,6 @@ static void smb347_default_setback(void)
 	}
 }
 
-static ssize_t smb347_switch_name(struct switch_dev *sdev, char *buf)
-{
-	switch (switch_get_state(sdev)) {
-		case UNDOCKED:
-			return sprintf(buf, "%s-UNDOCKED\n", (project_id == GROUPER_PROJECT_NAKASI) ? "NAKASI" : "BACH");
-		case HE_DESK_DOCK:
-			return sprintf(buf, "%s-DOCKED\n", (project_id == GROUPER_PROJECT_NAKASI) ? "NAKASI" : "BACH");
-	}
-	return -EINVAL;
-}
-
-static ssize_t smb347_switch_state(struct switch_dev *sdev, char *buf)
-{
-	return sprintf(buf, "%d\n", (charger->docked_in) ? HE_DESK_DOCK : UNDOCKED);
-}
-
 static int __devinit smb347_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1115,15 +1096,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	charger->client = client;
 	charger->dev = &client->dev;
 	i2c_set_clientdata(client, charger);
-
-	charger->dock_sdev.name = DOCK_SDEV_NAME;
-	charger->dock_sdev.print_name = smb347_switch_name;
-	charger->dock_sdev.print_state = smb347_switch_state;
-	if(switch_dev_register(&charger->dock_sdev) < 0){
-		dev_err(&client->dev, "%s(): Failed to register dock swith device\n", __func__);
-		goto error;
-	}
-	switch_set_state(&charger->dock_sdev, UNDOCKED);
 
 	/* Restore default setting: APSD Enable & 5/1/HC mode Pin control */
 	smb347_default_setback();
@@ -1154,7 +1126,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	charger->cur_cable_type = non_cable;
 	charger->old_cable_type = non_cable;
 	charger->test_1800mA_fail = 0;
-	charger->docked_in = 0;
 
 	ret = smb347_dockin_irq(charger);
 	if (ret) {
@@ -1271,7 +1242,6 @@ module_init(smb347_init);
 static void __exit smb347_exit(void)
 {
 	i2c_del_driver(&smb347_i2c_driver);
-	switch_dev_unregister(&charger->dock_sdev);
 }
 module_exit(smb347_exit);
 
