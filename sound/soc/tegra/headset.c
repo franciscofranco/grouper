@@ -74,7 +74,7 @@ static int               	btn_config_gpio(void);
 static int                      switch_config_gpio(void);
 int 			hs_micbias_power(int on);
 static irqreturn_t	dockin_irq_handler(int irq, void *dev_id);
-static void		audio_dock_switch(void);
+static void		set_dock_switches(void);
 /*----------------------------------------------------------------------------
 ** GLOBAL VARIABLES
 **----------------------------------------------------------------------------*/
@@ -118,19 +118,13 @@ static unsigned int revision;
 static u32 lineout_gpio;
 static int gpio_dock_in = 0;
 
-static ssize_t dock_status_show(struct device *dev,struct device_attribute *attr, char *buf)
-{
-	int dock_status = 0;
-	
-	if(gpio_get_value(gpio_dock_in))
-		dock_status = 0;
-	else
-		dock_status = 1;
+static struct switch_dev dock_switch = {
+	.name = "dock",
+};
 
-	return sprintf(buf, "%d\n", dock_status);
-}
-
-DEVICE_ATTR(dock_status, S_IRUGO, dock_status_show, NULL);
+static struct switch_dev audio_switch = {
+	.name = "usb_audio",
+};
 
 static ssize_t headset_name_show(struct switch_dev *sdev, char *buf)
 {
@@ -375,9 +369,24 @@ static void lineout_work_queue(struct work_struct *work)
 
 }
 
+static void set_dock_switches(void)
+{
+	bool docked = !gpio_get_value(gpio_dock_in);
+
+	/* LE desk dock == 3, undocked == 0. */
+	switch_set_state(&dock_switch, docked ? 3 : 0);
+
+	/*
+	 * Analog audio == 1, no audio == 0.
+	 * Note that because we cannot detect the presence of a 3.5mm jack
+	 * in the dock's audio socket, when docked, audio is always on.
+	 */
+	switch_set_state(&audio_switch, docked ? 1 : 0);
+}
+
 static void dock_work_queue(struct work_struct *work)
 {
-		audio_dock_switch();
+	set_dock_switches();
 }
 
 /**********************************************************
@@ -435,42 +444,8 @@ static int dockin_config_gpio()
         return ret;
 }
 
-static void audio_dock_switch(void)
-{
-
-	struct snd_soc_dapm_context *dapm;
-
-	dapm = &rt5640_audio_codec->dapm;
-
-	if(!gpio_get_value(gpio_dock_in)){
-		/* Change route to dock if current output device is spk */
-		if(snd_soc_dapm_get_pin_status(dapm, "Int Spk")){
-                        snd_soc_dapm_disable_pin(dapm, "Int Spk");
-                        snd_soc_dapm_enable_pin(dapm, "AUX");
-			snd_soc_update_bits(rt5640_audio_codec,
-				RT5640_DIG_INF_DATA, RT5640_IF1_DAC_SEL_MASK,
-				0x0000);
-			snd_soc_dapm_sync(dapm);
-		}else{
-			snd_soc_dapm_disable_pin(dapm, "AUX");
-			snd_soc_dapm_sync(dapm);
-		}
-	}else{
-		if(!snd_soc_dapm_get_pin_status(dapm, "Headphone Jack")){
-			snd_soc_dapm_enable_pin(dapm, "Int Spk");
-			snd_soc_update_bits(rt5640_audio_codec,
-                                RT5640_DIG_INF_DATA, RT5640_IF1_DAC_SEL_MASK,
-                                0x4000);
-		}
-		snd_soc_dapm_disable_pin(dapm, "AUX");
-		snd_soc_dapm_sync(dapm);
-	}
-
-}
-
 static irqreturn_t dockin_irq_handler(int irq, void *dev_id)
 {
-	printk("%s\n", __func__);
 	schedule_work(&dock_work);
 
         return IRQ_HANDLED;
@@ -598,13 +573,10 @@ static int __init headset_init(void)
 	if (ret < 0)
 		goto err_switch_dev_register;
 
-	
-        ret = device_create_file(rt5640_audio_codec->dev, &dev_attr_dock_status);
-        if (ret != 0) {
-                dev_err(rt5640_audio_codec->dev,
-                        "Failed to create dock status: %d\n", ret);
-                goto err_switch_dev_register;
-        }
+	WARN_ON(switch_dev_register(&dock_switch));
+	WARN_ON(switch_dev_register(&audio_switch));
+	/* Make sure dock switches are correct at boot */
+	set_dock_switches();
 
 	g_detection_work_queue = create_workqueue("detection");
 
@@ -647,6 +619,8 @@ static void __exit headset_exit(void)
 	free_irq(hs_data->irq, 0);
 	destroy_workqueue(g_detection_work_queue);
 	switch_dev_unregister(&hs_data->sdev);
+	switch_dev_unregister(&dock_switch);
+	switch_dev_unregister(&audio_switch);
 }
 
 module_init(headset_init);
