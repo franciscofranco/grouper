@@ -135,7 +135,7 @@ static struct rt5640_init_reg init_list[] = {
 	{RT5640_PRIV_INDEX	, 0x0091},
 	{RT5640_PRIV_DATA	, 0x1000},
 	{RT5640_STO_DAC_MIXER	, 0x0404},
-	{RT5640_LOUT_MIXER	, 0xc000},
+	{RT5640_LOUT_MIXER	, 0x3000},
 	{RT5640_I2S1_SDP	, 0xe000},
 	{RT5640_DSP_PATH2	, 0x0000},
 	{RT5640_PRIV_INDEX      , 0x006e},
@@ -1703,16 +1703,7 @@ static int rt5640_lout_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		/* set DAC Digital Volume = -0.375dB */
-		snd_soc_update_bits(codec, RT5640_DAC1_DIG_VOL,
-			0xFFFF, 0xAEAE);
-		/* set Output mixer Volume = -1.5dB */
-		snd_soc_update_bits(codec, RT5640_OUTPUT,
-			0x3F3F, 0x0909);
 		rt5640_pmu_depop(codec);
-		/* unmute Output Volume Channel */
-		snd_soc_update_bits(codec, RT5640_OUTPUT,
-			0x4040, 0);
 		snd_soc_update_bits(codec, RT5640_OUTPUT,
 			RT5640_L_MUTE | RT5640_R_MUTE, 0);
 		break;
@@ -1721,15 +1712,6 @@ static int rt5640_lout_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, RT5640_OUTPUT,
 			RT5640_L_MUTE | RT5640_R_MUTE,
 			RT5640_L_MUTE | RT5640_R_MUTE);
-		/* mute Output Volume Channel */
-		snd_soc_update_bits(codec, RT5640_OUTPUT,
-			0x4040, 0x4040);
-		/* set Output mixer Volume = 0dB */
-		snd_soc_update_bits(codec, RT5640_OUTPUT,
-			0x3F3F, 0x0808);
-		/* set DAC Digital Volume = 0dB */
-		snd_soc_update_bits(codec, RT5640_DAC1_DIG_VOL,
-			0xFFFF, 0xAFAF);
 		rt5640_pmd_depop(codec);
 		break;
 
