@@ -54,8 +54,8 @@ static int lowmem_minfree[] = {
 	10240,
 	20480,
 	20480,
+	20480,
 	40960,
-	81920,
 };
 
 static int lowmem_adj_size = ARRAY_SIZE(lowmem_adj);
