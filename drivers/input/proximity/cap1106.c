@@ -72,6 +72,7 @@ static int prev_c6_status = 0;
 static int c2_acc_cnt = 0;
 static int c6_acc_cnt = 0;
 static int acc_limit = 10;
+static int force_enable = 1;
 
 /*----------------------------------------------------------------------------
  ** FUNCTION DECLARATION
@@ -472,6 +473,7 @@ static ssize_t store_sensor_onoff(struct device *dev, struct device_attribute *a
         return -EINVAL;
 
     mutex_lock(&prox_mtx);
+    force_enable = enable;
     cap1106_enable_sensor(client, enable);
     mutex_unlock(&prox_mtx);
 
@@ -892,7 +894,8 @@ static int cap1106_resume(struct i2c_client *client)
 {
     PROX_DEBUG("+\n");
     mutex_lock(&prox_mtx);
-    cap1106_enable_sensor(client, 1);
+    if (force_enable)
+        cap1106_enable_sensor(client, 1);
     mutex_unlock(&prox_mtx);
     PROX_DEBUG("-\n");
     return 0;
