@@ -633,6 +633,9 @@ dhd_dynamic_dtim_skip_release(dhd_pub_t *dhdp)
 }
 #endif
 
+bool wifi_pm = false;
+module_param(wifi_pm, bool, 0755);
+
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 #if !defined(SUPPORT_PM2_ONLY)
@@ -645,6 +648,9 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 
 	DHD_TRACE(("%s: enter, value = %d in_suspend=%d\n",
 		__FUNCTION__, value, dhd->in_suspend));
+
+	if (wifi_pm)
+		power_mode = PM_FAST;
 
 	dhd_suspend_lock(dhd);
 	if (dhd && dhd->up) {
