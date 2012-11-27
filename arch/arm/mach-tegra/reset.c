@@ -27,6 +27,10 @@
 #include "sleep.h"
 #include "pm.h"
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+#include <asm/kexec.h>
+#endif
+
 static bool is_enabled;
 
 static void tegra_cpu_reset_handler_enable(void)
@@ -88,6 +92,21 @@ void tegra_cpu_reset_handler_restore(void)
 }
 #endif
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+#define RECOVERY_MODE	BIT(31)
+void tegra_kexec_hardboot(void)
+{
+	/* Reboot with the recovery kernel since the boot kernel decompressor may
+	 * not support the hardboot jump. */
+
+	void __iomem *reset = IO_ADDRESS(TEGRA_PMC_BASE + 0x00);
+
+	u32 reg = readl_relaxed(reset + PMC_SCRATCH0);
+	reg |= RECOVERY_MODE;
+	writel_relaxed(reg, reset + PMC_SCRATCH0);
+}
+#endif
+
 void __init tegra_cpu_reset_handler_init(void)
 {
 #ifdef CONFIG_SMP
@@ -112,4 +131,8 @@ void __init tegra_cpu_reset_handler_init(void)
 			  __pa(&__tegra_cpu_reset_handler_data[TEGRA_RESET_DATA_SIZE]));
 
 	tegra_cpu_reset_handler_enable();
+
+#ifdef CONFIG_KEXEC_HARDBOOT
+	kexec_hardboot_hook = tegra_kexec_hardboot;
+#endif
 }
