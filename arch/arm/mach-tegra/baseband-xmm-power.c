@@ -562,6 +562,7 @@ void baseband_xmm_set_power_status(unsigned int status)
 			baseband_xmm_power_driver_handle_resume(data);
 		}*/
 		pr_info("L0\n");
+		baseband_xmm_powerstate = status;
 		value = gpio_get_value(data->modem.xmm.ipc_hsic_active);
 		pr_debug("before L0 ipc_hsic_active=%d\n", value);
 		if (!value) {
@@ -580,6 +581,7 @@ void baseband_xmm_set_power_status(unsigned int status)
 		break;
 	case BBXMM_PS_L2:
 		pr_info("L2\n");
+		baseband_xmm_powerstate = status;
 		wake_unlock(&wakelock);
 		modem_sleep_flag = true;
 		break;
@@ -594,6 +596,7 @@ void baseband_xmm_set_power_status(unsigned int status)
 			}
 		}
 		pr_info("L3\n");
+		baseband_xmm_powerstate = status;
 		if (wake_lock_active(&wakelock)) {
 			pr_info("%s: releasing wakelock before L3\n",
 				__func__);
@@ -613,9 +616,9 @@ void baseband_xmm_set_power_status(unsigned int status)
 		} else
 			goto exit_without_state_change;
 	default:
+		baseband_xmm_powerstate = status;
 		break;
 	}
-	baseband_xmm_powerstate = status;
 	pr_debug("BB XMM POWER STATE = %d\n", status);
 	return;
 
@@ -807,7 +810,7 @@ static void baseband_xmm_power_init2_work(struct work_struct *work)
 		} else
 			pr_err("%s: hsic_register is missing\n", __func__);
 		register_hsic_device = false;
-		modem_reset_flag == 0;
+		modem_reset_flag = 0;
 	}
 
 }
