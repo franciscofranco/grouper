@@ -269,17 +269,6 @@ static irqreturn_t tegra_otg_irq(int irq, void *data)
 			tegra->detect_vbus = false;
 			schedule_work(&tegra->work);
 		}
-	} else {
-		if ((val & USB_ID_INT_STATUS) || (val & USB_VBUS_INT_STATUS)) {
-			printk(KERN_INFO "%s(): WRONG! val = %#X\n", __func__, val);
-			val |= (USB_VBUS_INT_EN | USB_VBUS_WAKEUP_EN);
-			val |= (USB_ID_INT_EN | USB_ID_PIN_WAKEUP_EN);
-			otg_writel(tegra, val, USB_PHY_WAKEUP);
-
-			tegra->int_status = val;
-			tegra->detect_vbus = false;
-			schedule_work(&tegra->work);
-		}
 	}
 
 	spin_unlock_irqrestore(&tegra->lock, flags);
@@ -478,7 +467,7 @@ static int tegra_otg_suspend(struct device *dev)
 	val = tegra_otg->intr_reg_data & ~(USB_ID_INT_EN | USB_VBUS_INT_EN);
 	writel(val, (tegra_otg->regs + USB_PHY_WAKEUP));
 	clk_disable(tegra_otg->clk);
-	printk(KERN_INFO "%s(): tegra_otg->intr_reg_data = %#X\n", __func__, tegra_otg->intr_reg_data);
+
 	if (from == OTG_STATE_B_PERIPHERAL && otg->gadget) {
 		usb_gadget_vbus_disconnect(otg->gadget);
 		otg->state = OTG_STATE_A_SUSPEND;
@@ -503,13 +492,6 @@ static void tegra_otg_resume(struct device *dev)
 	msleep(1);
 	/* restore the interupt enable for cable ID and VBUS */
 	clk_enable(tegra_otg->clk);
-	if (!(tegra_otg->intr_reg_data & USB_VBUS_INT_EN) || !(tegra_otg->intr_reg_data & USB_VBUS_WAKEUP_EN) ||
-		!(tegra_otg->intr_reg_data & USB_ID_INT_EN) || !(tegra_otg->intr_reg_data & USB_ID_PIN_WAKEUP_EN)) {
-		printk(KERN_INFO "%s(): WRONG! tegra_otg->intr_reg_data = %#X\n", __func__, tegra_otg->intr_reg_data);
-		tegra_otg->intr_reg_data |= (USB_VBUS_INT_EN | USB_VBUS_WAKEUP_EN);
-		tegra_otg->intr_reg_data |= (USB_ID_INT_EN | USB_ID_PIN_WAKEUP_EN);
-	}
-	printk(KERN_INFO "%s(): tegra_otg->intr_reg_data = %#X\n", __func__, tegra_otg->intr_reg_data);
 	writel(tegra_otg->intr_reg_data, (tegra_otg->regs + USB_PHY_WAKEUP));
 	val = readl(tegra_otg->regs + USB_PHY_WAKEUP);
 	clk_disable(tegra_otg->clk);
