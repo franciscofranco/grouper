@@ -709,6 +709,7 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 					wakeup_pending = true;
 					spin_unlock(&xmm_lock);
 					pr_info("CP L3 -> L0\n");
+					ril_change_modem_crash_mode();
 				}
 			}
 			/* save gpio state */
