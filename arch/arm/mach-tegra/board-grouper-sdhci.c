@@ -46,10 +46,38 @@ static int grouper_wifi_reset(int on);
 static int grouper_wifi_power(int on);
 static int grouper_wifi_set_carddetect(int val);
 
+/* Customized Locale table : OPTIONAL feature */
+#define WLC_CNTRY_BUF_SZ        4
+typedef struct cntry_locales_custom {
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];
+	char custom_locale[WLC_CNTRY_BUF_SZ];
+	int  custom_locale_rev;
+} cntry_locales_custom_t;
+
+static cntry_locales_custom_t grouper_wifi_translate_custom_table[] = {
+/* Table should be filled out based on custom platform regulatory requirement */
+	{"RU", "XY", 4}
+};
+
+static void *grouper_wifi_get_country_code(char *ccode)
+{
+	int size = ARRAY_SIZE(grouper_wifi_translate_custom_table);
+	int i;
+
+	if (!ccode)
+		return NULL;
+
+	for (i = 0; i < size; i++)
+		if (strcmp(ccode, grouper_wifi_translate_custom_table[i].iso_abbrev) == 0)
+			return &grouper_wifi_translate_custom_table[i];
+	return NULL;
+}
+
 static struct wifi_platform_data grouper_wifi_control = {
 	.set_power	= grouper_wifi_power,
 	.set_reset	= grouper_wifi_reset,
 	.set_carddetect	= grouper_wifi_set_carddetect,
+	.get_country_code = grouper_wifi_get_country_code,
 };
 
 static struct resource wifi_resource[] = {
