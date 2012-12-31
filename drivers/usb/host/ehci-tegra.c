@@ -761,16 +761,13 @@ restart:
  * Must not be called with a lock on ehci->lock
  */
 static void tegra_ehci_disable_phy_interrupt(struct usb_hcd *hcd) {
-	struct tegra_ehci_hcd *tegra;
 	u32 val;
 	if (hcd->irq >= 0) {
-		tegra = dev_get_drvdata(hcd->self.controller);
-		if (tegra->phy->hotplug) {
-			/* Disable PHY clock valid interrupts */
-			val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
-			val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB;
-			writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
-		}
+		/* Disable PHY clock valid interrupts */
+		val = readl(hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET);
+		val &= ~TEGRA_USB_PHY_CLK_VALID_INT_ENB;
+		writel(val , (hcd->regs + TEGRA_USB_SUSP_CTRL_OFFSET));
+
 		/* Wait for the interrupt handler to finish */
 		synchronize_irq(hcd->irq);
 	}
