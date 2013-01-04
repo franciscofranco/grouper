@@ -63,7 +63,7 @@ static cpumask_t speedchange_cpumask;
 static spinlock_t speedchange_cpumask_lock;
 
 /* Hi speed to bump to from lo speed when load burst (default max) */
-static unsigned int hispeed_freq;
+static unsigned int hispeed_freq = 700000;
 
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 99
@@ -98,7 +98,7 @@ static unsigned long above_hispeed_delay_val = DEFAULT_ABOVE_HISPEED_DELAY;
 /*
  * Boost pulse to hispeed on touchscreen input.
  */
-
+void hotplug_boostpulse(void);
 static int input_boost_val;
 
 struct cpufreq_interactive_inputopen {
@@ -681,6 +681,7 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 {
 	if (input_boost_val && type == EV_SYN && code == SYN_REPORT) {
 		trace_cpufreq_interactive_boost("input");
+		hotplug_boostpulse();
 		cpufreq_interactive_boost();
 	}
 }
