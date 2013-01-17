@@ -92,7 +92,8 @@ void tegra_cpu_reset_handler_restore(void)
 }
 #endif
 
-#ifdef CONFIG_KEXEC_HARDBOOT
+
+#if defined(CONFIG_KEXEC_HARDBOOT) && defined(CONFIG_GROUPER_HARDBOOT_RECOVERY)
 #define RECOVERY_MODE	BIT(31)
 void tegra_kexec_hardboot(void)
 {
@@ -132,7 +133,7 @@ void __init tegra_cpu_reset_handler_init(void)
 
 	tegra_cpu_reset_handler_enable();
 
-#ifdef CONFIG_KEXEC_HARDBOOT
+#if defined(CONFIG_KEXEC_HARDBOOT) && defined(CONFIG_GROUPER_HARDBOOT_RECOVERY)
 	kexec_hardboot_hook = tegra_kexec_hardboot;
 #endif
 }
