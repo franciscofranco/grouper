@@ -74,6 +74,7 @@ struct smb347_charger {
 	struct wake_lock 	wake_lock_dockin;
 	struct mutex		cable_lock;
 	struct mutex		dockin_lock;
+	struct mutex		pinctrl_lock;
 	void	*charger_cb_data;
 	enum charging_states state;
 	enum charger_type chrg_type;

@@ -128,6 +128,8 @@ struct wake_lock charger_wakelock;
 static unsigned int project_id;
 static unsigned int pcba_ver;
 static int gpio_dock_in = 0;
+static int charge_en_flag = 1;
+static unsigned usb_det_cable_type = non_cable;
 
 /* Sysfs interface */
 static DEVICE_ATTR(reg_status, S_IWUSR | S_IRUGO, smb347_reg_show, NULL);
@@ -384,18 +386,19 @@ error:
 	return ret;
 }
 
-static int smb347_charger_enable(bool enable)
+static int smb347_pin_control(bool state)
 {
 	struct i2c_client *client = charger->client;
 	u8 ret = 0;
 
-	if (enable) {
+	mutex_lock(&charger->pinctrl_lock);
+
+	if (state) {
 		/*Pin Controls -active low */
 		ret = smb347_update_reg(client, smb347_PIN_CTRL, PIN_ACT_LOW);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed to"
 						"enable charger\n", __func__);
-			return ret;
 		}
 	} else {
 		/*Pin Controls -active high */
@@ -403,12 +406,38 @@ static int smb347_charger_enable(bool enable)
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed to"
 						"disable charger\n", __func__);
-			return ret;
 		}
 	}
+
+	mutex_unlock(&charger->pinctrl_lock);
 	return ret;
 }
 
+int smb347_charger_enable(bool state)
+{
+	struct i2c_client *client = charger->client;
+	u8 ret = 0;
+
+	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n",
+								__func__);
+		goto error;
+	}
+	charge_en_flag = state;
+	smb347_pin_control(state);
+
+	ret = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n",
+								__func__);
+		goto error;
+	}
+
+error:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(smb347_charger_enable);
 
 static int
 smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
@@ -429,7 +458,8 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 	}
 
 	/* disable charger */
-	smb347_charger_enable(0);
+	if (charge_en_flag)
+		smb347_pin_control(0);
 
 	/* AICL disable */
 	retval = smb347_read(client, smb347_VRS_FUNC);
@@ -499,7 +529,8 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 	}
 
 	/* enable charger */
-	smb347_charger_enable(1);
+	if (charge_en_flag)
+		smb347_pin_control(1);
 
 	/* Disable volatile writes to registers */
 	ret = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
@@ -944,9 +975,12 @@ static int cable_type_detect(void)
 					} else {
 						charger->cur_cable_type = unknow_cable;
 						printk(KERN_INFO "Unkown Plug In Cable type !\n");
-						if (gpio_get_value(dock_in)) {
-							charger->cur_cable_type = usb_cable;
-							success = battery_callback(usb_cable);
+
+						if(usb_det_cable_type) {
+							printk(KERN_INFO "Use usb det %s cable to report\n",
+								(usb_det_cable_type == ac_cable) ? "ac" : "usb");
+							charger->cur_cable_type = usb_det_cable_type;
+							success = battery_callback(usb_det_cable_type);
 						}
 					}
 				} else {
@@ -971,6 +1005,16 @@ static int cable_type_detect(void)
 
 	mutex_unlock(&charger->cable_lock);
 	return success;
+}
+
+void usb_det_cable_callback(unsigned cable_type)
+{
+	usb_det_cable_type = cable_type;
+	SMB_NOTICE("usb_det_cable_type=%d\n", usb_det_cable_type);
+
+	if(unknow_cable == charger->cur_cable_type) {
+		cable_type_detect();
+	}
 }
 
 static void inok_isr_work_function(struct work_struct *dat)
@@ -1079,6 +1123,44 @@ static void smb347_default_setback(void)
 	}
 }
 
+static int smb347_temp_limit_setting(void)
+{
+	struct i2c_client *client = charger->client;
+	int ret = 0, retval, val;
+
+	/* Enable volatile writes to registers */
+	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n",
+								__func__);
+		goto error;
+	}
+	val = smb347_read(client, smb347_HRD_SFT_TEMP);
+	if (val < 0) {
+		dev_err(&client->dev, "%s(): Failed in reading 0x%02x",
+				__func__, smb347_HRD_SFT_TEMP);
+		goto error;
+	}
+	val &= 0xcf;
+	/* Set Hard Limit Hot Temperature 59 Degree */
+	ret = smb347_write(client, smb347_HRD_SFT_TEMP, val | 0x20);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s(): Failed in writing 0x%02x to register"
+			"0x%02x\n", __func__, val, smb347_HRD_SFT_TEMP);
+		goto error;
+	}
+	 /* Disable volatile writes to registers */
+	ret = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
+	if (ret < 0) {
+		dev_err(&client->dev, "%s() error in configuring charger..\n",
+								__func__);
+		goto error;
+	}
+	return 0;
+error:
+	return -1;
+}
+
 static int __devinit smb347_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1098,6 +1180,7 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, charger);
 
 	/* Restore default setting: APSD Enable & 5/1/HC mode Pin control */
+	smb347_temp_limit_setting();
 	smb347_default_setback();
 
 	ret = sysfs_create_group(&client->dev.kobj, &smb347_group);
@@ -1107,6 +1190,7 @@ static int __devinit smb347_probe(struct i2c_client *client,
 
 	mutex_init(&charger->cable_lock);
 	mutex_init(&charger->dockin_lock);
+	mutex_init(&charger->pinctrl_lock);
 
 	wake_lock_init(&charger->wake_lock_dockin, WAKE_LOCK_SUSPEND, "wake_lock_dockin");
 

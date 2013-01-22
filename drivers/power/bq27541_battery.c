@@ -61,6 +61,7 @@
 /* Battery flags bit definitions */
 #define BATT_STS_DSG		0x0001
 #define BATT_STS_FC			0x0200
+#define BATT_STS_CHG_INH			0x0800
 
 /* Debug Message */
 #define BAT_NOTICE(format, arg...)	\
@@ -74,6 +75,8 @@ unsigned battery_cable_status = 0;
 unsigned battery_driver_ready = 0;
 static int ac_on ;
 static int usb_on ;
+unsigned int bq27541_i2c_error;
+static unsigned int ota_flag = 0;
 static unsigned int 	battery_current;
 static unsigned int  battery_remaining_capacity;
 static atomic_t device_count;
@@ -85,6 +88,7 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,union 
 static int bq27541_get_property(struct power_supply *psy,
 	enum power_supply_property psp, union power_supply_propval *val);
 extern unsigned  get_usb_cable_status(void);
+extern int smb347_charger_enable(bool enable);
 
 module_param(battery_current, uint, 0644);
 module_param(battery_remaining_capacity, uint, 0644);
@@ -234,6 +238,7 @@ static struct bq27541_device_info {
 	struct miscdevice battery_misc;
 	struct wake_lock low_battery_wake_lock;
 	struct wake_lock cable_wake_lock;
+	char device_name[5];
 	int smbus_status;
 	int battery_present;
 	int low_battery_present;
@@ -486,7 +491,23 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 
 	if ((bq27541_device->smbus_status < 0) && (psp != POWER_SUPPLY_PROP_TEMP)) {
 		dev_err(&bq27541_device->client->dev, "%s: i2c read for %d failed\n", __func__, reg_offset);
+
+		if (bq27541_i2c_error < 3) {
+			bq27541_i2c_error++;
+			if (battery_driver_ready) {
+				cancel_delayed_work(&bq27541_device->status_poll_work);
+				queue_delayed_work(battery_work_queue,&bq27541_device->status_poll_work, 1*HZ);
+			}
+			if(bq27541_i2c_error == 3) {
+				BAT_NOTICE("charger disable !!\n");
+				smb347_charger_enable(0);
+			}
+			BAT_NOTICE("bq27541_i2c_error=%d\n", bq27541_i2c_error);
+		}
 		return -EINVAL;
+	} else if (bq27541_device->smbus_status >= 0) {
+		if (bq27541_i2c_error)
+			bq27541_i2c_error--;
 	}
 
 	if (psp == POWER_SUPPLY_PROP_VOLTAGE_NOW) {
@@ -494,6 +515,7 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 			rt_value <= bq27541_data[REG_VOLTAGE].max_value) {
 			if (rt_value > BATTERY_PROTECTED_VOLT) {
 				val->intval = bq27541_device->bat_vol = rt_value*1000;
+				bq27541_i2c_error = 0;
 			} else {
 				val->intval = bq27541_device->bat_vol;
 			}
@@ -509,8 +531,23 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 		if (ac_on || usb_on) {            /* Charging detected */
 			if (bq27541_device->old_capacity == 100)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else
+			else {
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+				if (ret & BATT_STS_CHG_INH) {
+					if (ota_flag == 0) {
+						BAT_NOTICE("charger disable !!\n");
+						smb347_charger_enable(0);
+						ota_flag = 1;
+					}
+					val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+				} else {
+					if (ota_flag) {
+						BAT_NOTICE("charger enable !!\n");
+						smb347_charger_enable(1);
+						ota_flag = 0;
+					}
+				}
+			}
 		} else if (ret & BATT_STS_FC) {                          /* Full-charged condition reached */
 			if (!ac_on)
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -522,7 +559,7 @@ static int bq27541_get_psp(int reg_offset, enum power_supply_property psp,
 			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		}
 		BAT_NOTICE("status: %s ret= 0x%04x\n", status_text[val->intval], ret);
-
+		bq27541_i2c_error = 0;
 	} else if (psp == POWER_SUPPLY_PROP_TEMP) {
 		ret = bq27541_device->bat_temp = rt_value;
 
@@ -713,6 +750,26 @@ error:
 	return -EINVAL;
 }
 
+static int is_legal_pack(void)
+{
+	char data[7];
+	int ret, retry = 3;
+
+	while(--retry > 0)
+	{
+		ret = i2c_smbus_read_i2c_block_data(bq27541_device->client, 0x63, 7, data);
+		if (ret >= 0) {
+			if(!strncmp(data, "ME370", 5)) {
+				strncpy(bq27541_device->device_name, data, 5);
+				BAT_NOTICE("device name: %s\n", bq27541_device->device_name);
+				return 1;
+			}
+		}
+	}
+	BAT_NOTICE("device name: not found\n");
+	return 0;
+}
+
 #include "stress_test.c"
 static int bq27541_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
@@ -736,6 +793,11 @@ static int bq27541_probe(struct i2c_client *client,
 	bq27541_device->gpio_low_battery_detect = GPIOPIN_LOW_BATTERY_DETECT;
 	bq27541_device->shutdown_disable = 1;
 	bq27541_device->cap_zero_count = 0;
+
+	if(!is_legal_pack()) {
+		BAT_NOTICE("charger disable !!\n");
+		smb347_charger_enable(0);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(bq27541_supply); i++) {
 		ret = power_supply_register(&client->dev, &bq27541_supply[i]);
