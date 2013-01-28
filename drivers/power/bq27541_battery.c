@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <asm/unaligned.h>
 #include <linux/miscdevice.h>
 #include <mach/gpio.h>
@@ -254,7 +255,7 @@ static struct bq27541_device_info {
 	unsigned int old_temperature;
 	unsigned int temp_err;
 	unsigned int prj_id;
-	spinlock_t lock;
+	struct mutex lock;
 } *bq27541_device;
 
 static int bq27541_read_i2c(u8 reg, int *rt_value, int b_single)
@@ -681,6 +682,9 @@ static int bq27541_get_property(struct power_supply *psy,
 	union power_supply_propval *val)
 {
 	u8 count;
+
+	mutex_lock(&bq27541_device->lock);
+
 	switch (psp) {
 		case POWER_SUPPLY_PROP_PRESENT:
 		case POWER_SUPPLY_PROP_HEALTH:
@@ -710,19 +714,21 @@ static int bq27541_get_property(struct power_supply *psy,
 			}
 
 			if (bq27541_get_psp(count, psp, val))
-				return -EINVAL;
+				goto error;
 			break;
 
 		default:
 			dev_err(&bq27541_device->client->dev,
 				"%s: INVALID property psp=%u\n", __func__,psp);
-			return -EINVAL;
+			goto error;
 	}
 
+	mutex_unlock(&bq27541_device->lock);
 	return 0;
 
 error:
 
+	mutex_unlock(&bq27541_device->lock);
 	return -EINVAL;
 }
 
@@ -750,6 +756,8 @@ static int bq27541_probe(struct i2c_client *client,
 	bq27541_device->shutdown_disable = 1;
 	bq27541_device->cap_zero_count = 0;
 
+	mutex_init(&bq27541_device->lock);
+
 	for (i = 0; i < ARRAY_SIZE(bq27541_supply); i++) {
 		ret = power_supply_register(&client->dev, &bq27541_supply[i]);
 		if (ret) {
@@ -768,7 +776,6 @@ static int bq27541_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&bq27541_device->shutdown_en_work, shutdown_enable_set);
 	cancel_delayed_work(&bq27541_device->status_poll_work);
 
-	spin_lock_init(&bq27541_device->lock);
 	wake_lock_init(&bq27541_device->low_battery_wake_lock, WAKE_LOCK_SUSPEND, "low_battery_detection");
 	wake_lock_init(&bq27541_device->cable_wake_lock, WAKE_LOCK_SUSPEND, "cable_state_changed");
 
