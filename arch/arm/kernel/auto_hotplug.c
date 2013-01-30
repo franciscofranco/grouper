@@ -56,7 +56,7 @@
  * SAMPLING_PERIODS * SAMPLING_RATE is the minimum
  * load history which will be averaged
  */
-#define SAMPLING_PERIODS 	15
+#define SAMPLING_PERIODS 	10
 #define INDEX_MAX_VALUE		(SAMPLING_PERIODS - 1)
 /*
  * SAMPLING_RATE is scaled based on num_online_cpus()
@@ -79,7 +79,7 @@ unsigned char flags;
  * These two are scaled based on num_online_cpus()
  */
 
-static unsigned int enable_all_load_threshold __read_mostly = 375;
+static unsigned int enable_all_load_threshold __read_mostly = 425;
 static unsigned int enable_load_threshold __read_mostly = 275;
 static unsigned int disable_load_threshold __read_mostly = 125;
 
@@ -102,6 +102,7 @@ static void hotplug_decision_work_fn(struct work_struct *work)
 {
 	unsigned int running, disable_load, enable_load, avg_running = 0;
 	unsigned int online_cpus, available_cpus, i, j;
+	int cpu;
 #if DEBUG
 	unsigned int k;
 #endif
@@ -110,9 +111,13 @@ static void hotplug_decision_work_fn(struct work_struct *work)
 	available_cpus = 4;
 	disable_load = disable_load_threshold * online_cpus;
 	enable_load = enable_load_threshold * online_cpus;
-
 	running = nr_running() * 100;
-	history[index] = running;
+
+	for_each_online_cpu(cpu) {
+		history[index] = running;
+		if (unlikely(index++ == INDEX_MAX_VALUE))
+			index = 0;
+	}
 
 #if DEBUG
 	pr_info("online_cpus is: %d\n", online_cpus);
@@ -306,6 +311,11 @@ static void auto_hotplug_late_resume(struct early_suspend *handler)
 {
 	flags &= ~EARLYSUSPEND_ACTIVE;
  
+	history[0] = 500;
+	history[1] = 500;
+	history[2] = 500;
+	history[3] = 500;
+	
 	schedule_delayed_work_on(0, &hotplug_decision_work, HZ);
 }
 
