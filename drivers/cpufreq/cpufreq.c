@@ -618,8 +618,10 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 		return 0;
 	}
 	
-	for (i--; i >= 0; i--)
-		c += sprintf(c, "%u %d\n", freq_table[i], cpu_clk_g->dvfs->millivolts[i]);
+	for (i--; i >= 0; i--) {
+		if (i == 0 || i == 3 || i == 6 || i == 9 || i == 12) 
+			c += sprintf(c, "%u %d\n", freq_table[i], cpu_clk_g->dvfs->millivolts[i]);
+	}
 	
 	return c - buf;
 }
@@ -628,8 +630,8 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 {
 	int i = 0;
 	int ret;
-	unsigned long cur_volt;
-	char cur_size[16];
+	static int j = 0;
+	unsigned long cur_volt[5];
 	
 	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
 	
@@ -640,23 +642,17 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 		return 0;
 	}
 	
+	ret = sscanf(buf, "%lu %lu %lu %lu %lu", &cur_volt[0], &cur_volt[1], &cur_volt[2], &cur_volt[3], &cur_volt[4]);
+	if (ret != 5)
+		return -EINVAL;
+	
 	for (i--; i >= 0; i--) {
 		if (freq_table[i] != 0) {
-			ret = sscanf(buf, "%lu", &cur_volt);
-			if (ret != 1)
-				return -EINVAL;
-				
-			if (cur_volt >= 600 && cur_volt <= 1250) {
-				user_mv_table[i] = cur_volt;
-				pr_info("[franciscofranco] %s - table[%d]: %lu\n", __func__, i, cur_volt);
+			if (i == 0 || i == 3 || i == 6 || i == 9 || i == 12) {
+				user_mv_table[i] = cur_volt[j];
+				pr_info("[franciscofranco] %s - table[%d]: %lu\n", __func__, i, cur_volt[j]);
+				j++;
 			}
-			
-			ret = sscanf(buf, "%s", cur_size);
-			
-			if (ret == 0)
-				return 0;
-				
-			buf += (strlen(cur_size) + 1);
 		}
 	}
 	
