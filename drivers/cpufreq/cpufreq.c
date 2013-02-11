@@ -625,9 +625,9 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 
 static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
 {
-	int i = 0;
 	int ret;
-	static int j = 0;
+	int i = 0;
+	int j = 0;
 	unsigned long cur_volt[5];
 	
 	struct clk *cpu_clk_g = tegra_get_clock_by_name("cpu_g");
@@ -657,6 +657,7 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	
 	/* lets update the table now */
 	cpu_clk_g->dvfs->millivolts = user_mv_table;
+	j = 0;
 	
 	rcu_read_unlock();
 	
