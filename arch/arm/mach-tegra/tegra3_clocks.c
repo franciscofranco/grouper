@@ -4553,6 +4553,7 @@ void tegra_edp_throttle_cpu_now(u8 factor)
  * tables are provided, since there is no clock scaling on FPGA at all).
  */
 
+#if 0
 static struct cpufreq_frequency_table freq_table_300MHz[] = {
 	{ 0, 200000 },
 	{ 1, 300000 },
@@ -4566,16 +4567,18 @@ static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
 	{ 3, 1000000 },
 	{ 4, CPUFREQ_TABLE_END },
 };
+#endif //if 0
 
 static struct cpufreq_frequency_table freq_table_1p3GHz[] = {
-	{ 0, 100000 },
-	{ 1, 400000 },
-	{ 2, 700000 },
+	{ 0, 102000 },
+	{ 1, 475000 },
+	{ 2, 760000 },
 	{ 3, 1000000 },
 	{ 4, 1300000 },
 	{ 5, CPUFREQ_TABLE_END },
 };
 
+#if 0
 static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 	{ 0, 100000 },
 	{ 1, 200000 },
@@ -4633,6 +4636,7 @@ static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
 	{16, 1700000 },
 	{17, CPUFREQ_TABLE_END },
 };
+#endif //if 0
 
 static struct tegra_cpufreq_table_data cpufreq_tables[] = {
 	//{ freq_table_300MHz, 0,  1 },
@@ -4732,12 +4736,12 @@ unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate)
 
 	/* Vote on memory bus frequency based on cpu frequency;
 	   cpu rate is in kHz, emc rate is in Hz */
-	if (cpu_rate >= 900000)
-		return emc_max_rate;	/* cpu >= 900 MHz, emc max */
-	else if (cpu_rate >= 400000)
-		return emc_max_rate/2;	/* cpu >= 400 MHz, emc max/2 */
-	else if (cpu_rate >= 200000)
-		return 100000000;	/* cpu >= 200 MHz, emc 100 MHz */
+	if (cpu_rate >= 750000)
+		return emc_max_rate;	/* cpu >= 750 MHz, emc max */
+	else if (cpu_rate >= 450000)
+		return emc_max_rate/2;	/* cpu >= 500 MHz, emc max/2 */
+	else if (cpu_rate >= 250000)
+		return 100000000;	/* cpu >= 250 MHz, emc 100 MHz */
 	else
 		return 0;		/* emc min */
 }
@@ -4758,7 +4762,7 @@ int tegra_update_mselect_rate(unsigned long cpu_rate)
 	   keep mselect at half of cpu rate up to 102 MHz;
 	   cpu rate is in kHz, mselect rate is in Hz */
 	mselect_rate = DIV_ROUND_UP(cpu_rate, 2) * 1000;
-	mselect_rate = min(mselect_rate, 100000000UL);
+	mselect_rate = min(mselect_rate, 102000000UL);
 
 	if (mselect_rate != clk_get_rate(mselect))
 		return clk_set_rate(mselect, mselect_rate);
