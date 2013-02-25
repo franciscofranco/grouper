@@ -17,9 +17,9 @@
  *  @brief       Hardware drivers.
  *
  *  @{
- *      @file    inv_mpu_trigger.c
- *      @brief   A sysfs device driver for Invensense devices
- *      @details This file is part of inv mpu iio driver code
+ *      @file    inv_yas53x_trigger.c
+ *      @brief   Invensense implementation for yas530/yas532/yas533
+ *      @details This driver currently works for the yas530/yas532/yas533
  */
 
 #include <linux/module.h>
@@ -37,56 +37,50 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 
-#include "../../iio.h"
-#include "../../sysfs.h"
-#include "../../trigger.h"
+#include "iio.h"
+#include "sysfs.h"
+#include "trigger.h"
 
-#include "inv_mpu_iio.h"
+#include "inv_yas53x_iio.h"
 
-/**
- * inv_mpu_data_rdy_trigger_set_state() set data ready interrupt state
- **/
-static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
-{
-	struct iio_dev *indio_dev = trig->private_data;
-
-	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-	return set_inv_enable(indio_dev, state);
-}
-
-static const struct iio_trigger_ops inv_mpu_trigger_ops = {
+static const struct iio_trigger_ops inv_yas53x_trigger_ops = {
 	.owner = THIS_MODULE,
-	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 
-int inv_mpu_probe_trigger(struct iio_dev *indio_dev)
+int inv_yas53x_probe_trigger(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	struct inv_compass_state *st = iio_priv(indio_dev);
 
 	st->trig = iio_allocate_trigger("%s-dev%d",
 					indio_dev->name,
 					indio_dev->id);
-	if (st->trig == NULL)
-		return -ENOMEM;
+	if (st->trig == NULL) {
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+	/* select default trigger */
 	st->trig->dev.parent = &st->client->dev;
 	st->trig->private_data = indio_dev;
-	st->trig->ops = &inv_mpu_trigger_ops;
+	st->trig->ops = &inv_yas53x_trigger_ops;
 	ret = iio_trigger_register(st->trig);
 
-	if (ret) {
-		iio_free_trigger(st->trig);
-		return -EPERM;
-	}
+	/* select default trigger */
 	indio_dev->trig = st->trig;
+	if (ret)
+		goto error_free_trig;
 
 	return 0;
+
+error_free_trig:
+	iio_free_trigger(st->trig);
+error_ret:
+	return ret;
 }
 
-void inv_mpu_remove_trigger(struct iio_dev *indio_dev)
+void inv_yas53x_remove_trigger(struct iio_dev *indio_dev)
 {
-	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
+	struct inv_compass_state *st = iio_priv(indio_dev);
 
 	iio_trigger_unregister(st->trig);
 	iio_free_trigger(st->trig);

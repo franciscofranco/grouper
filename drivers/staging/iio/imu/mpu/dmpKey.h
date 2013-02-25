@@ -11,6 +11,17 @@
  * GNU General Public License for more details.
  *
  */
+/**
+ *  @addtogroup  DRIVERS
+ *  @brief       Hardware drivers.
+ *
+ *  @{
+ *      @file    dmpKey.h
+ *      @brief   dmp Key definition
+ *      @details This file is part of invensense mpu driver code
+ *
+ */
+
 #ifndef DMPKEY_H__
 #define DMPKEY_H__
 
@@ -76,9 +87,33 @@
 #define KEY_FCFG_MAG_VAL            (KEY_CFG_ORIENT_IRQ_3 + 1)
 #define KEY_FCFG_MAG_MOV            (KEY_FCFG_MAG_VAL + 1)
 #define KEY_CFG_LP_QUAT             (KEY_FCFG_MAG_MOV + 1)
+#define KEY_CFG_GYRO_RAW_DATA       (KEY_CFG_LP_QUAT + 1)
+#define KEY_CFG_EXT_GYRO_BIAS       (KEY_CFG_GYRO_RAW_DATA + 1)
+#define KEY_CFG_EXT_GYRO_BIAS_X     (KEY_CFG_EXT_GYRO_BIAS + 1)
+#define KEY_CFG_EXT_GYRO_BIAS_Y     (KEY_CFG_EXT_GYRO_BIAS_X + 1)
+#define KEY_CFG_EXT_GYRO_BIAS_Z     (KEY_CFG_EXT_GYRO_BIAS_Y + 1)
+#define KEY_bad_compass				(KEY_CFG_EXT_GYRO_BIAS_Z + 1)
+#define KEY_COMPASS_CHG_SENSITIVITY (KEY_bad_compass + 1)
+#define KEY_CCS_HEADING_THLD        (KEY_COMPASS_CHG_SENSITIVITY + 1)
+#define KEY_CCS_TIME_THLD           (KEY_CCS_HEADING_THLD + 1)
+#define KEY_CCS_DOTP_THLD           (KEY_CCS_TIME_THLD + 1)
+#define KEY_CFG_NM_DET              (KEY_CCS_DOTP_THLD + 1)
+#define KEY_SMD_ENABLE              (KEY_CFG_NM_DET + 1)
+#define KEY_SMD_ACCEL_THLD          (KEY_SMD_ENABLE + 1)
+#define KEY_SMD_DELAY_THLD          (KEY_SMD_ACCEL_THLD + 1)
+#define KEY_SMD_DELAY2_THLD         (KEY_SMD_DELAY_THLD + 1)
+#define KEY_SMD_ENABLE_TESTPT1      (KEY_SMD_DELAY2_THLD + 1)
+#define KEY_SMD_ENABLE_TESTPT2      (KEY_SMD_ENABLE_TESTPT1 + 1)
+#define KEY_SMD_EXE_STATE           (KEY_SMD_ENABLE_TESTPT2 + 1)
+#define KEY_SMD_DELAY_CNTR          (KEY_SMD_EXE_STATE + 1)
+
+#define KEY_BREAK (80)
+#if KEY_SMD_DELAY_CNTR != KEY_BREAK
+#error
+#endif
 
 /* MPU6050 keys */
-#define KEY_CFG_ACCEL_FILTER        (KEY_CFG_LP_QUAT + 1)
+#define KEY_CFG_ACCEL_FILTER        (KEY_BREAK + 1)
 #define KEY_CFG_MOTION_BIAS         (KEY_CFG_ACCEL_FILTER + 1)
 #define KEY_TEMPLABEL               (KEY_CFG_MOTION_BIAS + 1)
 
@@ -152,16 +187,24 @@
 #define KEY_D_GYRO_BIAS_X               (KEY_D_2_252 + 1)
 #define KEY_D_GYRO_BIAS_Y               (KEY_D_GYRO_BIAS_X + 1)
 #define KEY_D_GYRO_BIAS_Z               (KEY_D_GYRO_BIAS_Y + 1)
-#define KEY_D_GYRO_ENABLE               (KEY_D_GYRO_BIAS_Z + 1)
+#define KEY_D_ACC_BIAS_X                (KEY_D_GYRO_BIAS_Z + 1)
+#define KEY_D_ACC_BIAS_Y                (KEY_D_ACC_BIAS_X + 1)
+#define KEY_D_ACC_BIAS_Z                (KEY_D_ACC_BIAS_Y + 1)
+#define KEY_D_GYRO_ENABLE               (KEY_D_ACC_BIAS_Z + 1)
 #define KEY_D_ACCEL_ENABLE              (KEY_D_GYRO_ENABLE + 1)
 #define KEY_D_QUAT_ENABLE               (KEY_D_ACCEL_ENABLE + 1)
-#define KEY_D_CR_TIME_G                 (KEY_D_QUAT_ENABLE + 1)
+#define KEY_D_OUTPUT_ENABLE             (KEY_D_QUAT_ENABLE + 1)
+#define KEY_D_ACCEL_CNTR                (KEY_D_OUTPUT_ENABLE + 1)
+#define KEY_D_GYRO_CNTR                 (KEY_D_ACCEL_CNTR + 1)
+#define KEY_D_QUAT0_CNTR                (KEY_D_GYRO_CNTR + 1)
+#define KEY_D_QUAT1_CNTR                (KEY_D_QUAT0_CNTR + 1)
+#define KEY_D_QUAT2_CNTR                (KEY_D_QUAT1_CNTR + 1)
+#define KEY_D_CR_TIME_G                 (KEY_D_QUAT2_CNTR + 1)
 #define KEY_D_CR_TIME_A                 (KEY_D_CR_TIME_G + 1)
 #define KEY_D_CR_TIME_Q                 (KEY_D_CR_TIME_A + 1)
 #define KEY_D_CS_TAX                    (KEY_D_CR_TIME_Q + 1)
 #define KEY_D_CS_TAY                    (KEY_D_CS_TAX + 1)
 #define KEY_D_CS_TAZ                    (KEY_D_CS_TAY + 1)
-
 #define KEY_D_CS_TGX                    (KEY_D_CS_TAZ + 1)
 #define KEY_D_CS_TGY                    (KEY_D_CS_TGX + 1)
 #define KEY_D_CS_TGZ                    (KEY_D_CS_TGY + 1)
@@ -171,7 +214,8 @@
 #define KEY_D_CS_TQ3                    (KEY_D_CS_TQ2 + 1)
 
 /* Compass keys */
-#define KEY_CPASS_BIAS_X            (KEY_D_CS_TQ3 + 1)
+#define KEY_CPASS_GAIN              (KEY_D_CS_TQ3 + 1)
+#define KEY_CPASS_BIAS_X            (KEY_CPASS_GAIN + 1)
 #define KEY_CPASS_BIAS_Y            (KEY_CPASS_BIAS_X + 1)
 #define KEY_CPASS_BIAS_Z            (KEY_CPASS_BIAS_Y + 1)
 #define KEY_CPASS_MTX_00            (KEY_CPASS_BIAS_Z + 1)
@@ -213,8 +257,27 @@
 #define KEY_END_COMPARE_Y_X_TMP3    (KEY_NOT_TIME_MINUS_1 + 1)
 #define KEY_X_GRT_Y_TMP2            (KEY_END_COMPARE_Y_X_TMP3 + 1)
 
+/*Shake Keys */
+#define KEY_D_0_64                  (KEY_X_GRT_Y_TMP2 + 1)
+#define KEY_D_2_4                   (KEY_D_0_64 + 1)
+#define KEY_D_2_8                   (KEY_D_2_4 + 1)
+#define KEY_D_2_48                  (KEY_D_2_8 + 1)
+#define KEY_D_2_92                  (KEY_D_2_48 + 1)
+#define KEY_D_2_94                  (KEY_D_2_92 + 1)
+#define KEY_D_2_160                 (KEY_D_2_94 + 1)
+#define KEY_D_3_180                 (KEY_D_2_160 + 1)
+#define KEY_D_3_184                 (KEY_D_3_180 + 1)
+#define KEY_D_3_188                 (KEY_D_3_184 + 1)
+#define KEY_D_3_208                 (KEY_D_3_188 + 1)
+#define KEY_D_3_240                 (KEY_D_3_208 + 1)
+#define KEY_RETRACTION_1            (KEY_D_3_240 + 1)
+#define KEY_RETRACTION_2            (KEY_RETRACTION_1 + 1)
+#define KEY_RETRACTION_3            (KEY_RETRACTION_2 + 1)
+#define KEY_RETRACTION_4            (KEY_RETRACTION_3 + 1)
+#define KEY_CFG_SHAKE_INT           (KEY_RETRACTION_4 + 1)
+
 /* Authenticate Keys */
-#define KEY_D_AUTH_OUT              (KEY_X_GRT_Y_TMP2 + 1)
+#define KEY_D_AUTH_OUT              (KEY_CFG_SHAKE_INT + 1)
 #define KEY_D_AUTH_IN               (KEY_D_AUTH_OUT + 1)
 #define KEY_D_AUTH_A                (KEY_D_AUTH_IN + 1)
 #define KEY_D_AUTH_B                (KEY_D_AUTH_A + 1)
@@ -243,39 +306,22 @@
 /*Host Based No Motion*/
 #define KEY_D_HOST_NO_MOT           (KEY_D_PEDSTD_DECI + 1)
 
-/* EIS keys */
-#define KEY_P_EIS_FIFO_FOOTER       (KEY_D_HOST_NO_MOT + 1)
-#define KEY_P_EIS_FIFO_YSHIFT       (KEY_P_EIS_FIFO_FOOTER + 1)
-#define KEY_P_EIS_DATA_RATE         (KEY_P_EIS_FIFO_YSHIFT + 1)
-#define KEY_P_EIS_FIFO_XSHIFT       (KEY_P_EIS_DATA_RATE + 1)
-#define KEY_P_EIS_FIFO_SYNC         (KEY_P_EIS_FIFO_XSHIFT + 1)
-#define KEY_P_EIS_FIFO_ZSHIFT       (KEY_P_EIS_FIFO_SYNC + 1)
-#define KEY_P_EIS_FIFO_READY        (KEY_P_EIS_FIFO_ZSHIFT + 1)
-#define KEY_DMP_FOOTER              (KEY_P_EIS_FIFO_READY + 1)
-#define KEY_DMP_INTX_HC             (KEY_DMP_FOOTER + 1)
-#define KEY_DMP_INTX_PH             (KEY_DMP_INTX_HC + 1)
-#define KEY_DMP_INTX_SH             (KEY_DMP_INTX_PH + 1)
-#define KEY_DMP_AINV_SH             (KEY_DMP_INTX_SH + 1)
-#define KEY_DMP_A_INV_XH            (KEY_DMP_AINV_SH + 1)
-#define KEY_DMP_AINV_PH             (KEY_DMP_A_INV_XH + 1)
-#define KEY_DMP_CTHX_H              (KEY_DMP_AINV_PH + 1)
-#define KEY_DMP_CTHY_H              (KEY_DMP_CTHX_H + 1)
-#define KEY_DMP_CTHZ_H              (KEY_DMP_CTHY_H + 1)
-#define KEY_DMP_NCTHX_H             (KEY_DMP_CTHZ_H + 1)
-#define KEY_DMP_NCTHY_H             (KEY_DMP_NCTHX_H + 1)
-#define KEY_DMP_NCTHZ_H             (KEY_DMP_NCTHY_H + 1)
-#define KEY_DMP_CTSQ_XH             (KEY_DMP_NCTHZ_H + 1)
-#define KEY_DMP_CTSQ_YH             (KEY_DMP_CTSQ_XH + 1)
-#define KEY_DMP_CTSQ_ZH             (KEY_DMP_CTSQ_YH + 1)
-#define KEY_DMP_INTX_H              (KEY_DMP_CTSQ_ZH + 1)
-#define KEY_DMP_INTY_H              (KEY_DMP_INTX_H + 1)
-#define KEY_DMP_INTZ_H              (KEY_DMP_INTY_H + 1)
-#define KEY_DMP_HPX_H               (KEY_DMP_INTZ_H + 1)
-#define KEY_DMP_HPY_H               (KEY_DMP_HPX_H + 1)
-#define KEY_DMP_HPZ_H               (KEY_DMP_HPY_H + 1)
+/*Host Based Accel Bias*/
+#define KEY_D_ACCEL_BIAS            (KEY_D_HOST_NO_MOT + 1)
+
+/*Screen/Display Orientation Keys*/
+#define KEY_D_ORIENT_GAP            (KEY_D_ACCEL_BIAS + 1)
+#define KEY_D_TILT0_H               (KEY_D_ORIENT_GAP + 1)
+#define KEY_D_TILT0_L               (KEY_D_TILT0_H + 1)
+#define KEY_D_TILT1_H               (KEY_D_TILT0_L + 1)
+#define KEY_D_TILT1_L               (KEY_D_TILT1_H + 1)
+#define KEY_D_TILT2_H               (KEY_D_TILT1_L + 1)
+#define KEY_D_TILT2_L               (KEY_D_TILT2_H  + 1)
+#define KEY_D_TILT3_H               (KEY_D_TILT2_L + 1)
+#define KEY_D_TILT3_L               (KEY_D_TILT3_H + 1)
 
 /* Stream keys */
-#define KEY_STREAM_P_GYRO_Z         (KEY_DMP_HPZ_H + 1)
+#define KEY_STREAM_P_GYRO_Z         (KEY_D_TILT3_L + 1)
 #define KEY_STREAM_P_GYRO_Y         (KEY_STREAM_P_GYRO_Z + 1)
 #define KEY_STREAM_P_GYRO_X         (KEY_STREAM_P_GYRO_Y + 1)
 #define KEY_STREAM_P_TEMP           (KEY_STREAM_P_GYRO_X + 1)

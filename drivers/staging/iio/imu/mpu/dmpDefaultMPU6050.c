@@ -11,46 +11,79 @@
  * GNU General Public License for more details.
  *
  */
+/**
+ *  @addtogroup  DRIVERS
+ *  @brief       Hardware drivers.
+ *
+ *  @{
+ *      @file    dmpDefaultMPU6050.c
+ *      @brief   dmp Default data
+ *      @details This file is part of invensense mpu driver code
+ *
+ */
 
 #include "dmpKey.h"
 #include "dmpmap.h"
 
-#define CFG_27                  (2740)
-#define CFG_20                  (2078)
-#define CFG_23                  (2743)
-#define CFG_FIFO_ON_EVENT       (2689)
-#define CFG_ORIENT_IRQ_1        (2533)
-#define CGNOTICE_INTR           (2636)
-#define X_GRT_Y_TMP             (1318)
+#define CFG_LP_QUAT             (2914)
+#define END_ORIENT_TEMP         (2068)
+#define CFG_27                  (2944)
+#define CFG_20                  (2426)
+#define CFG_23                  (2947)
+#define CFG_DISPLAY_ORIENT_INT  (2055)
+#define CFG_FIFO_ON_EVENT       (2892)
+#define END_PREDICTION_UPDATE   (1963)
+#define CGNOTICE_INTR           (2822)
+#define X_GRT_Y_TMP             (1560)
 #define CFG_DR_INT              (1029)
 #define CFG_AUTH                (1035)
+#define SKIP_SWING_END_1        (1753)
+#define SKIP_SWING_END_2        (1768)
 #define FCFG_1                  (1062)
-#define SKIP_X_GRT_Y_TMP        (1319)
-#define SKIP_END_COMPARE        (1395)
-#define FCFG_3                  (1110)
+#define SKIP_X_GRT_Y_TMP        (1561)
+#define SKIP_END_COMPARE        (1637)
+#define FCFG_3                  (1088)
 #define FCFG_2                  (1066)
-#define END_COMPARE_Y_X_TMP2    (1415)
-#define CFG_DISPLAY_ORIENT_INT  (1706)
-#define FCFG_7                  (1076)
-#define FCFG_6                  (1128)
-#define NO_ORIENT_INTERRUPT     (1725)
-#define CFG_8                   (2718)
-#define CFG_15                  (2726)
-#define CFG_16                  (2744)
-#define END_COMPARE_Y_X_TMP     (1367)
-#define CFG_6                   (2751)
-#define END_ORIENT_1            (1709)
-#define END_COMPARE_Y_X         (1444)
-#define CFG_LP_QUAT             (2712)
-#define END_ORIENT              (1738)
-#define CFG_FLICK_IN            (2589)
-#define CFG_7                   (1221)
-#define CFG_MOTION_BIAS         (1224)
-#define X_GRT_Y                 (1368)
-#define TEMPLABEL               (2178)
-#define NOT_TIME_MINUS_1        (1528)
-#define END_COMPARE_Y_X_TMP3    (1394)
-#define X_GRT_Y_TMP2            (1339)
+#define STATE2_T                (1348)
+#define END_COMPARE_Y_X_TMP3    (1636)
+#define FCFG_7                  (1073)
+#define FCFG_6                  (1106)
+#define FLAT_STATE_END          (1915)
+#define SWING_END_4             (1818)
+#define EXIT_SIGMOTDET          (1408)
+#define SWING_END_2             (1767)
+#define SWING_END_3             (1789)
+#define SWING_END_1             (1752)
+#define CFG_8                   (2920)
+#define CFG_15                  (2929)
+#define CFG_16                  (2948)
+#define UPDATE_PROP_ROT         (2037)
+#define CFG_EXT_GYRO_BIAS       (1189)
+#define END_COMPARE_Y_X_TMP     (1609)
+#define DO_NOT_UPDATE_PROP_ROT  (2041)
+#define CFG_7                   (1408)
+#define FLAT_STATE_END_TEMP     (1885)
+#define END_ORIENT              (2086)
+#define END_COMPARE_Y_X         (1686)
+#define END_COMPARE_Y_X_TMP2    (1657)
+#define SMD_TP2                 (1371)
+#define CFG_FLICK_IN            (2775)
+#define SKIP_SWING_END_3        (1790)
+#define SMD_TP1                 (1346)
+#define TILTG75_START           (1874)
+#define CFG_6                   (2955)
+#define TILTL75_END             (1871)
+#define END_SIGMOTDET           (1401)
+#define EXIT1                   (1347)
+#define EXIT0                   (1330)
+#define EXIT3                   (1382)
+#define EXIT2                   (1372)
+#define TILTL75_START           (1845)
+#define CFG_MOTION_BIAS         (1410)
+#define X_GRT_Y                 (1610)
+#define TEMPLABEL               (2526)
+#define CFG_GYRO_RAW_DATA       (2924)
+#define X_GRT_Y_TMP2            (1581)
 
 #define D_0_22                  (22+512)
 #define D_0_24                  (24+512)
@@ -122,6 +155,9 @@
 #define CPASS_MTX_20            (37 * 16 + 8)
 #define CPASS_MTX_21            (37 * 16 + 12)
 #define CPASS_MTX_22            (43 * 16 + 12)
+#define D_EXT_GYRO_BIAS_X       (61 * 16)
+#define D_EXT_GYRO_BIAS_Y       (61 * 16 + 4)
+#define D_EXT_GYRO_BIAS_Z       (61 * 16 + 8)
 #define D_ACT0                  (40 * 16)
 #define D_ACSX                  (40 * 16 + 4)
 #define D_ACSY                  (40 * 16 + 8)
@@ -132,38 +168,56 @@
 #define FLICK_LOWER             (45 * 16 + 12)
 #define FLICK_UPPER             (46 * 16 + 12)
 
-#define D_AUTH_OUT               (992)
-#define D_AUTH_IN                (996)
-#define D_AUTH_A                 (1000)
-#define D_AUTH_B                 (1004)
+#define D_SMD_ENABLE            (49 * 16)
+#define D_SMD_ACCEL_THLD        (53 * 16 + 8)
+#define D_SMD_DELAY_THLD        (54 * 16 + 4)
+#define D_SMD_DELAY2_THLD       (54 * 16 + 12)
+#define D_SMD_EXE_STATE         (55 * 16)
+#define D_SMD_DELAY_CNTR        (54 * 16)
 
-#define D_PEDSTD_BP_B          (768 + 0x1C)
-#define D_PEDSTD_HP_A          (768 + 0x78)
-#define D_PEDSTD_HP_B          (768 + 0x7C)
-#define D_PEDSTD_BP_A4         (768 + 0x40)
-#define D_PEDSTD_BP_A3         (768 + 0x44)
-#define D_PEDSTD_BP_A2         (768 + 0x48)
-#define D_PEDSTD_BP_A1         (768 + 0x4C)
-#define D_PEDSTD_INT_THRSH     (768 + 0x68)
-#define D_PEDSTD_CLIP          (768 + 0x6C)
-#define D_PEDSTD_SB            (768 + 0x28)
-#define D_PEDSTD_SB_TIME       (768 + 0x2C)
-#define D_PEDSTD_PEAKTHRSH     (768 + 0x98)
-#define D_PEDSTD_TIML          (768 + 0x2A)
-#define D_PEDSTD_TIMH          (768 + 0x2E)
-#define D_PEDSTD_PEAK          (768 + 0X94)
-#define D_PEDSTD_STEPCTR       (768 + 0x60)
-#define D_PEDSTD_TIMECTR       (964)
-#define D_PEDSTD_DECI          (768 + 0xA0)
+#define D_AUTH_OUT              (992)
+#define D_AUTH_IN               (996)
+#define D_AUTH_A                (1000)
+#define D_AUTH_B                (1004)
 
-#define D_HOST_NO_MOT          (976)
+#define D_PEDSTD_BP_B           (768 + 0x1C)
+#define D_PEDSTD_HP_A           (768 + 0x78)
+#define D_PEDSTD_HP_B           (768 + 0x7C)
+#define D_PEDSTD_BP_A4          (768 + 0x40)
+#define D_PEDSTD_BP_A3          (768 + 0x44)
+#define D_PEDSTD_BP_A2          (768 + 0x48)
+#define D_PEDSTD_BP_A1          (768 + 0x4C)
+#define D_PEDSTD_INT_THRSH      (768 + 0x68)
+#define D_PEDSTD_CLIP           (768 + 0x6C)
+#define D_PEDSTD_SB             (768 + 0x28)
+#define D_PEDSTD_SB_TIME        (768 + 0x2C)
+#define D_PEDSTD_PEAKTHRSH      (768 + 0x98)
+#define D_PEDSTD_TIML           (768 + 0x2A)
+#define D_PEDSTD_TIMH           (768 + 0x2E)
+#define D_PEDSTD_PEAK           (768 + 0X94)
+#define D_PEDSTD_STEPCTR        (768 + 0x60)
+#define D_PEDSTD_TIMECTR        (964)
+#define D_PEDSTD_DECI           (768 + 0xA0)
+
+#define D_HOST_NO_MOT           (976)
+#define D_ACCEL_BIAS            (660)
+
+#define D_ORIENT_GAP            (76)
+
+#define D_TILT0_H               (48)
+#define D_TILT0_L               (50)
+#define D_TILT1_H               (52)
+#define D_TILT1_L               (54)
+#define D_TILT2_H               (56)
+#define D_TILT2_L               (58)
+#define D_TILT3_H               (60)
+#define D_TILT3_L               (62)
 
 static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_CFG_27,                    CFG_27},
 	{KEY_CFG_20,                    CFG_20},
 	{KEY_CFG_23,                    CFG_23},
 	{KEY_CFG_FIFO_ON_EVENT,         CFG_FIFO_ON_EVENT},
-	{KEY_CFG_ORIENT_IRQ_1,          CFG_ORIENT_IRQ_1},
 	{KEY_CGNOTICE_INTR,             CGNOTICE_INTR},
 	{KEY_X_GRT_Y_TMP,               X_GRT_Y_TMP},
 	{KEY_CFG_DR_INT,                CFG_DR_INT},
@@ -177,13 +231,12 @@ static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_CFG_DISPLAY_ORIENT_INT,    CFG_DISPLAY_ORIENT_INT},
 	{KEY_FCFG_7,                    FCFG_7},
 	{KEY_FCFG_6,                    FCFG_6},
-	{KEY_NO_ORIENT_INTERRUPT,       NO_ORIENT_INTERRUPT},
 	{KEY_CFG_8,                     CFG_8},
 	{KEY_CFG_15,                    CFG_15},
 	{KEY_CFG_16,                    CFG_16},
+	{KEY_CFG_EXT_GYRO_BIAS,         CFG_EXT_GYRO_BIAS},
 	{KEY_END_COMPARE_Y_X_TMP,       END_COMPARE_Y_X_TMP},
 	{KEY_CFG_6,                     CFG_6},
-	{KEY_END_ORIENT_1,              END_ORIENT_1},
 	{KEY_END_COMPARE_Y_X,           END_COMPARE_Y_X},
 	{KEY_CFG_LP_QUAT,               CFG_LP_QUAT},
 	{KEY_END_ORIENT,                END_ORIENT},
@@ -192,8 +245,8 @@ static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_CFG_MOTION_BIAS,           CFG_MOTION_BIAS},
 	{KEY_X_GRT_Y,                   X_GRT_Y},
 	{KEY_TEMPLABEL,                 TEMPLABEL},
-	{KEY_NOT_TIME_MINUS_1,          NOT_TIME_MINUS_1},
 	{KEY_END_COMPARE_Y_X_TMP3,      END_COMPARE_Y_X_TMP3},
+	{KEY_CFG_GYRO_RAW_DATA,         CFG_GYRO_RAW_DATA},
 	{KEY_X_GRT_Y_TMP2,              X_GRT_Y_TMP2},
 	{KEY_D_0_22,                D_0_22},
 	{KEY_D_0_96,                D_0_96},
@@ -210,6 +263,7 @@ static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_D_1_92,               D_1_92},
 	{KEY_D_1_160,               D_1_160},
 	{KEY_D_1_176,               D_1_176},
+	{KEY_D_1_178,               D_1_178},
 	{KEY_D_1_218,               D_1_218},
 	{KEY_D_1_232,               D_1_232},
 	{KEY_D_1_250,               D_1_250},
@@ -263,7 +317,28 @@ static const struct tKeyLabel dmpTConfig[] = {
 	{KEY_D_PEDSTD_STEPCTR,   D_PEDSTD_STEPCTR},
 	{KEY_D_PEDSTD_TIMECTR,  D_PEDSTD_TIMECTR},
 	{KEY_D_PEDSTD_DECI,  D_PEDSTD_DECI},
-	{KEY_D_HOST_NO_MOT,  D_HOST_NO_MOT}
+	{KEY_D_HOST_NO_MOT,  D_HOST_NO_MOT},
+	{KEY_D_ACCEL_BIAS,  D_ACCEL_BIAS},
+	{KEY_D_ORIENT_GAP,  D_ORIENT_GAP},
+	{KEY_D_TILT0_H, D_TILT0_H},
+	{KEY_D_TILT0_L, D_TILT0_L},
+	{KEY_D_TILT1_H, D_TILT1_H},
+	{KEY_D_TILT1_L, D_TILT1_L},
+	{KEY_D_TILT2_H, D_TILT2_H},
+	{KEY_D_TILT2_L, D_TILT2_L},
+	{KEY_D_TILT3_H, D_TILT3_H},
+	{KEY_D_TILT3_L, D_TILT3_L},
+	{KEY_CFG_EXT_GYRO_BIAS_X, D_EXT_GYRO_BIAS_X},
+	{KEY_CFG_EXT_GYRO_BIAS_Y, D_EXT_GYRO_BIAS_Y},
+	{KEY_CFG_EXT_GYRO_BIAS_Z, D_EXT_GYRO_BIAS_Z},
+	{KEY_SMD_ENABLE, D_SMD_ENABLE},
+	{KEY_SMD_ACCEL_THLD, D_SMD_ACCEL_THLD},
+	{KEY_SMD_DELAY_THLD, D_SMD_DELAY_THLD},
+	{KEY_SMD_DELAY2_THLD, D_SMD_DELAY2_THLD},
+	{KEY_SMD_ENABLE_TESTPT1, SMD_TP1},
+	{KEY_SMD_ENABLE_TESTPT2, SMD_TP2},
+	{KEY_SMD_EXE_STATE, D_SMD_EXE_STATE},
+	{KEY_SMD_DELAY_CNTR, D_SMD_DELAY_CNTR}
 };
 #define NUM_LOCAL_KEYS (sizeof(dmpTConfig)/sizeof(dmpTConfig[0]))
 
@@ -272,6 +347,7 @@ static struct tKeyLabel keys[NUM_KEYS];
 unsigned short inv_dmp_get_address(unsigned short key)
 {
 	static int isSorted;
+
 	if (!isSorted) {
 		int kk;
 		for (kk = 0; kk < NUM_KEYS; ++kk) {
@@ -286,6 +362,3 @@ unsigned short inv_dmp_get_address(unsigned short key)
 		return 0xffff;
 	return keys[key].addr;
 }
-/**
- *  @}
- */

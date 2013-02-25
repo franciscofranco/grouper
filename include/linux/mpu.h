@@ -86,6 +86,7 @@ enum ext_slave_id {
  * @sec_slave_id:       id of the secondary slave device
  * @secondary_i2c_address: secondary device's i2c address
  * @secondary_orientation: secondary device's orientation matrix
+ * @key:                key for MPL library.
  *
  * Contains platform specific information on how to configure the MPU3050 to
  * work on this platform.  The orientation matricies are 3x3 rotation matricies

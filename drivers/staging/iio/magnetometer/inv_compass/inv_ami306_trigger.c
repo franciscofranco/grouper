@@ -18,8 +18,8 @@
  *
  *  @{
  *      @file    inv_ami306_trigger.c
- *      @brief   A sysfs device driver for Invensense devices
- *      @details This file is part of inv_gyro driver code
+ *      @brief   Invensense implementation for AMI306
+ *      @details This driver currently works for the AMI306
  */
 
 #include <linux/module.h>
@@ -37,9 +37,9 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../trigger.h"
+#include "../../iio.h"
+#include "../../sysfs.h"
+#include "../../trigger.h"
 #include "inv_ami306_iio.h"
 
 static const struct iio_trigger_ops inv_ami306_trigger_ops = {
