@@ -49,7 +49,6 @@ static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
-static unsigned int user_mv_table[MAX_DVFS_FREQS] = { 800, 825, 850, 875, 900, 925, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225, 1250 };
 static unsigned int freq_table[13] = { 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300 };
 
 /*
@@ -634,8 +633,6 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	
 	i = cpu_clk_g->dvfs->num_freqs-5;
 	
-	rcu_read_lock();
-	
 	if (i == 0) {
 		pr_info("[franciscofranco] %s - error fetching the number of entries, so we break earlier.", __func__);
 		return 0;
@@ -648,19 +645,15 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	for (i--; i >= 0; i--) {
 		if (freq_table[i] != 0) {
 			if (i == 0 || i == 3 || i == 6 || i == 9 || i == 12) {
-				user_mv_table[i] = cur_volt[j];
-				pr_info("[franciscofranco] %s - table[%d]: %lu\n", __func__, i, cur_volt[j]);
+				if (cur_volt[j] <= 600)
+					cur_volt[j] = 600;
+				cpu_clk_g->dvfs->millivolts[i] = cur_volt[j];
+				pr_info("[franciscofranco] %s - table[%d]: %d\n", __func__, i, cpu_clk_g->dvfs->millivolts[i]);
 				j++;
 			}
 		}
 	}
-	
-	/* lets update the table now */
-	cpu_clk_g->dvfs->millivolts = user_mv_table;
 	j = 0;
-	
-	rcu_read_unlock();
-	
 	return count;
 }
 
@@ -688,7 +681,7 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	unsigned long new_gpu_freq = 0;
 	unsigned int new_volt = 0;
 	
-	//all the tables that need to be updated with the new frequencies
+	//all the clocks that need to be updated with the new frequencies
 	struct clk *vde = tegra_get_clock_by_name("vde");
 	struct clk *mpe = tegra_get_clock_by_name("mpe");
 	struct clk *two_d = tegra_get_clock_by_name("2d");
@@ -703,8 +696,6 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	unsigned int array_size = vde->dvfs->num_freqs;
 	char cur_size[array_size];
 	i = array_size;
-	
-	rcu_read_lock();
 
 	if (i == 0) 
 		return -EINVAL;
@@ -754,7 +745,6 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 		se->dvfs->freqs[i] = new_gpu_freq;
 		cbus->dvfs->freqs[i] = new_gpu_freq;
 		pll_c->dvfs->freqs[i] = (new_gpu_freq*2);
-		pr_info("NEW PLL_C FREQS: %lu\n", pll_c->dvfs->freqs[i]);
 	}
 
 	ret = sscanf(buf, "%s", cur_size);
@@ -763,8 +753,6 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 		return -EINVAL;
 
 	buf += (strlen(cur_size) + 1);
-	
-	rcu_read_unlock();
 
 	return count;
 }
