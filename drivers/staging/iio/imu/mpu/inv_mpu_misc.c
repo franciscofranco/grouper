@@ -447,13 +447,15 @@ int mpu_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
 int mpu_memory_write_unaligned(struct inv_mpu_iio_s *st, u16 key, int len,
 								u8 const *d)
 {
-	int addr;
+	u32 addr;
 	int start, end;
 	int len1, len2;
 	int result = 0;
 	if (len > MPU_MEM_BANK_SIZE)
 		return -EINVAL;
 	addr = inv_dmp_get_address(key);
+	if (addr > MPU6XXX_MAX_MPU_MEM)
+		return -EINVAL;
 	start = (addr >> 8);
 	end   = ((addr + len - 1) >> 8);
 	if (start == end) {
@@ -1942,6 +1944,8 @@ ssize_t inv_dmp_firmware_write(struct file *fp, struct kobject *kobj,
 
 	if (st->chip_config.firmware_loaded)
 		return -EINVAL;
+	if (st->chip_config.enable)
+		return -EBUSY;
 
 	reg = &st->reg;
 	if (DMP_IMAGE_SIZE != size) {
@@ -2025,10 +2029,12 @@ ssize_t inv_dmp_firmware_read(struct file *filp,
 
 	data = 0;
 	mutex_lock(&indio_dev->mlock);
-	result = st->set_power_state(st, true);
-	if (result) {
-		mutex_unlock(&indio_dev->mlock);
-		return result;
+	if (!st->chip_config.enable) {
+		result = st->set_power_state(st, true);
+		if (result) {
+			mutex_unlock(&indio_dev->mlock);
+			return result;
+		}
 	}
 	for (bank = 0; size > 0; bank++, size -= write_size,
 					data += write_size) {
@@ -2045,7 +2051,8 @@ ssize_t inv_dmp_firmware_read(struct file *filp,
 			return result;
 		}
 	}
-	result = st->set_power_state(st, false);
+	if (!st->chip_config.enable)
+		result = st->set_power_state(st, false);
 	mutex_unlock(&indio_dev->mlock);
 	if (result)
 		return result;
