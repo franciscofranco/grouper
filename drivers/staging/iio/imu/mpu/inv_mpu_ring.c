@@ -416,7 +416,7 @@ static int inv_set_dmp_sysfs(struct inv_mpu_iio_s *st)
  *  @st:	Device driver instance.
  *  @fifo_enable: enable/disable
  */
-static int set_inv_enable(struct iio_dev *indio_dev,
+int set_inv_enable(struct iio_dev *indio_dev,
 			bool enable) {
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
 	struct inv_reg_map_s *reg;

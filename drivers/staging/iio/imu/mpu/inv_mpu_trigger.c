@@ -52,8 +52,7 @@ static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	struct iio_dev *indio_dev = trig->private_data;
 
 	dev_dbg(&indio_dev->dev, "%s (%d)\n", __func__, state);
-
-	return 0;
+	return set_inv_enable(indio_dev, state);
 }
 
 static const struct iio_trigger_ops inv_mpu_trigger_ops = {

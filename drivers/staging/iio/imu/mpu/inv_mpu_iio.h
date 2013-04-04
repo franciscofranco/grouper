@@ -594,7 +594,6 @@ struct inv_mpu_slave {
 #define MAX_GYRO_FS_PARAM        3
 #define MAX_ACCL_FS_PARAM        3
 #define MAX_LPA_FREQ_PARAM       3
-#define MPU6XXX_MAX_MPU_MEM      (256 * 12)
 
 #define INIT_MOT_DUR             128
 #define INIT_MOT_THR             128
@@ -843,6 +842,7 @@ void inv_setup_reg_mpu3050(struct inv_reg_map_s *reg);
 int inv_switch_3050_gyro_engine(struct inv_mpu_iio_s *st, bool en);
 int inv_switch_3050_accl_engine(struct inv_mpu_iio_s *st, bool en);
 int set_power_mpu3050(struct inv_mpu_iio_s *st, bool power_on);
+int set_inv_enable(struct iio_dev *indio_dev, bool enable);
 int inv_set_interrupt_on_gesture_event(struct inv_mpu_iio_s *st, bool on);
 int inv_send_quaternion(struct inv_mpu_iio_s *st, bool on);
 int inv_set_display_orient_interrupt_dmp(struct inv_mpu_iio_s *st, bool on);
