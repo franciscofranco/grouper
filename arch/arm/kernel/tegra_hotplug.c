@@ -12,7 +12,6 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/earlysuspend.h>
-#include <linux/cpufreq.h>
 #include <linux/slab.h>
 
 //threshold is 2 seconds
@@ -156,7 +155,7 @@ static void __cpuinit decide_hotplug_func(struct work_struct *work)
     queue_delayed_work_on(0, wq, &decide_hotplug, sampling_timer);
 }
 
-static void mako_hotplug_early_suspend(struct early_suspend *handler)
+static void tegra_hotplug_early_suspend(struct early_suspend *handler)
 {
     static int cpu = 0;
 	
@@ -183,11 +182,11 @@ static void mako_hotplug_early_suspend(struct early_suspend *handler)
     stats.online_cpus = num_online_cpus();
 }
 
-static void __cpuinit mako_hotplug_late_resume(struct early_suspend *handler)
+static void __cpuinit tegra_hotplug_late_resume(struct early_suspend *handler)
 {
     static int cpu = 0;
     
-    //online cpu1 when the screen goes online
+    //online are cpus when the screen goes online
     for_each_possible_cpu(cpu)
     {
         if (cpu)
@@ -207,10 +206,10 @@ static void __cpuinit mako_hotplug_late_resume(struct early_suspend *handler)
     queue_delayed_work_on(0, wq, &decide_hotplug, HZ);
 }
 
-static struct early_suspend mako_hotplug_suspend =
+static struct early_suspend tegra_hotplug_suspend =
 {
-	.suspend = mako_hotplug_early_suspend,
-	.resume = mako_hotplug_late_resume,
+	.suspend = tegra_hotplug_early_suspend,
+	.resume = tegra_hotplug_late_resume,
 };
 
 //these come from the sysfs driver that exports the thresholds to userspace
@@ -230,11 +229,12 @@ void update_third_level(unsigned int level)
 }
 //end sysfs functions from external driver
 
-int __init mako_hotplug_init(void)
+int __init tegra_hotplug_init(void)
 {
 	pr_info("Tegra Hotplug driver started.\n");
     
-    wq = alloc_workqueue("tegra_hotplug_workqueue", 0, 0);
+    wq = alloc_workqueue("tegra_hotplug_workqueue",
+                         WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
     
     if (!wq)
         return -ENOMEM;
@@ -248,8 +248,8 @@ int __init mako_hotplug_init(void)
     
     queue_delayed_work_on(0, wq, &decide_hotplug, HZ*25);
     
-    register_early_suspend(&mako_hotplug_suspend);
+    register_early_suspend(&tegra_hotplug_suspend);
     
     return 0;
 }
-late_initcall(mako_hotplug_init);
+late_initcall(tegra_hotplug_init);
