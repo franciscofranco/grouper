@@ -89,3 +89,6 @@ arch/arm/boot/compressed/piggy.xzkern
 boot.img
 buildlean.sh
 mkboot/
+build.sh
+flash.sh
+zip/
