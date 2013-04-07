@@ -905,12 +905,6 @@ static int tegra_suspend_prepare(void)
 
 static void tegra_suspend_finish(void)
 {
-	if (pdata && pdata->cpu_resume_boost) {
-		int ret = tegra_suspended_target(pdata->cpu_resume_boost);
-		pr_info("Tegra: resume CPU boost to %u KHz: %s (%d)\n",
-			pdata->cpu_resume_boost, ret ? "Failed" : "OK", ret);
-	}
-
 	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(0);
 }
@@ -977,9 +971,10 @@ static struct kobject *suspend_kobj;
 
 static int tegra_pm_enter_suspend(void)
 {
-	pr_info("Entering suspend state %s\n", lp_state[current_suspend_mode]);
-	if (current_suspend_mode == TEGRA_SUSPEND_LP0)
+	if (current_suspend_mode != TEGRA_SUSPEND_LP0)
 		tegra_lp0_cpu_mode(true);
+    pr_info("Entering suspend state %s\n", lp_state[current_suspend_mode]);
+    
 	return 0;
 }
 
