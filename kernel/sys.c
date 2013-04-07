@@ -4,7 +4,7 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/utsname.h>
 #include <linux/mman.h>

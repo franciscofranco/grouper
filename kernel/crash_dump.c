@@ -2,7 +2,7 @@
 #include <linux/crash_dump.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/export.h>
+#include <linux/module.h>
 
 /*
  * If we have booted due to a crash, max_pfn will be a very low value. We need

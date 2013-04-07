@@ -46,7 +46,7 @@
 #include <linux/syscalls.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <linux/export.h>
+#include <linux/module.h>
 
 /*
  * Management arrays for POSIX timers.	 Timers are kept in slab memory
