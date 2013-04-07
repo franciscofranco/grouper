@@ -807,7 +807,7 @@ static void baseband_xmm_power_init2_work(struct work_struct *work)
 		} else
 			pr_err("%s: hsic_register is missing\n", __func__);
 		register_hsic_device = false;
-		modem_reset_flag == 0;
+		modem_reset_flag = 0;
 	}
 
 }
