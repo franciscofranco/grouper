@@ -20,10 +20,10 @@
 #define DEFAULT_FIRST_LEVEL 90
 unsigned int default_first_level;
 
-#define DEFAULT_SECOND_LEVEL 50
+#define DEFAULT_SECOND_LEVEL 25
 unsigned int default_second_level;
 
-#define DEFAULT_THIRD_LEVEL 30
+#define DEFAULT_THIRD_LEVEL 50
 unsigned int default_third_level;
 
 /* this comes from msm_rq_stats */
@@ -78,7 +78,7 @@ static void second_level_work_check(unsigned long temp_diff, unsigned long now)
 {
     unsigned int cpu = nr_cpu_ids;
     
-    if ((now - stats.time_stamp) >= temp_diff)
+    if (stats.online_cpus < 2 || (now - stats.time_stamp) >= temp_diff)
     {
         for_each_possible_cpu(cpu)
         {
