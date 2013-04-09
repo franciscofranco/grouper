@@ -697,17 +697,6 @@ static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 	unsigned int from, nr, arg;
 	int err = 0;
 
-	/*
-	 * The Nexus 7 ships with several emmc chips. The ext4 discard
-	 * mount option is required to prevent performance issues on
-	 * one chip, but hurts performance on others. However, if this
-	 * is a secure erase request, we want this to work on all chips,
-	 * as this is used in factory wipe. So this test will enable the
-	 * discard option for the one chip, and secure erase for all chips.
-	 */
-	if (!(req->cmd_flags & REQ_SECURE) && !(card->cid.manfid == 0x15))
-		goto out;
-
 	if (!mmc_can_erase(card)) {
 		err = -EOPNOTSUPP;
 		goto out;
