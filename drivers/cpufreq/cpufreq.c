@@ -610,7 +610,7 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 	i = cpu_clk_g->dvfs->num_freqs-5;
 	
 	if (i == 0) {
-		pr_info("[franciscofranco] %s - error fetching the number of entries so we break earlier.", __func__);
+		pr_info("%s - error fetching the number of entries so we break earlier.", __func__);
 		return 0;
 	}
 	
@@ -659,18 +659,9 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 
 static ssize_t show_gpu_oc(struct cpufreq_policy *policy, char *buf)
 {
-	char *c = buf;
 	struct clk *gpu = tegra_get_clock_by_name("3d");
-	unsigned int i = gpu->dvfs->num_freqs;
-	unsigned long gpu_freq = 0;
 	
-	if (i == 0)
-		return -EINVAL;
-	
-	for(i--; i >= 8; i--)
-		gpu_freq = gpu->dvfs->freqs[i]/1000000;
-	
-	return sprintf(c, "%lu\n", gpu_freq);
+	return sprintf(buf, "%lu\n", gpu->dvfs->freqs[7]/1000000);
 }
 
 static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size_t count)
@@ -694,7 +685,6 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	struct clk *pll_c = tegra_get_clock_by_name("pll_c");
 
 	unsigned int array_size = vde->dvfs->num_freqs;
-	char cur_size[array_size];
 	i = array_size;
 
 	if (i == 0) 
@@ -703,7 +693,7 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	ret = sscanf(buf, "%lu", &gpu_freq);
 
 	if (ret == 0)
-			return -EINVAL;
+        return -EINVAL;
 
 	new_gpu_freq = gpu_freq*1000000;
 
@@ -717,23 +707,25 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 	host1x->max_rate = DIV_ROUND_UP((new_gpu_freq),2);
 	cbus->max_rate = new_gpu_freq;
 	pll_c->max_rate = (new_gpu_freq*2);
-	pr_info("NEW PLL_C MAX_RATE: %lu\n", pll_c->max_rate);
+	pr_info("pll_c max_rate: %lu\n", pll_c->max_rate/1000000);
 
 	for (i--; i >= 5; i--) {
 		if (gpu_freq < 600) {
 			new_volt = 1250;
 			vde->dvfs->millivolts[i] = new_volt;
-			pr_info("NEW VOLTAGES < 600: %d\n", vde->dvfs->millivolts[i]);
+			pr_info("gpu_freq is < 600 set vde voltage to: %d\n",
+                    vde->dvfs->millivolts[i]);
 		}			
 		if (gpu_freq >= 600 && gpu_freq < 700) {
 			new_volt = 1400;
 			vde->dvfs->millivolts[i] = new_volt;
-			pr_info("NEW VOLTAGES >= 600: %d\n", vde->dvfs->millivolts[i]);
+			pr_info("gpu_freq is >= 600 and < 700 set vde voltage to: %d\n",
+                    vde->dvfs->millivolts[i]);
 		}
 		if (gpu_freq >= 700) {
 			new_volt = 1550;
 			vde->dvfs->millivolts[i] = new_volt;
-			pr_info("NEW VOLTAGES > 700: %d\n", vde->dvfs->millivolts[i]);
+			pr_info("gpu_freq is >= 700 set vde voltage to: %d\n", vde->dvfs->millivolts[i]);
 		}
 
 		vde->dvfs->freqs[i] = new_gpu_freq;
@@ -746,13 +738,6 @@ static ssize_t store_gpu_oc(struct cpufreq_policy *policy, const char *buf, size
 		cbus->dvfs->freqs[i] = new_gpu_freq;
 		pll_c->dvfs->freqs[i] = (new_gpu_freq*2);
 	}
-
-	ret = sscanf(buf, "%s", cur_size);
-
-	if (ret == 0)
-		return -EINVAL;
-
-	buf += (strlen(cur_size) + 1);
 
 	return count;
 }
