@@ -138,7 +138,6 @@ static int update_average_load(unsigned int freq, unsigned int cpu)
 	return 0;
 }
 
-extern unsigned int report_load_at_max_freq(void);
 unsigned int report_load_at_max_freq(void)
 {
 	int cpu;
@@ -168,7 +167,6 @@ static int cpufreq_transition_handler(struct notifier_block *nb,
             for_each_cpu(j, this_cpu->related_cpus) {
                 struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
                 mutex_lock(&pcpu->cpu_load_mutex);
-                update_average_load(freqs->old, freqs->cpu);
                 pcpu->cur_freq = freqs->new;
                 mutex_unlock(&pcpu->cpu_load_mutex);
             }
