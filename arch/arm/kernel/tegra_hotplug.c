@@ -13,23 +13,15 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/earlysuspend.h>
+#include <linux/rq_stats.h>
 
 /* threshold for comparing time diffs is 2 seconds */
 #define SEC_THRESHOLD 2000
-
 #define HISTORY_SIZE 10
-
 #define DEFAULT_FIRST_LEVEL 90
-unsigned int default_first_level;
-
 #define DEFAULT_SECOND_LEVEL 25
-unsigned int default_second_level;
-
 #define DEFAULT_THIRD_LEVEL 50
-unsigned int default_third_level;
-
-/* this comes from msm_rq_stats */
-unsigned int report_load_at_max_freq(void);
+#define DEFAULT_SUSPEND_FREQ 702000
 
 /*
  * TODO probably populate the struct with more relevant data
@@ -38,10 +30,12 @@ struct cpu_stats
 {
     /* variable to be accessed to filter spurious load spikes */
     unsigned long time_stamp;
-    
     unsigned int online_cpus;
-    
     unsigned int total_cpus;
+    unsigned int default_first_level;
+    unsigned int default_second_level;
+    unsigned int default_third_level;
+    unsigned int suspend_frequency;
 };
 
 static struct cpu_stats stats;
@@ -50,8 +44,8 @@ static struct workqueue_struct *wq;
 
 static struct delayed_work decide_hotplug;
 
-unsigned int load_history[HISTORY_SIZE];
-unsigned int counter;
+unsigned int load_history[HISTORY_SIZE] = {0};
+unsigned int counter = 0;
 
 static void first_level_work_check(unsigned long temp_diff, unsigned long now)
 {
@@ -108,15 +102,12 @@ static void third_level_work_check(unsigned long temp_diff, unsigned long now)
     
     if ((now - stats.time_stamp) >= temp_diff)
     {
-        for_each_possible_cpu(cpu)
+        for_each_online_cpu(cpu)
         {
             if (cpu)
             {
-                if (cpu_online(cpu))
-                {
-                    cpu_down(cpu);
-                    pr_info("Hotplug: cpu%d is down - low load\n", cpu);
-                }
+                cpu_down(cpu);
+                pr_info("Hotplug: cpu%d is down - low load\n", cpu);
             }
         }
         
@@ -127,19 +118,15 @@ static void third_level_work_check(unsigned long temp_diff, unsigned long now)
 static void decide_hotplug_func(struct work_struct *work)
 {
     unsigned long now;
-    unsigned int k, first_level, second_level, third_level;
-    static unsigned int load = 0;
+    unsigned int i, first_level, second_level, third_level, load = 0;
     
     /* start feeding the current load to the history array so that we can
      make a little average. Works good for filtering low and/or high load
      spikes */
-    if (counter++ == HISTORY_SIZE)
-        counter = 0;
+    load_history[counter++] = report_load_at_max_freq();
     
-    load_history[counter] = report_load_at_max_freq();
-    
-    for (k = 0; k < HISTORY_SIZE; k++)
-        load += load_history[k];
+    for (i = 0; i < HISTORY_SIZE; i++)
+        load += load_history[i];
     
     load = load/HISTORY_SIZE;
     /* finish load routines */
@@ -150,9 +137,20 @@ static void decide_hotplug_func(struct work_struct *work)
     stats.online_cpus = num_online_cpus();
     
     /* the load thresholds scale with the number of online cpus */
-    first_level = default_first_level * stats.online_cpus;
-    second_level = default_second_level * stats.online_cpus;
-    third_level = default_third_level * stats.online_cpus;
+    first_level = stats.default_first_level * stats.online_cpus;
+    second_level = stats.default_second_level * stats.online_cpus;
+    third_level = stats.default_third_level * stats.online_cpus;
+    
+    if (counter == HISTORY_SIZE)
+        counter = 0;
+    
+    /*
+     pr_info("LOAD: %d\n", load);
+     pr_info("FIRST: %d\n", first_level);
+     pr_info("SECOND: %d\n", second_level);
+     pr_info("THIRD: %d\n", third_level);
+     pr_info("COUNTER: %d\n", counter);
+     */
     
     if (load >= first_level)
     {
@@ -192,19 +190,16 @@ static void tegra_hotplug_early_suspend(struct early_suspend *handler)
     /* cancel the hotplug work when the screen is off and flush the WQ */
     flush_workqueue(wq);
     cancel_delayed_work_sync(&decide_hotplug);
-    pr_info("Early Suspend stopping Hotplug work...");
+    pr_info("Early Suspend stopping Hotplug work...\n");
     
     if (num_online_cpus() > 1)
     {
-        for_each_possible_cpu(cpu)
+        for_each_online_cpu(cpu)
         {
             if (cpu)
             {
-                if (cpu_online(cpu))
-                {
-                    cpu_down(cpu);
-                    pr_info("Early Suspend Hotplug: cpu%d is down\n", cpu);
-                }
+                cpu_down(cpu);
+                pr_info("Early Suspend Hotplug: cpu%d is down\n", cpu);
             }
         }
 	}
@@ -243,20 +238,35 @@ static struct early_suspend tegra_hotplug_suspend =
 	.resume = tegra_hotplug_late_resume,
 };
 
-/* these come from the sysfs driver that exports the thresholds to userspace */
+/* sysfs functions for external driver */
 void update_first_level(unsigned int level)
 {
-    default_first_level = level;
+    stats.default_first_level = level;
 }
 
 void update_second_level(unsigned int level)
 {
-    default_second_level = level;
+    stats.default_second_level = level;
 }
 
 void update_third_level(unsigned int level)
 {
-    default_third_level = level;
+    stats.default_third_level = level;
+}
+
+inline unsigned int get_first_level(void)
+{
+    return stats.default_first_level;
+}
+
+inline unsigned int get_second_level(void)
+{
+    return stats.default_second_level;
+}
+
+inline unsigned int get_third_level(void)
+{
+    return stats.default_third_level;
 }
 /* end sysfs functions from external driver */
 
@@ -268,9 +278,10 @@ int __init tegra_hotplug_init(void)
     stats.time_stamp = 0;
     stats.online_cpus = num_online_cpus();
     stats.total_cpus = num_present_cpus();
-    default_first_level = DEFAULT_FIRST_LEVEL;
-    default_second_level = DEFAULT_SECOND_LEVEL;
-    default_third_level = DEFAULT_THIRD_LEVEL;
+    stats.default_first_level = DEFAULT_FIRST_LEVEL;
+    stats.default_second_level = DEFAULT_SECOND_LEVEL;
+    stats.default_third_level = DEFAULT_THIRD_LEVEL;
+    stats.suspend_frequency = DEFAULT_SUSPEND_FREQ;
     
     wq = alloc_workqueue("tegra_hotplug_workqueue",
                          WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
