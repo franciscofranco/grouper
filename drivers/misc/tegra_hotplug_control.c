@@ -33,7 +33,7 @@ static ssize_t first_level_store(struct device *dev, struct device_attribute *at
 {
     unsigned int new_val;
     
-	sscanf(buf, "%u", &new_val);
+    sscanf(buf, "%u", &new_val);
     
     if (new_val != get_first_level() && new_val >= 0 && new_val <= 100)
     {
@@ -52,7 +52,7 @@ static ssize_t second_level_store(struct device *dev, struct device_attribute *a
 {
     unsigned int new_val;
     
-	sscanf(buf, "%u", &new_val);
+    sscanf(buf, "%u", &new_val);
     
     if (new_val != get_second_level() && new_val >= 0 && new_val <= 100)
     {
@@ -71,7 +71,7 @@ static ssize_t third_level_store(struct device *dev, struct device_attribute *at
 {
     unsigned int new_val;
     
-	sscanf(buf, "%u", &new_val);
+    sscanf(buf, "%u", &new_val);
     
     if (new_val != get_third_level() && new_val >= 0 && new_val <= 100)
     {
@@ -93,22 +93,22 @@ static DEVICE_ATTR(version, 0777 , tegra_hotplug_control_version, NULL);
 
 static struct attribute *tegra_hotplug_control_attributes[] =
 {
-	&dev_attr_first_level.attr,
+    &dev_attr_first_level.attr,
     &dev_attr_second_level.attr,
     &dev_attr_third_level.attr,
-	&dev_attr_version.attr,
-	NULL
+    &dev_attr_version.attr,
+    NULL
 };
 
 static struct attribute_group tegra_hotplug_control_group =
 {
-	.attrs  = tegra_hotplug_control_attributes,
+    .attrs  = tegra_hotplug_control_attributes,
 };
 
 static struct miscdevice tegra_hotplug_control_device =
 {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "tegra_hotplug_control",
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "tegra_hotplug_control",
 };
 
 static int __init tegra_hotplug_control_init(void)
@@ -121,15 +121,15 @@ static int __init tegra_hotplug_control_init(void)
     
     if (ret)
     {
-	    pr_err("%s misc_register(%s) fail\n", __FUNCTION__, tegra_hotplug_control_device.name);
-	    return 1;
-	}
+        pr_err("%s misc_register(%s) fail\n", __FUNCTION__, tegra_hotplug_control_device.name);
+        return 1;
+    }
     
     if (sysfs_create_group(&tegra_hotplug_control_device.this_device->kobj, &tegra_hotplug_control_group) < 0)
     {
-	    pr_err("%s sysfs_create_group fail\n", __FUNCTION__);
-	    pr_err("Failed to create sysfs group for device (%s)!\n", tegra_hotplug_control_device.name);
-	}
+        pr_err("%s sysfs_create_group fail\n", __FUNCTION__);
+        pr_err("Failed to create sysfs group for device (%s)!\n", tegra_hotplug_control_device.name);
+    }
     
     return 0;
 }
