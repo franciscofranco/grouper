@@ -4570,7 +4570,7 @@ static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
 #endif //if 0
 
 static struct cpufreq_frequency_table freq_table_1p3GHz[] = {
-	{ 0, 102000 },
+	{ 0, 204000 },
 	{ 1, 475000 },
 	{ 2, 760000 },
 	{ 3, 1000000 },
@@ -4681,7 +4681,7 @@ static int clip_cpu_rate_limits(
 		return ret;
 	}
 	//cpu_clk_lp->max_rate = freq_table[idx].frequency * 1000;
-	cpu_clk_g->min_rate = 102000;
+	cpu_clk_g->min_rate = 204000;
 	data->suspend_index = idx;
 	return 0;
 }
