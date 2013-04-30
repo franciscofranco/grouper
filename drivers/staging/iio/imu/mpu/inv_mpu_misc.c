@@ -56,8 +56,8 @@
 #define DMP_PRECISION                   1000
 #define DMP_MAX_DIVIDER                 4
 #define DMP_MAX_MIN_TAPS                4
-#define DMP_IMAGE_CRC_VALUE             0xb0338aac
-#define DMP_IMAGE_SIZE                  2976
+#define DMP_IMAGE_CRC_VALUE             0x665f5a73
+#define DMP_IMAGE_SIZE                  2913
 
 /*--- Test parameters defaults --- */
 #define DEF_OLDEST_SUPP_PROD_REV    8
@@ -1560,6 +1560,7 @@ static u16 inv_orientation_matrix_to_scaler(const signed char *mtx)
 	return scalar;
 }
 
+#if 0
 static int inv_disable_gyro_cal(struct inv_mpu_iio_s *st)
 {
 	const u8 regs[] = {
@@ -1569,6 +1570,7 @@ static int inv_disable_gyro_cal(struct inv_mpu_iio_s *st)
 	};
 	return mem_w_key(KEY_CFG_MOTION_BIAS, ARRAY_SIZE(regs), regs);
 }
+#endif
 
 static int inv_gyro_dmp_cal(struct inv_mpu_iio_s *st)
 {
@@ -1998,7 +2000,7 @@ ssize_t inv_dmp_firmware_write(struct file *fp, struct kobject *kobj,
 	result = inv_accel_dmp_cal(st);
 	if (result)
 		goto firmware_write_fail;
-	result = inv_disable_gyro_cal(st);
+	/* result = inv_disable_gyro_cal(st); */
 	if (result)
 		goto firmware_write_fail;
 

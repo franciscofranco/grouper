@@ -97,7 +97,8 @@
 #define KEY_CCS_HEADING_THLD        (KEY_COMPASS_CHG_SENSITIVITY + 1)
 #define KEY_CCS_TIME_THLD           (KEY_CCS_HEADING_THLD + 1)
 #define KEY_CCS_DOTP_THLD           (KEY_CCS_TIME_THLD + 1)
-#define KEY_CFG_NM_DET              (KEY_CCS_DOTP_THLD + 1)
+#define KEY_CCS_COMP_CNTR           (KEY_CCS_DOTP_THLD + 1)
+#define KEY_CFG_NM_DET              (KEY_CCS_COMP_CNTR + 1)
 #define KEY_SMD_ENABLE              (KEY_CFG_NM_DET + 1)
 #define KEY_SMD_ACCEL_THLD          (KEY_SMD_ENABLE + 1)
 #define KEY_SMD_DELAY_THLD          (KEY_SMD_ACCEL_THLD + 1)
@@ -107,7 +108,7 @@
 #define KEY_SMD_EXE_STATE           (KEY_SMD_ENABLE_TESTPT2 + 1)
 #define KEY_SMD_DELAY_CNTR          (KEY_SMD_EXE_STATE + 1)
 
-#define KEY_BREAK (80)
+#define KEY_BREAK (81)
 #if KEY_SMD_DELAY_CNTR != KEY_BREAK
 #error
 #endif
@@ -302,9 +303,11 @@
 #define KEY_D_PEDSTD_STEPCTR        (KEY_D_PEDSTD_TIMECTR + 1)
 #define KEY_D_PEDSTD_WALKTIME       (KEY_D_PEDSTD_STEPCTR + 1)
 #define KEY_D_PEDSTD_DECI           (KEY_D_PEDSTD_WALKTIME + 1)
+#define KEY_CFG_PED_INT             (KEY_D_PEDSTD_DECI + 1)
+#define KEY_CFG_PED_ENABLE          (KEY_CFG_PED_INT + 1)
 
 /*Host Based No Motion*/
-#define KEY_D_HOST_NO_MOT           (KEY_D_PEDSTD_DECI + 1)
+#define KEY_D_HOST_NO_MOT           (KEY_CFG_PED_ENABLE + 1)
 
 /*Host Based Accel Bias*/
 #define KEY_D_ACCEL_BIAS            (KEY_D_HOST_NO_MOT + 1)
@@ -333,7 +336,33 @@
 #define KEY_STREAM_P_FOOTER         (KEY_STREAM_P_ACCEL_X + 1)
 #define KEY_STREAM_P_ACCEL_Z        (KEY_STREAM_P_FOOTER + 1)
 
-#define NUM_KEYS                    (KEY_STREAM_P_ACCEL_Z + 1)
+/* Batch mode */
+#define KEY_BM_ENABLE               (KEY_STREAM_P_ACCEL_Z + 1)
+#define KEY_BM_BATCH_THLD           (KEY_BM_ENABLE + 1)
+#define KEY_BM_BATCH_CNTR           (KEY_BM_BATCH_THLD + 1)
+#define KEY_BM_NUMWORD_TOFILL       (KEY_BM_BATCH_CNTR + 1)
+
+/* Watermark */
+#define KEY_CFG_WATERMARK_H         (KEY_BM_NUMWORD_TOFILL + 1)
+#define KEY_CFG_WATERMARK_L         (KEY_CFG_WATERMARK_H + 1)
+
+/* FIFO output control */
+#define KEY_CFG_OUT_ACCL            (KEY_CFG_WATERMARK_L + 1)
+#define KEY_CFG_OUT_GYRO            (KEY_CFG_OUT_ACCL + 1)
+#define KEY_CFG_OUT_3QUAT           (KEY_CFG_OUT_GYRO + 1)
+#define KEY_CFG_OUT_6QUAT           (KEY_CFG_OUT_3QUAT + 1)
+#define KEY_CFG_OUT_PQUAT           (KEY_CFG_OUT_6QUAT + 1)
+#define KEY_CFG_FIFO_INT            (KEY_CFG_OUT_PQUAT + 1)
+/* Ped Step detection */
+#define KEY_CFG_PEDSTEP_DET         (KEY_CFG_FIFO_INT + 1)
+
+/* Screen Orientation data */
+#define KEY_SO_DATA                 (KEY_CFG_PEDSTEP_DET + 1)
+
+/* MPU for DMP Android K */
+#define KEY_P_HW_ID                 (KEY_SO_DATA + 1)
+
+#define NUM_KEYS                    (KEY_P_HW_ID + 1)
 
 struct tKeyLabel  {
 	unsigned short key;
