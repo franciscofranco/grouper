@@ -158,6 +158,7 @@ static int tegra30_dam_show(struct seq_file *s, void *unused)
 	struct tegra30_dam_context *dam = s->private;
 	int i;
 
+	tegra30_ahub_enable_clocks();
 	clk_enable(dam->dam_clk);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
@@ -166,6 +167,7 @@ static int tegra30_dam_show(struct seq_file *s, void *unused)
 	}
 
 	clk_disable(dam->dam_clk);
+	tegra30_ahub_disable_clocks();
 
 	return 0;
 }
