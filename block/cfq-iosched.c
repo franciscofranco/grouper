@@ -21,13 +21,13 @@
  */
 /* max queue in one round of service */
 static const int cfq_quantum = 4;
-static const int cfq_fifo_expire[2] = { 42, 11};
+static const int cfq_fifo_expire[2] = { 33, 8};
 /* maximum backwards seek, in KiB */
 static const int cfq_back_max = 12582912;
 /* penalty of a backwards seek */
 static const int cfq_back_penalty = 1;
-static const int cfq_slice_sync = 8;
-static int cfq_slice_async = 7;
+static const int cfq_slice_sync = 6;
+static int cfq_slice_async = 5;
 static const int cfq_slice_async_rq = 2;
 static int cfq_slice_idle = 0;
 static int cfq_group_idle = 0;
