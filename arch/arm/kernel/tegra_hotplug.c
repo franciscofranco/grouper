@@ -1,239 +1,153 @@
 /*
- *  Copyright (c) 2013, Francisco Franco <franciscofranco.1990@gmail.com>. 
- *  All rights reserved.
+ * Copyright (c) 2013, Francisco Franco <franciscofranco.1990@gmail.com>. 
  *
- *  Simple no bullshit hot[in]plug driver for SMP
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * Simple no bullshit hot[in]plug driver for SMP
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/earlysuspend.h>
 #include <linux/rq_stats.h>
+#include <linux/cpufreq.h>
+#include <linux/delay.h>
+#include <linux/hotplug.h>
 
-/* threshold for comparing time diffs is 2 seconds */
-#define SEC_THRESHOLD 2000
-#define HISTORY_SIZE 10
-#define DEFAULT_FIRST_LEVEL 80
-#define DEFAULT_SECOND_LEVEL 25
-#define DEFAULT_THIRD_LEVEL 50
+#define DEFAULT_FIRST_LEVEL 70
+#define DEFAULT_CORE_ONLINE_BOOST 1000000
+#define DEFAULT_CORES_ON_TOUCH 2
 
-/*
- * TODO probably populate the struct with more relevant data
- */
 struct cpu_stats
 {
-    /* variable to be accessed to filter spurious load spikes */
-    unsigned long time_stamp;
-    unsigned int online_cpus;
     unsigned int total_cpus;
     unsigned int default_first_level;
-    unsigned int default_second_level;
-    unsigned int default_third_level;
+    unsigned int suspend_frequency;
+    unsigned int cores_on_touch;
 };
 
 static struct cpu_stats stats;
-
 static struct workqueue_struct *wq;
-
 static struct delayed_work decide_hotplug;
 
-unsigned int load_history[HISTORY_SIZE] = {0};
-unsigned int counter = 0;
+int counter;
+int timer = HZ;
 
-static void first_level_work_check(unsigned long temp_diff, unsigned long now)
+
+static void scale_interactive_tunables(unsigned int above_hispeed_delay,
+    unsigned int timer_rate, 
+    unsigned int min_sample_time)
 {
-    unsigned int cpu = nr_cpu_ids;
-    
-    /* lets bail if all cores are online */
-    if (stats.online_cpus == stats.total_cpus)
-        return;
-
-    if ((now - stats.time_stamp) >= temp_diff)
-    {
-        for_each_possible_cpu(cpu)
-        {
-            if (cpu)
-            {
-                if (!cpu_online(cpu))
-                {
-                    cpu_up(cpu);
-                    pr_info("Hotplug: cpu%d is up - high load\n", cpu);
-                }
-            }
-        }
-
-        stats.time_stamp = now;
-    }
+    scale_above_hispeed_delay(above_hispeed_delay);
+    scale_timer_rate(timer_rate);
+    scale_min_sample_time(min_sample_time);
 }
 
-static void second_level_work_check(unsigned long temp_diff, unsigned long now)
-{
-    unsigned int cpu = nr_cpu_ids;
-    
-    /* lets bail if all cores are online */
-    if (stats.online_cpus == stats.total_cpus)
-        return;
-
-    if (stats.online_cpus < 2 || (now - stats.time_stamp) >= temp_diff)
-    {   
-        for_each_possible_cpu(cpu)
-        {
-            if (cpu)
-            {
-                if (!cpu_online(cpu))
-                {
-                    cpu_up(cpu);
-                    pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
-                    break;
-                }
-            }
-        }
-
-        stats.time_stamp = now;
-    }
-}
-
-static void third_level_work_check(unsigned long temp_diff, unsigned long now)
-{
-    unsigned int cpu = nr_cpu_ids;
-
-    /* lets bail if all cores are offline */
-    if (stats.online_cpus == 1)
-        return;
-
-    if ((now - stats.time_stamp) >= temp_diff)
-    {   
-        for_each_online_cpu(cpu)
-        {
-            if (cpu)
-            {
-                cpu_down(cpu);
-                pr_info("Hotplug: cpu%d is down - low load\n", cpu);
-            }
-        }
-
-        stats.time_stamp = now;
-    }
-}
 
 static void decide_hotplug_func(struct work_struct *work)
 {
-    unsigned long now;
-    unsigned int i, j, first_level, second_level, third_level, load = 0;
-    
-    /* start feeding the current load to the history array so that we can
-     make a little average. Works good for filtering low and/or high load
-     spikes */
-    load_history[counter] = report_load_at_max_freq();
-        
-    for (i = 0, j = counter; i < HISTORY_SIZE; i++, j--) {
-        load += load_history[j];
+    int cpu;
+    int cpu_boost;
 
-        if (j == 0)
-            j = HISTORY_SIZE;
+    if (report_load_at_max_freq() >= stats.default_first_level)
+    {
+        if (likely(counter) <= 50)    
+            counter++;
     }
-    
-    if (++counter == HISTORY_SIZE)
-        counter = 0;
 
-    load = load/HISTORY_SIZE;
-    /* finish load routines */
-        
-    /* time of this sampling time */
-    now = ktime_to_ms(ktime_get());
-    
-    stats.online_cpus = num_online_cpus();
-    
-    /* the load thresholds scale with the number of online cpus */
-    first_level = stats.default_first_level * stats.online_cpus;
-    second_level = stats.default_second_level * stats.online_cpus;
-    third_level = stats.default_third_level * stats.online_cpus;
-    
-    /*
-    pr_info("LOAD: %d\n", load);
-    pr_info("FIRST: %d\n", first_level);
-    pr_info("SECOND: %d\n", second_level);
-    pr_info("THIRD: %d\n", third_level);
-    pr_info("COUNTER: %d\n", counter); 
-    */
-    
-    if (load >= first_level)
+    else
     {
-        first_level_work_check(SEC_THRESHOLD, now);
-        queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));
-        return;
+        if (counter > 0)
+            counter--;
     }
-    
-    /* load is medium-high so online only one core at a time */
-    else if (load >= second_level)
+
+    if (is_touching)
     {
-        /* feed it 2 times the seconds threshold because when this is called
-           there is a check inside that onlines cpu1 bypassing the time_diff
-           but afterwards it takes at least 4 seconds as threshold before
-           onlining another cpu. This eliminates unneeded onlining when we are
-           for example swipping between home or app drawer and we only need
-           cpu0 and cpu1 online for that, cpufreq takes care of the rest */
-        
-        second_level_work_check(SEC_THRESHOLD*2, now);
-        queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));
-        return;
+        for_each_possible_cpu(cpu_boost)
+        {
+            if (!cpu_online(cpu_boost) && cpu_boost < stats.cores_on_touch) 
+            {
+                cpu_up(cpu_boost);
+            }
+        }
     }
-    
-    /* low load obliterate the cpus to death */
-    else if (load <= third_level && stats.online_cpus > 1)
+
+    if (counter >= 10) 
     {
-        third_level_work_check(SEC_THRESHOLD, now);
+        for_each_possible_cpu(cpu) 
+        {
+            if (cpu && !cpu_online(cpu)) 
+            {
+                cpu_up(cpu);
+            }
+        }
+        timer = 325;
+        scale_interactive_tunables(0, 10000, 80000);
     }
-    
-    queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));
+
+    else
+    {
+        if (num_online_cpus() > 1 && !is_touching)
+        {
+            for_each_online_cpu(cpu) 
+            {
+                if (cpu) 
+                {
+                    cpu_down(cpu);
+                }
+            }
+            timer = HZ;
+            scale_interactive_tunables(15000, 30000, 45000);
+        } 
+    }
+
+    queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(timer));
 }
 
 static void tegra_hotplug_early_suspend(struct early_suspend *handler)
-{
-    unsigned int cpu = nr_cpu_ids;
-     
+{    
+    int cpu;
+
     /* cancel the hotplug work when the screen is off and flush the WQ */
-    flush_workqueue(wq);
     cancel_delayed_work_sync(&decide_hotplug);
-    pr_info("Early Suspend stopping Hotplug work...");
+    flush_workqueue(wq);
+    pr_info("Early Suspend stopping Hotplug work...\n");
     
-    if (num_online_cpus() > 1)
+    for_each_online_cpu(cpu) 
     {
-        for_each_online_cpu(cpu)
+        if (cpu) 
         {
-            if (cpu)
-            {
-                cpu_down(cpu);
-                pr_info("Early Suspend Hotplug: cpu%d is down\n", cpu);
-            }
+            cpu_down(cpu);
         }
     }
 }
 
 static void tegra_hotplug_late_resume(struct early_suspend *handler)
 {  
-    unsigned int cpu = nr_cpu_ids;
-    
+    int cpu;
+
     /* online all cores when the screen goes online */
-    for_each_possible_cpu(cpu)
+    for_each_possible_cpu(cpu) 
     {
-        if (cpu)
+        if (cpu) 
         {
-            if (!cpu_online(cpu))
-            {
-                cpu_up(cpu);
-                pr_info("Late Resume Hotplug: cpu%d is up\n", cpu);
-            }
+            cpu_up(cpu);
         }
     }
 
-    stats.time_stamp = ktime_to_ms(ktime_get());
-
+    counter = 0;
+    
     pr_info("Late Resume starting Hotplug work...\n");
     queue_delayed_work_on(0, wq, &decide_hotplug, HZ);
 }
@@ -251,46 +165,43 @@ void update_first_level(unsigned int level)
     stats.default_first_level = level;
 }
 
-void update_second_level(unsigned int level)
+void update_suspend_frequency(unsigned int freq)
 {
-    stats.default_second_level = level;
+    stats.suspend_frequency = freq;
 }
 
-void update_third_level(unsigned int level)
+void update_cores_on_touch(unsigned int num)
 {
-    stats.default_third_level = level;
+    stats.cores_on_touch = num;
 }
 
-inline unsigned int get_first_level(void)
+unsigned int get_first_level()
 {
     return stats.default_first_level;
 }
 
-inline unsigned int get_second_level(void)
+unsigned int get_suspend_frequency()
 {
-    return stats.default_second_level;
+    return stats.suspend_frequency;
 }
 
-inline unsigned int get_third_level(void)
+unsigned int get_cores_on_touch()
 {
-    return stats.default_third_level;
+    return stats.cores_on_touch;
 }
 /* end sysfs functions from external driver */
 
 int __init tegra_hotplug_init(void)
 {
-    pr_info("Tegra Hotplug driver started.\n");
+    pr_info("Mako Hotplug driver started.\n");
     
     /* init everything here */
-    stats.time_stamp = 0;
-    stats.online_cpus = num_online_cpus();
     stats.total_cpus = num_present_cpus();
     stats.default_first_level = DEFAULT_FIRST_LEVEL;
-    stats.default_second_level = DEFAULT_SECOND_LEVEL;
-    stats.default_third_level = DEFAULT_THIRD_LEVEL;
-    
-    wq = alloc_workqueue("tegra_hotplug_workqueue",
-                         WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
+    stats.cores_on_touch = DEFAULT_CORES_ON_TOUCH;
+
+    wq = alloc_workqueue("tegra_hotplug_workqueue", 
+                    WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
     
     if (!wq)
         return -ENOMEM;

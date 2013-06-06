@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <asm/cputime.h>
+#include <linux/hotplug.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
@@ -99,7 +100,7 @@ static unsigned long above_hispeed_delay_val = DEFAULT_ABOVE_HISPEED_DELAY;
 /*
  * Boost pulse to hispeed on touchscreen input.
  */
-static int input_boost_val;
+static int input_boost_val = 1;
 
 struct cpufreq_interactive_inputopen {
 	struct input_handle *handle;
@@ -115,6 +116,16 @@ static int boost_val;
 static int boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
 /* End time of boost pulse in ktime converted to usecs */
 static u64 boostpulse_endtime;
+
+/* 
+ * dynamic tunables scaling flag linked to the 
+ * hotplug driver 
+ */ 
+static bool dynamic_scaling = true;
+
+/* extern vars */
+bool is_touching;
+unsigned long freq_boosted_time;
 
 /*
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
@@ -313,6 +324,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
 	cpu_load = loadadjfreq / pcpu->target_freq;
 	boosted = boost_val || now < boostpulse_endtime;
+
+	if (is_touching) 
+	{
+		if (ktime_to_us(ktime_get()) - freq_boosted_time >= 1000000)
+			is_touching = false;
+	}
 
 	if (cpu_load >= go_hispeed_load || boosted) {
 		if (pcpu->target_freq < hispeed_freq) {
@@ -680,6 +697,8 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 					    unsigned int code, int value)
 {
 	if (input_boost_val && type == EV_SYN && code == SYN_REPORT) {
+		is_touching = true;
+		freq_boosted_time = ktime_to_us(ktime_get());
 		trace_cpufreq_interactive_boost("input");
 		cpufreq_interactive_boost();
 	}
@@ -1006,6 +1025,25 @@ static struct attribute_group interactive_attr_group = {
 	.attrs = interactive_attributes,
 	.name = "interactive",
 };
+
+void scale_above_hispeed_delay(unsigned int new_above_hispeed_delay)
+{
+	if (dynamic_scaling && 
+		above_hispeed_delay_val != new_above_hispeed_delay)
+		above_hispeed_delay_val = new_above_hispeed_delay;
+}
+
+void scale_timer_rate(unsigned int new_timer_rate)
+{
+	if (dynamic_scaling && timer_rate != new_timer_rate)
+		timer_rate = new_timer_rate;
+}
+
+void scale_min_sample_time(unsigned int new_min_sample_time)
+{
+	if (dynamic_scaling && min_sample_time != new_min_sample_time)
+		min_sample_time = new_min_sample_time;
+}
 
 static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
 					     unsigned long val,

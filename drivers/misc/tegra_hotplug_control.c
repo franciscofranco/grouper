@@ -9,16 +9,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
+#include <linux/hotplug.h>
 
 #define TEGRA_HOTPLUG_CONTROL_VERSION 2
-
-int get_first_level(void);
-int get_second_level(void);
-int get_third_level(void);
-
-extern void update_first_level(unsigned int level);
-extern void update_second_level(unsigned int level);
-extern void update_third_level(unsigned int level);
 
 /*
  * Sysfs get/set entries
@@ -43,39 +36,39 @@ static ssize_t first_level_store(struct device *dev, struct device_attribute *at
     return size;
 }
 
-static ssize_t second_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t suspend_frequency_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", get_second_level());
+    return sprintf(buf, "%u\n", get_suspend_frequency());
 }
 
-static ssize_t second_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t suspend_frequency_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
     unsigned int new_val;
     
     sscanf(buf, "%u", &new_val);
     
-    if (new_val != get_second_level() && new_val >= 0 && new_val <= 100)
+    if (new_val != get_suspend_frequency() && new_val >= 0 && new_val <= 1512000)
     {
-        update_second_level(new_val);
+        update_suspend_frequency(new_val);
     }
     
     return size;
 }
 
-static ssize_t third_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t cores_on_touch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", get_third_level());
+    return sprintf(buf, "%u\n", get_cores_on_touch());
 }
 
-static ssize_t third_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t cores_on_touch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
     unsigned int new_val;
     
     sscanf(buf, "%u", &new_val);
     
-    if (new_val != get_third_level() && new_val >= 0 && new_val <= 100)
+    if (new_val != get_cores_on_touch() && new_val >= 0 && new_val <= 4)
     {
-        update_third_level(new_val);
+        update_cores_on_touch(new_val);
     }
     
     return size;
@@ -87,15 +80,15 @@ static ssize_t tegra_hotplug_control_version(struct device *dev, struct device_a
 }
 
 static DEVICE_ATTR(first_level, 0777, first_level_show, first_level_store);
-static DEVICE_ATTR(second_level, 0777, second_level_show, second_level_store);
-static DEVICE_ATTR(third_level, 0777, third_level_show, third_level_store);
+static DEVICE_ATTR(suspend_frequency, 0777, suspend_frequency_show, suspend_frequency_store);
+static DEVICE_ATTR(cores_on_touch, 0777, cores_on_touch_show, cores_on_touch_store);
 static DEVICE_ATTR(version, 0777 , tegra_hotplug_control_version, NULL);
 
 static struct attribute *tegra_hotplug_control_attributes[] =
 {
     &dev_attr_first_level.attr,
-    &dev_attr_second_level.attr,
-    &dev_attr_third_level.attr,
+    &dev_attr_suspend_frequency.attr,
+    &dev_attr_cores_on_touch.attr,
     &dev_attr_version.attr,
     NULL
 };

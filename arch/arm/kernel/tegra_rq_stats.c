@@ -140,18 +140,17 @@ static int update_average_load(unsigned int freq, unsigned int cpu)
 
 unsigned int report_load_at_max_freq(void)
 {
-	int cpu;
+	int cpu = 0;
 	struct cpu_load_data *pcpu;
 	unsigned int total_load = 0;
-    
-	for_each_online_cpu(cpu) {
-		pcpu = &per_cpu(cpuload, cpu);
-		mutex_lock(&pcpu->cpu_load_mutex);
-		update_average_load(pcpu->cur_freq, cpu);
-		total_load += pcpu->avg_load_maxfreq;
-		pcpu->avg_load_maxfreq = 0;
-		mutex_unlock(&pcpu->cpu_load_mutex);
-	}
+
+	pcpu = &per_cpu(cpuload, cpu);
+	mutex_lock(&pcpu->cpu_load_mutex);
+	update_average_load(pcpu->cur_freq, cpu);
+	total_load = pcpu->avg_load_maxfreq;
+	pcpu->avg_load_maxfreq = 0;
+	mutex_unlock(&pcpu->cpu_load_mutex);
+
 	return total_load;
 }
 
