@@ -35,6 +35,6 @@ extern bool get_dynamic_scaling(void);
 extern unsigned int get_hispeed_freq(void);
 
 extern bool is_touching;
-extern unsigned long freq_boosted_time;
+extern u64 freq_boosted_time;
 
 #endif

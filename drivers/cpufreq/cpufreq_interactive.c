@@ -125,7 +125,7 @@ static bool dynamic_scaling = true;
 
 /* extern vars */
 bool is_touching;
-unsigned long freq_boosted_time;
+u64 freq_boosted_time;
 
 /*
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
@@ -325,24 +325,17 @@ static void cpufreq_interactive_timer(unsigned long data)
 	cpu_load = loadadjfreq / pcpu->target_freq;
 	boosted = boost_val || now < boostpulse_endtime;
 
-	if (is_touching) 
+	if (is_touching && pcpu->policy->cpu == 0) 
 	{
-		if (ktime_to_us(ktime_get()) - freq_boosted_time >= 1000000)
+		if (ktime_to_ms(ktime_get()) - freq_boosted_time >= 1000)
 			is_touching = false;
+		return;
 	}
 
-	if (cpu_load >= go_hispeed_load || boosted) {
-		if (pcpu->target_freq < hispeed_freq) {
-			new_freq = hispeed_freq;
-		} else {
-			new_freq = choose_freq(pcpu, loadadjfreq);
-
-			if (new_freq < hispeed_freq)
-				new_freq = hispeed_freq;
-		}
-	} else {
-		new_freq = choose_freq(pcpu, loadadjfreq);
-	}
+	if (cpu_load >= 80)
+		new_freq = pcpu->policy->max;
+	else
+		new_freq = pcpu->policy->max * cpu_load / 100;
 
 	if (pcpu->target_freq >= hispeed_freq &&
 	    new_freq > pcpu->target_freq &&
@@ -698,7 +691,7 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 {
 	if (input_boost_val && type == EV_SYN && code == SYN_REPORT) {
 		is_touching = true;
-		freq_boosted_time = ktime_to_us(ktime_get());
+		freq_boosted_time = ktime_to_ms(ktime_get());
 		trace_cpufreq_interactive_boost("input");
 		cpufreq_interactive_boost();
 	}
