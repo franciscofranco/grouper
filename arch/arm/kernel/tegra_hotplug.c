@@ -25,8 +25,8 @@
 #include <linux/delay.h>
 #include <linux/hotplug.h>
 
-#define DEFAULT_FIRST_LEVEL 70
-#define DEFAULT_CORE_ONLINE_BOOST 1000000
+#define DEFAULT_FIRST_LEVEL 60
+#define DEFAULT_CORE_ONLINE_BOOST 760000
 #define DEFAULT_CORES_ON_TOUCH 2
 
 struct cpu_stats
@@ -62,7 +62,7 @@ static void decide_hotplug_func(struct work_struct *work)
 
     if (report_load_at_max_freq() >= stats.default_first_level)
     {
-        if (likely(counter) <= 50)    
+        if (likely(counter < 50))    
             counter++;
     }
 
@@ -72,7 +72,7 @@ static void decide_hotplug_func(struct work_struct *work)
             counter--;
     }
 
-    if (is_touching)
+    if (is_touching && num_online_cpus() < stats.cores_on_touch)
     {
         for_each_possible_cpu(cpu_boost)
         {
@@ -87,22 +87,22 @@ static void decide_hotplug_func(struct work_struct *work)
     {
         for_each_possible_cpu(cpu) 
         {
-            if (cpu && !cpu_online(cpu)) 
+            if (!cpu_online(cpu)) 
             {
                 cpu_up(cpu);
             }
         }
-        timer = 325;
+        timer = 250;
         scale_interactive_tunables(0, 10000, 80000);
     }
 
     else
     {
-        if (num_online_cpus() > 1 && !is_touching)
+        if (num_online_cpus() > 2 && !is_touching)
         {
             for_each_online_cpu(cpu) 
             {
-                if (cpu) 
+                if (cpu > 1) 
                 {
                     cpu_down(cpu);
                 }
@@ -112,7 +112,7 @@ static void decide_hotplug_func(struct work_struct *work)
         } 
     }
 
-    queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(timer));
+    queue_delayed_work(wq, &decide_hotplug, msecs_to_jiffies(timer));
 }
 
 static void tegra_hotplug_early_suspend(struct early_suspend *handler)
@@ -122,6 +122,7 @@ static void tegra_hotplug_early_suspend(struct early_suspend *handler)
     /* cancel the hotplug work when the screen is off and flush the WQ */
     cancel_delayed_work_sync(&decide_hotplug);
     flush_workqueue(wq);
+
     pr_info("Early Suspend stopping Hotplug work...\n");
     
     for_each_online_cpu(cpu) 
@@ -149,7 +150,7 @@ static void tegra_hotplug_late_resume(struct early_suspend *handler)
     counter = 0;
     
     pr_info("Late Resume starting Hotplug work...\n");
-    queue_delayed_work_on(0, wq, &decide_hotplug, HZ);
+    queue_delayed_work(wq, &decide_hotplug, HZ);
 }
 
 static struct early_suspend tegra_hotplug_suspend =
@@ -207,7 +208,7 @@ int __init tegra_hotplug_init(void)
         return -ENOMEM;
     
     INIT_DELAYED_WORK(&decide_hotplug, decide_hotplug_func);
-    queue_delayed_work_on(0, wq, &decide_hotplug, HZ*25);
+    queue_delayed_work(wq, &decide_hotplug, HZ*25);
     
     register_early_suspend(&tegra_hotplug_suspend);
     

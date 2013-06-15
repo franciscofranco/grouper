@@ -304,7 +304,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned int loadadjfreq;
 	unsigned int index;
 	unsigned long flags;
-	bool boosted;
 
 	if (!down_read_trylock(&pcpu->enable_sem))
 		return;
@@ -323,28 +322,11 @@ static void cpufreq_interactive_timer(unsigned long data)
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
 	cpu_load = loadadjfreq / pcpu->target_freq;
-	boosted = boost_val || now < boostpulse_endtime;
-
-	if (is_touching && pcpu->policy->cpu == 0) 
-	{
-		if (ktime_to_ms(ktime_get()) - freq_boosted_time >= 1000)
-			is_touching = false;
-		return;
-	}
 
 	if (cpu_load >= 80)
 		new_freq = pcpu->policy->max;
 	else
 		new_freq = pcpu->policy->max * cpu_load / 100;
-
-	if (pcpu->target_freq >= hispeed_freq &&
-	    new_freq > pcpu->target_freq &&
-	    now - pcpu->hispeed_validate_time < above_hispeed_delay_val) {
-		trace_cpufreq_interactive_notyet(
-			data, cpu_load, pcpu->target_freq,
-			pcpu->policy->cur, new_freq);
-		goto rearm;
-	}
 
 	pcpu->hispeed_validate_time = now;
 
@@ -357,6 +339,17 @@ static void cpufreq_interactive_timer(unsigned long data)
 	}
 
 	new_freq = pcpu->freq_table[index].frequency;
+
+	/* we want cpu0 to be the only core blocked for freq changes while
+	   we are touching the screen for UI interaction */
+	if (is_touching && pcpu->policy->cpu == 0) 
+	{
+		if (ktime_to_ms(ktime_get()) - freq_boosted_time >= 1000)
+			is_touching = false;
+
+		if (new_freq < hispeed_freq)
+			return;
+	}
 
 	/*
 	 * Do not scale below floor_freq unless we have been at or above the
@@ -379,7 +372,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 * (or the indefinite boost is turned off).
 	 */
 
-	if (!boosted || new_freq > hispeed_freq) {
+	if (new_freq > hispeed_freq) {
 		pcpu->floor_freq = new_freq;
 		pcpu->floor_validate_time = now;
 	}
