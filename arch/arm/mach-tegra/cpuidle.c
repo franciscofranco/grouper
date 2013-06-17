@@ -171,8 +171,8 @@ static int tegra_cpuidle_register_device(unsigned int cpu)
 	state = &dev->states[0];
 	snprintf(state->name, CPUIDLE_NAME_LEN, "LP3");
 	snprintf(state->desc, CPUIDLE_DESC_LEN, "CPU flow-controlled");
-	state->exit_latency = 10;
-	state->target_residency = 10;
+	state->exit_latency = 1;
+	state->target_residency = 5;
 	state->power_usage = 600;
 	state->flags = CPUIDLE_FLAG_TIME_VALID;
 	state->enter = tegra_idle_enter_lp3;
@@ -185,10 +185,8 @@ static int tegra_cpuidle_register_device(unsigned int cpu)
 	snprintf(state->desc, CPUIDLE_DESC_LEN, "CPU power-gate");
 	state->exit_latency = tegra_cpu_power_good_time();
 
-	state->target_residency = tegra_cpu_power_off_time() +
-		tegra_cpu_power_good_time();
-	if (state->target_residency < tegra_lp2_min_residency)
-		state->target_residency = tegra_lp2_min_residency;
+	state->target_residency = 500;
+    state->target_residency = tegra_lp2_min_residency;
 	state->power_usage = 0;
 	state->flags = CPUIDLE_FLAG_TIME_VALID;
 	state->enter = tegra_idle_enter_lp2;
