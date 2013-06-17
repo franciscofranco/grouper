@@ -898,19 +898,21 @@ EXPORT_SYMBOL(tegra_deep_sleep);
 
 static int tegra_suspend_prepare(void)
 {
-    pr_info("Current suspend state %s before entering deep sleep\n", lp_state[current_suspend_mode]);
-	if ((current_suspend_mode != TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
+	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(1);
-    pr_info("Entering suspend state %s\n", lp_state[current_suspend_mode]);
 	return 0;
 }
 
 static void tegra_suspend_finish(void)
 {
+	if (pdata && pdata->cpu_resume_boost) {
+		int ret = tegra_suspended_target(pdata->cpu_resume_boost);
+		pr_info("Tegra: resume CPU boost to %u KHz: %s (%d)\n",
+			pdata->cpu_resume_boost, ret ? "Failed" : "OK", ret);
+	}
+
 	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(0);
-    pr_info("Exiting suspend state %s\n", lp_state[current_suspend_mode]);
-    
 }
 
 static const struct platform_suspend_ops tegra_suspend_ops = {
