@@ -94,7 +94,7 @@ static unsigned long timer_rate = DEFAULT_TIMER_RATE;
 static unsigned long above_hispeed_delay_val = DEFAULT_ABOVE_HISPEED_DELAY;
 
 #define DEFAULT_UP_THRESHOLD 85
-static unsigned long up_threshold;
+static unsigned long up_threshold = DEFAULT_UP_THRESHOLD;
 
 /*
  * Boost pulse to hispeed on touchscreen input.
@@ -314,14 +314,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
 
-	pr_info("UPDATE FREQ: %d\n",choose_freq(pcpu, loadadjfreq));
-
 	cpu_load = loadadjfreq / pcpu->target_freq;
 
 	if (cpu_load >= up_threshold)
 		new_freq = pcpu->policy->max;
 	else
-		new_freq = pcpu->policy->max * cpu_load / 100;
+		new_freq = choose_freq(pcpu, loadadjfreq);
 
 	pcpu->hispeed_validate_time = now;
 
