@@ -67,10 +67,6 @@ static struct mutex gov_lock;
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static unsigned int hispeed_freq;
 
-/* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 99
-static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
-
 /* Target load.  Lower values result in higher CPU speeds. */
 #define DEFAULT_TARGET_LOAD 90
 static unsigned int default_target_loads[] = {DEFAULT_TARGET_LOAD};
@@ -97,6 +93,9 @@ static unsigned long timer_rate = DEFAULT_TIMER_RATE;
 #define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
 static unsigned long above_hispeed_delay_val = DEFAULT_ABOVE_HISPEED_DELAY;
 
+#define DEFAULT_UP_THRESHOLD 85
+static unsigned long up_threshold = DEFAULT_UP_THRESHOLD;
+
 /*
  * Boost pulse to hispeed on touchscreen input.
  */
@@ -109,13 +108,6 @@ struct cpufreq_interactive_inputopen {
 
 static struct cpufreq_interactive_inputopen inputopen;
 static struct workqueue_struct *inputopen_wq;
-
-/* Non-zero means indefinite speed boost active */
-static int boost_val;
-/* Duration of a boot pulse in usecs */
-static int boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
-/* End time of boost pulse in ktime converted to usecs */
-static u64 boostpulse_endtime;
 
 /* 
  * dynamic tunables scaling flag linked to the 
@@ -321,12 +313,15 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	do_div(cputime_speedadj, delta_time);
 	loadadjfreq = (unsigned int)cputime_speedadj * 100;
+
+	//pr_info("UPDATE FREQ: %d\n",choose_freq(pcpu, loadadjfreq));
+
 	cpu_load = loadadjfreq / pcpu->target_freq;
 
-	if (cpu_load >= 80)
+	if (cpu_load >= up_threshold)
 		new_freq = pcpu->policy->max;
 	else
-		new_freq = pcpu->policy->max * cpu_load / 100;
+		new_freq = choose_freq(pcpu, loadadjfreq);
 
 	pcpu->hispeed_validate_time = now;
 
@@ -787,14 +782,13 @@ static ssize_t store_hispeed_freq(struct kobject *kobj,
 static struct global_attr hispeed_freq_attr = __ATTR(hispeed_freq, 0644,
 		show_hispeed_freq, store_hispeed_freq);
 
-
-static ssize_t show_go_hispeed_load(struct kobject *kobj,
+static ssize_t show_up_threshold(struct kobject *kobj,
 				     struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lu\n", go_hispeed_load);
+	return sprintf(buf, "%lu\n", up_threshold);
 }
 
-static ssize_t store_go_hispeed_load(struct kobject *kobj,
+static ssize_t store_up_threshold(struct kobject *kobj,
 			struct attribute *attr, const char *buf, size_t count)
 {
 	int ret;
@@ -803,12 +797,12 @@ static ssize_t store_go_hispeed_load(struct kobject *kobj,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
-	go_hispeed_load = val;
+	up_threshold = val;
 	return count;
 }
 
-static struct global_attr go_hispeed_load_attr = __ATTR(go_hispeed_load, 0644,
-		show_go_hispeed_load, store_go_hispeed_load);
+static struct global_attr up_threshold_attr = __ATTR(up_threshold, 0644,
+		show_up_threshold, store_up_threshold);
 
 static ssize_t show_min_sample_time(struct kobject *kobj,
 				struct attribute *attr, char *buf)
@@ -920,90 +914,15 @@ static ssize_t store_input_boost(struct kobject *kobj, struct attribute *attr,
 
 define_one_global_rw(input_boost);
 
-static ssize_t show_boost(struct kobject *kobj, struct attribute *attr,
-			  char *buf)
-{
-	return sprintf(buf, "%d\n", boost_val);
-}
-
-static ssize_t store_boost(struct kobject *kobj, struct attribute *attr,
-			   const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	boost_val = val;
-
-	if (boost_val) {
-		trace_cpufreq_interactive_boost("on");
-		cpufreq_interactive_boost();
-	} else {
-		trace_cpufreq_interactive_unboost("off");
-	}
-
-	return count;
-}
-
-define_one_global_rw(boost);
-
-static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
-				const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	boostpulse_endtime = ktime_to_us(ktime_get()) + boostpulse_duration_val;
-	trace_cpufreq_interactive_boost("pulse");
-	cpufreq_interactive_boost();
-	return count;
-}
-
-static struct global_attr boostpulse =
-	__ATTR(boostpulse, 0200, NULL, store_boostpulse);
-
-static ssize_t show_boostpulse_duration(
-	struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", boostpulse_duration_val);
-}
-
-static ssize_t store_boostpulse_duration(
-	struct kobject *kobj, struct attribute *attr, const char *buf,
-	size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	boostpulse_duration_val = val;
-	return count;
-}
-
-define_one_global_rw(boostpulse_duration);
-
 static struct attribute *interactive_attributes[] = {
 	&target_loads_attr.attr,
 	&hispeed_freq_attr.attr,
-	&go_hispeed_load_attr.attr,
 	&above_hispeed_delay.attr,
 	&min_sample_time_attr.attr,
 	&timer_rate_attr.attr,
 	&timer_slack.attr,
 	&input_boost.attr,
-	&boost.attr,
-	&boostpulse.attr,
-	&boostpulse_duration.attr,
+	&up_threshold_attr.attr,
 	NULL,
 };
 
@@ -1197,7 +1116,7 @@ static int __init cpufreq_interactive_init(void)
 	sched_setscheduler_nocheck(speedchange_task, SCHED_FIFO, &param);
 	get_task_struct(speedchange_task);
 	
-	inputopen_wq = create_workqueue("cfinteractive");
+	inputopen_wq = alloc_workqueue("cfinteractive", WQ_UNBOUND, 1);
 
 	if (!inputopen_wq)
 		goto err_freetask;
