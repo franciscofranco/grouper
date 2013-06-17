@@ -627,6 +627,10 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	freq = freq_table[idx].frequency;
 
+	/* no need to proceed if the new freq is equal to cur */
+	if (freq == policy->cur)
+		goto _out;
+
 	target_cpu_speed[policy->cpu] = freq;
 	ret = tegra_cpu_set_speed_cap(&new_speed);
 _out:
