@@ -1102,7 +1102,7 @@ static struct tegra_suspend_platform_data cardhu_suspend_data = {
 	.core_off_timer = 0,
 	.corereq_high	= true,
 	.sysclkreq_high	= true,
-	.cpu_lp2_min_residency = 500,
+	.cpu_lp2_min_residency = 2000,
 	.board_suspend = cardhu_board_suspend,
 	.board_resume = cardhu_board_resume,
 };
