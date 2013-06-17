@@ -129,7 +129,7 @@ static int nct1008_get_temp(struct device *dev, long *pTemp)
 
 	/* Return max between Local and External Temp */
 	*pTemp = max(temp_local_milli, temp_ext_milli);
-	printk("%s: ret temp=%dC \n", __func__, MILLICELSIUS_TO_CELSIUS(*pTemp));
+	printk("%s: ret temp=%ldC \n", __func__, MILLICELSIUS_TO_CELSIUS(*pTemp));
 	return 0;
 error:
 	dev_err(&client->dev, "\n error in file=: %s %s() line=%d: "
@@ -771,7 +771,8 @@ error:
 
 static int __devinit nct1008_configure_irq(struct nct1008_data *data)
 {
-	data->workqueue = create_singlethread_workqueue("nct1008");
+	data->workqueue = alloc_workqueue("nct1008", 
+								WQ_UNBOUND | WQ_RESCUER, 1);
 
 	INIT_WORK(&data->work, nct1008_work_func);
 
