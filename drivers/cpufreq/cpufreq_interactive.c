@@ -277,7 +277,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 			is_touching = false;
 
 		if (new_freq < input_boost_freq)
-			return;
+			new_freq = input_boost_freq;
 	}
 
 	/*
