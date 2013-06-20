@@ -156,7 +156,10 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
   	if (wall)
     	*wall = jiffies_to_usecs(cur_wall_time);
 
-  return jiffies_to_usecs(idle_time);
+  	if (wall)
+    	*wall = jiffies_to_usecs(cur_wall_time);
+
+  	return jiffies_to_usecs(idle_time);
 }
 
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wall)
@@ -199,6 +202,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	smp_rmb();
 
 	if (!pcpu->governor_enabled)
+		return;
+
+	if (cpu_is_offline(data))
 		return;
 
 	/*
@@ -271,12 +277,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	/* we want cpu0 to be the only core blocked for freq changes while
 	   we are touching the screen for UI interaction */
-	if (is_touching && pcpu->policy->cpu == 0) 
+	if (is_touching && pcpu->policy->cpu < 2) 
 	{
 		if (ktime_to_ms(ktime_get()) - freq_boosted_time >= 1000)
 			is_touching = false;
 
-		if (new_freq < input_boost_freq)
+		if (new_freq < input_boost_freq || pcpu->policy->cur < input_boost_freq)
 			new_freq = input_boost_freq;
 	}
 
@@ -336,7 +342,7 @@ rearm:
 
 		pcpu->time_in_idle = get_cpu_idle_time(
 			data, &pcpu->idle_exit_time);
-		mod_timer(&pcpu->cpu_timer,
+		mod_timer_pinned(&pcpu->cpu_timer,
 			  jiffies + usecs_to_jiffies(timer_rate));
 	}
 
@@ -345,12 +351,18 @@ rearm:
 
 static void cpufreq_interactive_idle_start(void)
 {
+	int cpu = smp_processor_id();
 	struct cpufreq_interactive_cpuinfo *pcpu =
-		&per_cpu(cpuinfo, smp_processor_id());
+		&per_cpu(cpuinfo, cpu);
 	int pending;
 
 	if (!pcpu->governor_enabled)
 		return;
+
+	if (cpu_is_offline(cpu)) {
+		del_timer(&pcpu->cpu_timer);
+		return;
+	}
 
 	pcpu->idling = 1;
 	smp_wmb();
@@ -370,7 +382,7 @@ static void cpufreq_interactive_idle_start(void)
 			pcpu->time_in_idle = get_cpu_idle_time(
 				smp_processor_id(), &pcpu->idle_exit_time);
 			pcpu->timer_idlecancel = 0;
-			mod_timer(&pcpu->cpu_timer,
+			mod_timer_pinned(&pcpu->cpu_timer,
 				  jiffies + usecs_to_jiffies(timer_rate));
 		}
 #endif
@@ -421,7 +433,7 @@ static void cpufreq_interactive_idle_end(void)
 			get_cpu_idle_time(smp_processor_id(),
 					     &pcpu->idle_exit_time);
 		pcpu->timer_idlecancel = 0;
-		mod_timer(&pcpu->cpu_timer,
+		mod_timer_pinned(&pcpu->cpu_timer,
 			  jiffies + usecs_to_jiffies(timer_rate));
 	}
 
@@ -870,7 +882,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 				pcpu->target_set_time;
 			pcpu->governor_enabled = 1;
 			pcpu->idle_exit_time = pcpu->target_set_time;
-			mod_timer(&pcpu->cpu_timer,
+			mod_timer_pinned(&pcpu->cpu_timer,
 				jiffies + usecs_to_jiffies(timer_rate));
 			smp_wmb();
 		}
