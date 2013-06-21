@@ -156,9 +156,6 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
   	if (wall)
     	*wall = jiffies_to_usecs(cur_wall_time);
 
-  	if (wall)
-    	*wall = jiffies_to_usecs(cur_wall_time);
-
   	return jiffies_to_usecs(idle_time);
 }
 
