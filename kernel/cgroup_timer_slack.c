@@ -58,6 +58,19 @@ static void tslack_destroy(struct cgroup_subsys *tslack_cgroup,
 	kfree(cgroup_to_tslack(cgroup));
 }
 
+static int tslack_allow_attach(struct cgroup *cgrp, struct task_struct *tsk)
+{
+	const struct cred *cred = current_cred(), *tcred;
+
+	tcred = __task_cred(tsk);
+
+	if ((current != tsk) && !capable(CAP_SYS_NICE) &&
+			cred->euid != tcred->uid && cred->euid != tcred->suid)
+		return -EACCES;
+
+	return 0;
+}
+
 static u64 tslack_read_min(struct cgroup *cgroup, struct cftype *cft)
 {
 	return cgroup_to_tslack(cgroup)->min_slack_ns;
@@ -108,6 +121,7 @@ struct cgroup_subsys timer_slack_subsys = {
 	.subsys_id	= timer_slack_subsys_id,
 	.create		= tslack_create,
 	.destroy	= tslack_destroy,
+	.allow_attach	= tslack_allow_attach,
 	.populate	= tslack_populate,
 };
 
