@@ -67,7 +67,7 @@ obj-$(CONFIG_CPU_HAS_PMU)	+= pmu.o
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o
 obj-y				+= cpu_pm.o
 obj-y += tegra_hotplug.o
-obj-y += tegra_rq_stats.o
+obj-y += load_stats.o
 AFLAGS_iwmmxt.o			:= -Wa,-mcpu=iwmmxt
 
 ifneq ($(CONFIG_ARCH_EBSA110),y)

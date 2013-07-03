@@ -37,4 +37,6 @@ extern unsigned int get_hispeed_freq(void);
 extern bool is_touching;
 extern u64 freq_boosted_time;
 
+extern unsigned int report_load_at_max_freq(void);
+
 #endif
