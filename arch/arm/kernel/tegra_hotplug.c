@@ -10,7 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Simple no bullshit hot[in]plug driver for SMP
+ * Simple no bullshit hot[un]plug driver for SMP
  */
 
 #include <linux/kernel.h>
@@ -28,6 +28,7 @@
 #define DEFAULT_FIRST_LEVEL 60
 #define DEFAULT_CORE_ONLINE_BOOST 760000
 #define DEFAULT_CORES_ON_TOUCH 2
+#define HIGH_LOAD_COUNTER 20
 
 struct cpu_stats
 {
@@ -42,7 +43,6 @@ static struct workqueue_struct *wq;
 static struct delayed_work decide_hotplug;
 
 int counter;
-int timer = HZ;
 
 
 static void scale_interactive_tunables(unsigned int above_hispeed_delay,
@@ -62,8 +62,8 @@ static void decide_hotplug_func(struct work_struct *work)
 
     if (report_load_at_max_freq() >= stats.default_first_level)
     {
-        if (likely(counter < 50))    
-            counter++;
+        if (likely(counter < HIGH_LOAD_COUNTER))
+            counter += 2;
     }
 
     else
@@ -72,7 +72,7 @@ static void decide_hotplug_func(struct work_struct *work)
             counter--;
     }
 
-    if (is_touching && num_online_cpus() < stats.cores_on_touch)
+    if (unlikely(is_touching && num_online_cpus() < stats.cores_on_touch))
     {
         for_each_possible_cpu(cpu_boost)
         {
@@ -92,7 +92,6 @@ static void decide_hotplug_func(struct work_struct *work)
                 cpu_up(cpu);
             }
         }
-        timer = 250;
         scale_interactive_tunables(0, 10000, 80000);
     }
 
@@ -107,12 +106,11 @@ static void decide_hotplug_func(struct work_struct *work)
                     cpu_down(cpu);
                 }
             }
-            timer = HZ;
             scale_interactive_tunables(15000, 30000, 45000);
         } 
     }
 
-    queue_delayed_work(wq, &decide_hotplug, msecs_to_jiffies(timer));
+    queue_delayed_work(wq, &decide_hotplug, msecs_to_jiffies(HZ));
 }
 
 static void tegra_hotplug_early_suspend(struct early_suspend *handler)
