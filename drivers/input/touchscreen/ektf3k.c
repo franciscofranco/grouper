@@ -27,6 +27,7 @@
 #include <linux/jiffies.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/syscalls.h>
 
 // for linux 2.6.36.3
 #include <linux/cdev.h>
@@ -939,6 +940,45 @@ static void elan_ktf3k_ts_report_data(struct i2c_client *client, uint8_t *buf)
 	return;
 }
 
+#define BOOSTPULSE "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
+
+static struct boost_flo {
+	int boostpulse_fd;
+} boost = {
+	.boostpulse_fd = -1,
+};
+
+static inline int boostpulse_open(void)
+{
+	if (boost.boostpulse_fd < 0)
+	{
+		boost.boostpulse_fd = sys_open(BOOSTPULSE, O_WRONLY, 0);
+                
+		if (boost.boostpulse_fd < 0)
+		{
+			pr_info("Error opening %s\n", BOOSTPULSE);
+			return -1;                
+		}
+	}
+
+	return boost.boostpulse_fd;
+}
+
+inline void touchboost(void)
+{
+	int len;
+
+	if (boostpulse_open() >= 0)
+	{
+		len = sys_write(boost.boostpulse_fd, "1", sizeof(BOOSTPULSE));
+                        
+		if (len < 0)
+		{
+			pr_info("Error writing to %s\n", BOOSTPULSE);                        
+		}
+	}
+}
+
 static void elan_ktf3k_ts_report_data2(struct i2c_client *client, uint8_t *buf)
 {
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
@@ -1031,6 +1071,8 @@ static void elan_ktf3k_ts_work_func(struct work_struct *work)
 	uint8_t buf[NEW_PACKET_SIZE + 4] = { 0 };
 	uint8_t buf1[NEW_PACKET_SIZE] = { 0 };
 	uint8_t buf2[NEW_PACKET_SIZE] = { 0 };
+
+	touchboost();
 
 	if(work_lock!=0) {
 		touch_debug(DEBUG_INFO, "Firmware update during touch event handling");
