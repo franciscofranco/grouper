@@ -103,7 +103,8 @@ static struct board_info pmu_board_info;
 static struct board_info display_board_info;
 static struct board_info camera_board_info;
 
-static int pmu_core_edp = 1200;	/* default 1.2V EDP limit */
+/* default EDP limit is 1.2V */
+static int pmu_core_edp = 1600;	/* default 1.6V EDP limit */
 static int board_panel_type;
 static enum power_supply_type pow_supply_type = POWER_SUPPLY_TYPE_MAINS;
 

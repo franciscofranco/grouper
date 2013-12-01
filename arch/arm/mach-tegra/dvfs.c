@@ -336,11 +336,14 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 	if (freqs == NULL || d->millivolts == NULL)
 		return -ENODEV;
 
+/* disabled for the GPU custom clocks interface */
+#if 0
 	if (rate > freqs[d->num_freqs - 1]) {
 		pr_warn("tegra_dvfs: rate %lu too high for dvfs on %s\n", rate,
 			d->clk_name);
 		return -EINVAL;
 	}
+#endif
 
 	if (rate == 0) {
 		d->cur_millivolts = 0;
@@ -348,12 +351,16 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 		while (i < d->num_freqs && rate > freqs[i])
 			i++;
 
+/* disabled for the GPU custom clocks interface */
+#if 0
 		if ((d->max_millivolts) &&
 		    (d->millivolts[i] > d->max_millivolts)) {
 			pr_warn("tegra_dvfs: voltage %d too high for dvfs on"
 				" %s\n", d->millivolts[i], d->clk_name);
 			return -EINVAL;
 		}
+#endif
+
 		d->cur_millivolts = d->millivolts[i];
 	}
 

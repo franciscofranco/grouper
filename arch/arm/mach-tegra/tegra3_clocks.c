@@ -2946,11 +2946,15 @@ static noinline int shared_bus_set_rate(struct clk *bus, unsigned long rate,
 
 	mv = tegra_dvfs_predict_millivolts(bus, rate);
 	old_mv = tegra_dvfs_predict_millivolts(bus, old_rate);
+
+/* disabled for the GPU custom clocks interface */
+#if 0
 	if (IS_ERR_VALUE(mv) || IS_ERR_VALUE(old_mv)) {
 		pr_err("%s: Failed to predict %s voltage for %lu => %lu\n",
 		       __func__, bus->name, old_rate, rate);
 		return -EINVAL;
 	}
+#endif
 
 	/* emc bus: set bridge rate as intermediate step when crossing
 	 * bridge threshold in any direction
@@ -3196,6 +3200,18 @@ static struct clk tegra_pll_ref = {
 };
 
 static struct clk_pll_freq_table tegra_pll_c_freq_table[] = {
+	{ 12000000, 1500000000, 750,  6, 1, 8},
+	{ 13000000, 1500000000, 750, 13, 2, 8},
+	{ 16800000, 1500000000, 625,  7, 1, 8},
+	{ 19200000, 1500000000, 625,  8, 1, 8},
+	{ 26000000, 1500000000, 750, 13, 1, 8},
+
+	{ 12000000, 1332000000, 666,  6, 1, 8},
+	{ 13000000, 1332000000, 666, 13, 2, 8},    /* actual: 1199.9 MHz */
+	{ 16800000, 1332000000, 555,  7, 1, 8},
+	{ 19200000, 1332000000, 555,  8, 1, 8},
+	{ 26000000, 1332000000, 666, 13, 1, 8},
+
 	{ 12000000, 1200000000, 600,  6, 1, 8},
 	{ 13000000, 1200000000, 923, 10, 1, 8},		/* actual: 1199.9 MHz */
 	{ 16800000, 1200000000, 500,  7, 1, 8},
@@ -3246,7 +3262,7 @@ static struct clk tegra_pll_c = {
 	.ops       = &tegra_pll_ops,
 	.reg       = 0x80,
 	.parent    = &tegra_pll_ref,
-	.max_rate  = 1400000000,
+	.max_rate  = 1600000000,
 	.u.pll = {
 		.input_min = 2000000,
 		.input_max = 31000000,
@@ -3266,7 +3282,7 @@ static struct clk tegra_pll_c_out1 = {
 	.parent    = &tegra_pll_c,
 	.reg       = 0x84,
 	.reg_shift = 0,
-	.max_rate  = 700000000,
+	.max_rate  = 800000000,
 };
 
 static struct clk_pll_freq_table tegra_pll_m_freq_table[] = {
