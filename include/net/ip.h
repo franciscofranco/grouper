@@ -165,6 +165,7 @@ struct ip_reply_arg {
 	int	    csumoffset; /* u16 offset of csum in iov[0].iov_base */
 				/* -1 if not needed */ 
 	int	    bound_dev_if;
+	uid_t	    uid;
 }; 
 
 #define IP_REPLY_ARG_NOSRCCHECK 1
