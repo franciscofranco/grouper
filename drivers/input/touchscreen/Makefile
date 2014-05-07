@@ -65,3 +65,4 @@ obj-$(CONFIG_TOUCHSCREEN_ELAN_TF_3K)	+= ektf3k.o
 obj-$(CONFIG_TOUCHSCREEN_TPS6507X)	+= tps6507x-ts.o
 obj-$(CONFIG_TOUCHSCREEN_RM31080A)	+= rm31080a_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYN_RMI4_SPI)  += rmi4/
+obj-y += touchboost.o
