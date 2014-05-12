@@ -74,7 +74,7 @@ static unsigned int hispeed_freq = 800000;
 static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 
 /* Sampling down factor to be applied to min_sample_time at max freq */
-#define DEFAULT_SAMPLING_DOWN_FACTOR 120000
+#define DEFAULT_SAMPLING_DOWN_FACTOR 100000
 static unsigned int sampling_down_factor = DEFAULT_SAMPLING_DOWN_FACTOR;
 
 /* Target load.  Lower values result in higher CPU speeds. */
@@ -120,7 +120,7 @@ bool boosted;
  * Max additional time to wait in idle, beyond timer_rate, at speeds above
  * minimum before wakeup to reduce speed, or -1 if unnecessary.
  */
-#define DEFAULT_TIMER_SLACK (70000)
+#define DEFAULT_TIMER_SLACK (30000)
 static int timer_slack_val = DEFAULT_TIMER_SLACK;
 
 static bool io_is_busy = true;
@@ -129,11 +129,11 @@ static bool io_is_busy = true;
  * The CPU will be boosted to this frequency when the screen is
  * touched. input_boost needs to be enabled.
  */
-#define DEFAULT_INPUT_BOOST_FREQ 1242000
+#define DEFAULT_INPUT_BOOST_FREQ 1300000
 int input_boost_freq = DEFAULT_INPUT_BOOST_FREQ;
 extern u64 last_input_time;
 
-#define CPU_SYNC_FREQ 918000
+#define CPU_SYNC_FREQ 800000
 
 /*
  * If the max load among other CPUs is higher than up_threshold_any_cpu_load
@@ -142,9 +142,9 @@ extern u64 last_input_time;
  * sync_freq
  */
 
-static unsigned int up_threshold_any_cpu_load = 50;
+static unsigned int up_threshold_any_cpu_load = 65;
 static unsigned int sync_freq = CPU_SYNC_FREQ;
-static unsigned int up_threshold_any_cpu_freq = 1458000;
+static unsigned int up_threshold_any_cpu_freq = 900000;
 
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
@@ -958,13 +958,13 @@ static ssize_t store_input_boost_freq(struct kobject *kobj, struct attribute *at
 {
 	int ret;
 	unsigned long val;
-    
+
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
-    
+
 	input_boost_freq = val;
-    
+
 	return count;
 }
 
