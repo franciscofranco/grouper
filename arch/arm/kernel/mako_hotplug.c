@@ -224,10 +224,13 @@ static void mako_hotplug_suspend(struct work_struct *work)
 
 static void __ref mako_hotplug_resume(struct work_struct *work)
 {
-	int cpu = 1;
+	int cpu;
 
-	if (cpu_is_offline(cpu))
-		cpu_up(cpu);
+	for_each_possible_cpu(cpu)
+	{
+		if (cpu_is_offline(cpu))
+			cpu_up(cpu);
+	}
 
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
 }
