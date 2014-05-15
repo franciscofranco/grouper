@@ -196,7 +196,7 @@ reschedule:
 		msecs_to_jiffies(t->timer * HZ));
 }
 
-static void mako_hotplug_suspend(struct work_struct *work)
+static void mako_hotplug_early_suspend(struct early_suspend *handler)
 {
 	int cpu;
 
@@ -214,7 +214,7 @@ static void mako_hotplug_suspend(struct work_struct *work)
 	pr_info("%s: suspend\n", MAKO_HOTPLUG);
 }
 
-static void __ref mako_hotplug_resume(struct work_struct *work)
+static void mako_hotplug_late_resume(struct early_suspend *handler)
 {
 	int cpu;
 
@@ -225,16 +225,6 @@ static void __ref mako_hotplug_resume(struct work_struct *work)
 	}
 
 	pr_info("%s: resume\n", MAKO_HOTPLUG);
-}
-
-static void mako_hotplug_early_suspend(struct early_suspend *handler)
-{
-	schedule_work(&suspend);
-}
-
-static void mako_hotplug_late_resume(struct early_suspend *handler)
-{
-	schedule_work(&resume);
 }
 
 static struct early_suspend early_suspend =
