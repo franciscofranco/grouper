@@ -1854,6 +1854,9 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 				error = PR_MCE_KILL_DEFAULT;
 			break;
 		case PR_SET_TIMERSLACK_PID:
+			if (current->pid != (pid_t)arg3 &&
+					!capable(CAP_SYS_NICE))
+				return -EPERM;
 			rcu_read_lock();
 			tsk = find_task_by_pid_ns((pid_t)arg3, &init_pid_ns);
 			if (tsk == NULL) {
