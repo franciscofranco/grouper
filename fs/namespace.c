@@ -1265,7 +1265,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	LIST_HEAD(umount_list);
 
 	retval = security_sb_umount(mnt, flags);
-	pr_err("DEBUG(jpa):%s(): security unmount %d\n", __func__, retval);
 	if (retval)
 		return retval;
 
@@ -1276,7 +1275,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 *  (2) the usage count == 1 [parent vfsmount] + 1 [sys_umount]
 	 */
 	if (flags & MNT_EXPIRE) {
-		int mnt_count;
 		if (mnt == current->fs->root.mnt ||
 		    flags & (MNT_FORCE | MNT_DETACH))
 			return -EINVAL;
@@ -1286,9 +1284,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		 * all race cases, but it's a slowpath.
 		 */
 		br_write_lock(vfsmount_lock);
-		mnt_count = mnt_get_count(mnt);
-		pr_err("DEBUG(jpa):%s(): mnt_get_count() %d\n", __func__, mnt_count);
-		if (mnt_count != 2) {
+		if (mnt_get_count(mnt) != 2) {
 			br_write_unlock(vfsmount_lock);
 			return -EBUSY;
 		}
@@ -1327,10 +1323,8 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		 * we just try to remount it readonly.
 		 */
 		down_write(&sb->s_umount);
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!(sb->s_flags & MS_RDONLY))
 			retval = do_remount_sb(sb, MS_RDONLY, NULL, 0);
-			pr_err("DEBUG(jpa):%s(): do_remount_sb() %d\n", __func__, retval);
-		}
 		up_write(&sb->s_umount);
 		return retval;
 	}
@@ -1342,7 +1336,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	if (!(flags & MNT_DETACH))
 		shrink_submounts(mnt, &umount_list);
 
-	pr_err("DEBUG(jpa):%s(): pre EBUSY (16)\n", __func__, retval);
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
 		if (!list_empty(&mnt->mnt_list))
@@ -1352,7 +1345,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	br_write_unlock(vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
-	pr_err("DEBUG(jpa):%s(): ret %d\n", __func__, retval);
 	return retval;
 }
 
