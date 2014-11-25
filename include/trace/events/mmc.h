@@ -83,7 +83,9 @@ DEFINE_EVENT_CONDITION(mmc_blk_rw_class, mmc_blk_rw_end,
 	TP_PROTO(unsigned int cmd, unsigned int addr, struct mmc_data *data),
 	TP_ARGS(cmd, addr, data),
 	TP_CONDITION(((cmd == MMC_READ_MULTIPLE_BLOCK) ||
-		      (cmd == MMC_WRITE_MULTIPLE_BLOCK)) &&
+		      (cmd == MMC_WRITE_MULTIPLE_BLOCK) ||
+                      (cmd == MMC_READ_SINGLE_BLOCK) ||
+                      (cmd == MMC_WRITE_BLOCK)) &&
 		      data));
 #endif /* _TRACE_MMC_H */
 
