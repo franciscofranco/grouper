@@ -16,6 +16,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/crc32.h>
+#include <linux/llist.h>
 #include <linux/magic.h>
 #include <linux/kobject.h>
 #include <linux/sched.h>
