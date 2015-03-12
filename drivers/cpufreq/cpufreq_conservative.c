@@ -30,7 +30,7 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(98)
+#define DEF_FREQUENCY_UP_THRESHOLD		(85)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(30)
 
 /*
@@ -53,8 +53,8 @@ static unsigned int min_sampling_rate;
 #define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE	(10000)
-#define BOOST_DURATION_US			(500000)
-#define BOOST_FREQ_VAL				(1000000)
+#define BOOST_DURATION_US			(40000)
+#define BOOST_FREQ_VAL				(1300000)
 
 static void do_dbs_timer(struct work_struct *work);
 
@@ -384,10 +384,13 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (unlikely(freq_target == 0))
 			freq_target = 5;
 
-		if (boosted && policy->cur < BOOST_FREQ_VAL)
-			this_dbs_info->requested_freq = BOOST_FREQ_VAL;
-		else
-			this_dbs_info->requested_freq += freq_target;
+		this_dbs_info->requested_freq += freq_target;
+
+		if (boosted)
+			this_dbs_info->requested_freq
+				= max(BOOST_FREQ_VAL,
+					this_dbs_info->requested_freq);
+
 		if (this_dbs_info->requested_freq > policy->max)
 			this_dbs_info->requested_freq = policy->max;
 
@@ -402,9 +405,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
 	if (max_load < (dbs_tuners_ins.down_threshold)) {
-		if (boosted && policy->cur <= BOOST_FREQ_VAL)
-			return;
-
 		freq_target = (dbs_tuners_ins.freq_step * policy->max) / 100;
 
 		this_dbs_info->requested_freq -= freq_target;
@@ -416,6 +416,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		 */
 		if (policy->cur == policy->min)
 			return;
+
+		if (boosted)
+			this_dbs_info->requested_freq
+				= max(BOOST_FREQ_VAL,
+					this_dbs_info->requested_freq);
 
 		__cpufreq_driver_target(policy, this_dbs_info->requested_freq,
 				CPUFREQ_RELATION_H);
